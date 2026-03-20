@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Documentos salvos{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Documentos enviados</h2>
+
+    {% if documentos %}
+        <table class="tabela">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Arquivo original</th>
+                    <th>Tipo</th>
+                    <th>Data</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for documento in documentos %}
+                <tr>
+                    <td>{{ documento.id }}</td>
+                    <td>{{ documento.original_filename }}</td>
+                    <td>{{ documento.file_type }}</td>
+                    <td>{{ documento.created_at.strftime("%d/%m/%Y %H:%M") if documento.created_at else "-" }}</td>
+                    <td>
+                        <a href="/documents/{{ documento.id }}">Visualizar</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Nenhum documento foi enviado ainda.</p>
+    {% endif %}
+
+    <a class="botao" href="/documents/upload">Novo upload</a>
+</section>
+{% endblock %}

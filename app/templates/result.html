@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Resultado{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Documento processado</h2>
+
+    <p><strong>ID no banco:</strong> {{ document_id }}</p>
+    <p><strong>Arquivo original:</strong> {{ filename }}</p>
+    <p><strong>Caminho salvo:</strong> {{ file_path }}</p>
+
+    <h3>Texto extraído</h3>
+    <div class="resultado-texto">
+        <pre>{{ extracted_text }}</pre>
+    </div>
+
+    <a class="botao" href="/documents/upload">Enviar outro arquivo</a>
+    <a class="botao" href="/documents">Ver documentos salvos</a>
+</section>
+{% endblock %}

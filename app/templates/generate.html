@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Nova geração{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Gerar minuta jurídica</h2>
+    <p>Preencha os dados abaixo para montar uma minuta inicial com base nos documentos salvos.</p>
+
+    {% if error_message %}
+        <div class="erro">{{ error_message }}</div>
+    {% endif %}
+
+    <form action="/generations/create" method="post">
+        <label for="client_name">Nome do cliente</label>
+        <input type="text" id="client_name" name="client_name" required>
+
+        <label for="document_type">Tipo de peça</label>
+        <input type="text" id="document_type" name="document_type" placeholder="Ex.: Petição inicial, contestação, recurso" required>
+
+        <label for="case_subject">Tema do caso</label>
+        <input type="text" id="case_subject" name="case_subject" placeholder="Ex.: Rescisão contratual, indenização, obrigação de fazer" required>
+
+        <label for="facts">Fatos</label>
+        <textarea id="facts" name="facts" rows="8" required></textarea>
+
+        <label for="requests">Pedidos</label>
+        <textarea id="requests" name="requests" rows="6" required></textarea>
+
+        <label for="legal_basis">Fundamentação jurídica desejada (opcional)</label>
+        <textarea id="legal_basis" name="legal_basis" rows="6"></textarea>
+
+        <button class="botao" type="submit">Gerar minuta</button>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Detalhes da geração{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Detalhes da geração</h2>
+
+    <p><strong>ID:</strong> {{ geracao.id }}</p>
+    <p><strong>Cliente:</strong> {{ geracao.client_name }}</p>
+    <p><strong>Tipo de peça:</strong> {{ geracao.document_type }}</p>
+    <p><strong>Tema:</strong> {{ geracao.case_subject }}</p>
+    <p><strong>Data:</strong> {{ geracao.created_at.strftime("%d/%m/%Y %H:%M") if geracao.created_at else "-" }}</p>
+
+    <h3>Fatos</h3>
+    <div class="resultado-texto">
+        <pre>{{ geracao.facts }}</pre>
+    </div>
+
+    <h3>Pedidos</h3>
+    <div class="resultado-texto">
+        <pre>{{ geracao.requests }}</pre>
+    </div>
+
+    <h3>Fundamentação jurídica informada</h3>
+    <div class="resultado-texto">
+        <pre>{{ geracao.legal_basis or "Não informada." }}</pre>
+    </div>
+
+    <h3>Contexto utilizado</h3>
+    <div class="resultado-texto">
+        <pre>{{ geracao.context_used }}</pre>
+    </div>
+
+    <h3>Texto gerado</h3>
+    <div class="resultado-texto">
+        <pre>{{ geracao.generated_text }}</pre>
+    </div>
+
+    <a class="botao" href="/generations">Voltar para lista</a>
+</section>
+{% endblock %}

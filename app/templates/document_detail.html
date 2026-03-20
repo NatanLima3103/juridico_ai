@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Detalhes do documento{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Detalhes do documento</h2>
+
+    <p><strong>ID:</strong> {{ documento.id }}</p>
+    <p><strong>Nome original:</strong> {{ documento.original_filename }}</p>
+    <p><strong>Nome salvo:</strong> {{ documento.saved_filename }}</p>
+    <p><strong>Tipo:</strong> {{ documento.file_type }}</p>
+    <p><strong>Caminho:</strong> {{ documento.file_path }}</p>
+    <p><strong>Data de criação:</strong> {{ documento.created_at.strftime("%d/%m/%Y %H:%M") if documento.created_at else "-" }}</p>
+
+    <h3>Texto extraído</h3>
+    <div class="resultado-texto">
+        <pre>{{ documento.extracted_text }}</pre>
+    </div>
+
+    <a class="botao" href="/documents">Voltar para lista</a>
+</section>
+{% endblock %}

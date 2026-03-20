@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Gerações salvas{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Gerações realizadas</h2>
+
+    {% if geracoes %}
+        <table class="tabela">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Cliente</th>
+                    <th>Tipo de peça</th>
+                    <th>Tema</th>
+                    <th>Data</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for geracao in geracoes %}
+                <tr>
+                    <td>{{ geracao.id }}</td>
+                    <td>{{ geracao.client_name }}</td>
+                    <td>{{ geracao.document_type }}</td>
+                    <td>{{ geracao.case_subject }}</td>
+                    <td>{{ geracao.created_at.strftime("%d/%m/%Y %H:%M") if geracao.created_at else "-" }}</td>
+                    <td>
+                        <a href="/generations/{{ geracao.id }}">Visualizar</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Nenhuma geração foi realizada ainda.</p>
+    {% endif %}
+
+    <a class="botao" href="/generations/create">Nova geração</a>
+</section>
+{% endblock %}

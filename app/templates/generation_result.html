@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Resultado da geração{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Minuta gerada</h2>
+
+    <p><strong>ID:</strong> {{ geracao.id }}</p>
+    <p><strong>Cliente:</strong> {{ geracao.client_name }}</p>
+    <p><strong>Tipo de peça:</strong> {{ geracao.document_type }}</p>
+    <p><strong>Tema:</strong> {{ geracao.case_subject }}</p>
+
+    <h3>Texto gerado</h3>
+    <div class="resultado-texto">
+        <pre>{{ geracao.generated_text }}</pre>
+    </div>
+
+    <a class="botao" href="/generations/create">Nova geração</a>
+    <a class="botao" href="/generations">Ver gerações salvas</a>
+</section>
+{% endblock %}
