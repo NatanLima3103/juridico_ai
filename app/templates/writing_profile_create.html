@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Novo perfil de escrita{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Criar perfil de escrita jurídica</h2>
+    <p>Configure o estilo jurídico padrão do advogado ou do escritório.</p>
+
+    {% if error_message %}
+        <div class="erro">{{ error_message }}</div>
+    {% endif %}
+
+    <form action="/writing-profiles/create" method="post">
+        <label for="profile_name">Nome do perfil</label>
+        <input type="text" id="profile_name" name="profile_name" value="{{ form_data.profile_name }}" required>
+
+        <label for="lawyer_name">Nome do advogado (opcional)</label>
+        <input type="text" id="lawyer_name" name="lawyer_name" value="{{ form_data.lawyer_name }}">
+
+        <label for="office_name">Nome do escritório (opcional)</label>
+        <input type="text" id="office_name" name="office_name" value="{{ form_data.office_name }}">
+
+        <label for="tone">Tom</label>
+        <input type="text" id="tone" name="tone" value="{{ form_data.tone }}" required>
+
+        <label for="qualification_style">Forma de qualificação</label>
+        <textarea id="qualification_style" name="qualification_style" rows="3">{{ form_data.qualification_style }}</textarea>
+
+        <label for="opening_phrase">Frase de abertura</label>
+        <textarea id="opening_phrase" name="opening_phrase" rows="3">{{ form_data.opening_phrase }}</textarea>
+
+        <label for="request_intro">Introdução dos pedidos</label>
+        <textarea id="request_intro" name="request_intro" rows="3">{{ form_data.request_intro }}</textarea>
+
+        <label for="closing_phrase">Frase de encerramento</label>
+        <textarea id="closing_phrase" name="closing_phrase" rows="3">{{ form_data.closing_phrase }}</textarea>
+
+        <label for="legal_style_notes">Observações de estilo jurídico</label>
+        <textarea id="legal_style_notes" name="legal_style_notes" rows="4">{{ form_data.legal_style_notes }}</textarea>
+
+        <label for="recurring_expressions">Expressões recorrentes</label>
+        <textarea id="recurring_expressions" name="recurring_expressions" rows="4">{{ form_data.recurring_expressions }}</textarea>
+
+        <label style="display: flex; align-items: center; gap: 8px; margin-top: 12px;">
+            <input type="checkbox" name="is_active" value="true" {% if form_data.is_active %}checked{% endif %}>
+            Definir como perfil ativo
+        </label>
+
+        <button class="botao" type="submit">Salvar perfil</button>
+    </form>
+</section>
+{% endblock %}

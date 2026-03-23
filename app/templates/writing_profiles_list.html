@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Perfis de escrita{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Perfis de escrita jurídica</h2>
+    <p>Gerencie os estilos de escrita que poderão ser usados na geração das minutas.</p>
+
+    <a class="botao" href="/writing-profiles/create">Novo perfil</a>
+
+    {% if perfis %}
+        <div style="margin-top: 20px;">
+            {% for perfil in perfis %}
+                <div class="card" style="margin-bottom: 16px;">
+                    <p><strong>ID:</strong> {{ perfil.id }}</p>
+                    <p><strong>Nome do perfil:</strong> {{ perfil.profile_name }}</p>
+                    <p><strong>Advogado:</strong> {{ perfil.lawyer_name or "-" }}</p>
+                    <p><strong>Escritório:</strong> {{ perfil.office_name or "-" }}</p>
+                    <p><strong>Tom:</strong> {{ perfil.tone }}</p>
+                    <p><strong>Status:</strong>
+                        {% if perfil.is_active %}
+                            <span style="color: green; font-weight: bold;">Ativo</span>
+                        {% else %}
+                            <span style="color: #999;">Inativo</span>
+                        {% endif %}
+                    </p>
+
+                    {% if not perfil.is_active %}
+                        <form action="/writing-profiles/{{ perfil.id }}/activate" method="post">
+                            <button class="botao" type="submit">Ativar perfil</button>
+                        </form>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p style="margin-top: 16px;">Nenhum perfil cadastrado ainda.</p>
+    {% endif %}
+</section>
+{% endblock %}

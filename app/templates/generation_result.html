@@ -10,6 +10,16 @@
     <p><strong>Cliente:</strong> {{ geracao.client_name }}</p>
     <p><strong>Tipo de peça:</strong> {{ geracao.document_type }}</p>
     <p><strong>Tema:</strong> {{ geracao.case_subject }}</p>
+    <p><strong>Data:</strong> {{ geracao.created_at.strftime("%d/%m/%Y %H:%M") if geracao.created_at else "-" }}</p>
+
+    <p>
+        <strong>Perfil de escrita utilizado:</strong>
+        {% if perfil_ativo %}
+            {{ perfil_ativo.profile_name }}
+        {% else %}
+            Padrão do sistema
+        {% endif %}
+    </p>
 
     <h3>Texto gerado</h3>
     <div class="resultado-texto">
@@ -17,6 +27,7 @@
     </div>
 
     <a class="botao" href="/generations/create">Nova geração</a>
+    <a class="botao" href="/generations/{{ geracao.id }}">Ver detalhes completos</a>
     <a class="botao" href="/generations">Ver gerações salvas</a>
 </section>
 {% endblock %}

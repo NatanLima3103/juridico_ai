@@ -1,3 +1,81 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background-color: #f4f7fb;
+    color: #1f2937;
+}
+
+.topo {
+    background: linear-gradient(135deg, #1f3b5b, #274c77);
+    color: #ffffff;
+    padding: 24px 0;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.topo h1 {
+    margin: 0;
+    font-size: 34px;
+    font-weight: 700;
+}
+
+.container {
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.menu {
+    margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.menu a {
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.menu a:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.card {
+    background-color: #ffffff;
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+}
+
+h2 {
+    margin-top: 0;
+    color: #1f3b5b;
+    font-size: 28px;
+}
+
+h3 {
+    color: #1f3b5b;
+    margin-top: 24px;
+    margin-bottom: 10px;
+}
+
+p {
+    line-height: 1.6;
+}
+
 label {
     display: block;
     margin-top: 14px;
@@ -7,7 +85,8 @@ label {
 }
 
 input[type="text"],
-textarea {
+textarea,
+select {
     width: 100%;
     padding: 12px;
     border: 1px solid #cbd5e1;
@@ -15,9 +94,207 @@ textarea {
     background-color: #ffffff;
     font-size: 15px;
     font-family: Arial, Helvetica, sans-serif;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input[type="text"]:focus,
+textarea:focus,
+select:focus {
+    border-color: #274c77;
+    box-shadow: 0 0 0 3px rgba(39, 76, 119, 0.12);
 }
 
 textarea {
     resize: vertical;
-    min-height: 120px;
+    min-height: 110px;
+    line-height: 1.5;
+}
+
+.botao,
+button.botao,
+button[type="submit"] {
+    display: inline-block;
+    margin-top: 16px;
+    margin-right: 10px;
+    padding: 12px 18px;
+    border: none;
+    border-radius: 8px;
+    background-color: #1f3b5b;
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.botao:hover,
+button.botao:hover,
+button[type="submit"]:hover {
+    background-color: #16304a;
+}
+
+.botao:active,
+button.botao:active,
+button[type="submit"]:active {
+    transform: translateY(1px);
+}
+
+.erro {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    padding: 12px 14px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.sucesso {
+    background-color: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    padding: 12px 14px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.resultado-texto {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+}
+
+.resultado-texto pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #111827;
+}
+
+form {
+    margin-top: 10px;
+    width: 100%;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 18px;
+    background-color: #ffffff;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+th,
+td {
+    padding: 14px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    background-color: #1f3b5b;
+    color: #ffffff;
+}
+
+tr:hover {
+    background-color: #f8fafc;
+}
+
+a {
+    color: #1f3b5b;
+}
+
+a:hover {
+    color: #16304a;
+}
+
+.checkbox-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.checkbox-inline input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 24px 0;
+}
+
+section {
+    width: 100%;
+}
+
+.card form,
+.card p,
+.card h2,
+.card h3,
+.card label,
+.card input,
+.card textarea,
+.card select,
+.card div {
+    max-width: 100%;
+}
+
+.card > * {
+    position: relative;
+    z-index: 1;
+}
+
+ul {
+    padding-left: 20px;
+}
+
+li {
+    margin-bottom: 8px;
+}
+
+small {
+    color: #64748b;
+    display: block;
+    margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+    .topo h1 {
+        font-size: 28px;
+    }
+
+    .card {
+        padding: 18px;
+    }
+
+    .menu {
+        gap: 8px;
+    }
+
+    .menu a {
+        padding: 6px 10px;
+        font-size: 14px;
+    }
+
+    h2 {
+        font-size: 24px;
+    }
+
+    .container {
+        padding: 0 14px;
+    }
 }
