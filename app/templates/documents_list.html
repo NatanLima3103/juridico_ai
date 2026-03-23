@@ -26,7 +26,7 @@
                         <th>Nome salvo</th>
                         <th>Tipo</th>
                         <th>Tamanho</th>
-                        <th>Texto extraído</th>
+                        <th>Texto</th>
                         <th>Data</th>
                         <th>Status</th>
                         <th>Ações</th>
@@ -43,7 +43,10 @@
                         <td>{{ documento.saved_filename }}</td>
                         <td>{{ documento.file_type }}</td>
                         <td>{{ documento.file_size_label }}</td>
-                        <td>{{ documento.text_length }} caracteres</td>
+                        <td>
+                            {{ documento.text_length }} caracteres
+                            <div class="texto-pequeno">{{ documento.word_count }} palavras</div>
+                        </td>
                         <td>{{ documento.created_at.strftime("%d/%m/%Y %H:%M") if documento.created_at else "-" }}</td>
                         <td>
                             {% if documento.file_exists %}

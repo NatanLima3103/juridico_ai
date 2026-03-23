@@ -8,11 +8,12 @@
         <div>
             <h2>Detalhes da geração</h2>
             <p class="texto-suave">
-                Consulte os dados completos da minuta gerada, o contexto utilizado e os documentos que serviram de base.
+                Confira os dados informados, o contexto utilizado e o texto jurídico gerado.
             </p>
         </div>
+
         <div class="acoes-topo">
-            <a class="botao" href="/generations">Voltar para lista</a>
+            <a class="botao" href="/generations">Voltar para histórico</a>
             <a class="botao" href="/generations/create">Nova geração</a>
         </div>
     </div>
@@ -29,98 +30,39 @@
         </div>
 
         <div class="info-box">
-            <span class="info-label">Tipo de peça</span>
+            <span class="info-label">Tipo de documento</span>
             <span class="info-value">{{ geracao.document_type }}</span>
         </div>
 
-        <div class="info-box">
-            <span class="info-label">Tema</span>
+        <div class="info-box info-box-largo">
+            <span class="info-label">Assunto do caso</span>
             <span class="info-value">{{ geracao.case_subject }}</span>
         </div>
 
         <div class="info-box">
-            <span class="info-label">Documentos utilizados</span>
-            <span class="info-value">{{ geracao.documents_count }} documento(s)</span>
-        </div>
-
-        <div class="info-box">
-            <span class="info-label">Texto gerado</span>
-            <span class="info-value">{{ geracao.generated_text_length }} caracteres</span>
-        </div>
-
-        <div class="info-box info-box-largo">
-            <span class="info-label">Data de criação</span>
+            <span class="info-label">Data</span>
             <span class="info-value">
                 {{ geracao.created_at.strftime("%d/%m/%Y %H:%M") if geracao.created_at else "-" }}
             </span>
         </div>
     </div>
 
-    <h3>Perfil de escrita considerado</h3>
-    <div class="resultado-texto">
-        {% if perfil_ativo %}
-            <p><strong>Perfil:</strong> {{ perfil_ativo.profile_name }}</p>
-            <p><strong>Tom:</strong> {{ perfil_ativo.tone }}</p>
-
-            {% if perfil_ativo.lawyer_name %}
-                <p><strong>Advogado:</strong> {{ perfil_ativo.lawyer_name }}</p>
-            {% endif %}
-
-            {% if perfil_ativo.office_name %}
-                <p><strong>Escritório:</strong> {{ perfil_ativo.office_name }}</p>
-            {% endif %}
-
-            {% if perfil_ativo.legal_style_notes %}
-                <p><strong>Observações de estilo:</strong> {{ perfil_ativo.legal_style_notes }}</p>
-            {% endif %}
-
-            {% if perfil_ativo.recurring_expressions %}
-                <p><strong>Expressões recorrentes:</strong> {{ perfil_ativo.recurring_expressions }}</p>
-            {% endif %}
-        {% else %}
-            <p>Nenhum perfil ativo foi encontrado no momento da visualização.</p>
-        {% endif %}
-    </div>
-
-    <h3>Fatos informados</h3>
+    <h3>Fatos</h3>
     <div class="resultado-texto">
         <pre>{{ geracao.facts }}</pre>
     </div>
 
-    <h3>Pedidos informados</h3>
+    <h3>Pedidos</h3>
     <div class="resultado-texto">
         <pre>{{ geracao.requests }}</pre>
     </div>
 
-    <h3>Fundamentação jurídica</h3>
+    <h3>Fundamentação jurídica inicial</h3>
     <div class="resultado-texto">
-        <pre>{{ geracao.legal_basis if geracao.legal_basis else "Nenhuma fundamentação específica foi informada." }}</pre>
+        <pre>{{ geracao.legal_basis or "Não informada." }}</pre>
     </div>
 
-    <h3>Documentos utilizados</h3>
-    {% if documentos_utilizados %}
-        <div class="lista-cards">
-            {% for documento in documentos_utilizados %}
-                <div class="mini-card">
-                    <p><strong>ID:</strong> #{{ documento.id }}</p>
-                    <p><strong>Arquivo:</strong> {{ documento.original_filename }}</p>
-                    <p><strong>Tipo:</strong> {{ documento.file_type }}</p>
-                    <a href="/documents/{{ documento.id }}">Ver documento</a>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="resultado-texto">
-            <p>Nenhum documento foi associado a esta geração.</p>
-        </div>
-    {% endif %}
-
-    <h3>Resumo do contexto salvo</h3>
-    <div class="resultado-texto">
-        <p>{{ geracao.context_preview }}</p>
-    </div>
-
-    <h3>Contexto completo utilizado</h3>
+    <h3>Contexto utilizado</h3>
     <div class="resultado-texto">
         <pre>{{ geracao.context_used }}</pre>
     </div>

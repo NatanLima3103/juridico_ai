@@ -40,6 +40,22 @@
             <span class="info-value">{{ documento.text_length }} caracteres</span>
         </div>
 
+        <div class="info-box">
+            <span class="info-label">Palavras</span>
+            <span class="info-value">{{ documento.word_count }}</span>
+        </div>
+
+        <div class="info-box">
+            <span class="info-label">Status do arquivo</span>
+            <span class="info-value">
+                {% if documento.file_exists %}
+                    <span class="badge badge-sucesso">Disponível</span>
+                {% else %}
+                    <span class="badge badge-erro">Não localizado</span>
+                {% endif %}
+            </span>
+        </div>
+
         <div class="info-box info-box-largo">
             <span class="info-label">Nome original</span>
             <span class="info-value">{{ documento.original_filename }}</span>
@@ -59,17 +75,6 @@
             <span class="info-label">Data de envio</span>
             <span class="info-value">
                 {{ documento.created_at.strftime("%d/%m/%Y %H:%M") if documento.created_at else "-" }}
-            </span>
-        </div>
-
-        <div class="info-box">
-            <span class="info-label">Status do arquivo</span>
-            <span class="info-value">
-                {% if documento.file_exists %}
-                    <span class="badge badge-sucesso">Disponível</span>
-                {% else %}
-                    <span class="badge badge-erro">Não localizado</span>
-                {% endif %}
             </span>
         </div>
     </div>

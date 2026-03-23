@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Nova geração jurídica{% endblock %}
+
+{% block content %}
+<section class="card">
+    <div class="cabecalho-pagina">
+        <div>
+            <h2>Nova geração jurídica</h2>
+            <p class="texto-suave">
+                Preencha os dados do caso e selecione os documentos base para gerar um rascunho jurídico inicial.
+            </p>
+        </div>
+
+        <div class="acoes-topo">
+            <a class="botao" href="/generations">Ver histórico</a>
+            <a class="botao" href="/documents">Ver documentos</a>
+        </div>
+    </div>
+
+    {% if error_message %}
+        <div class="erro">{{ error_message }}</div>
+    {% endif %}
+
+    <form action="/generations/create" method="post" class="formulario-geracao">
+        <label for="client_name">Nome do cliente</label>
+        <input
+            type="text"
+            id="client_name"
+            name="client_name"
+            placeholder="Ex.: João da Silva"
+            value="{{ form_data.client_name if form_data else '' }}"
+            required
+        >
+
+        <label for="document_type">Tipo de documento</label>
+        <select id="document_type" name="document_type" required>
+            <option value="">Selecione</option>
+            {% for tipo in tipos_de_documento %}
+                <option
+                    value="{{ tipo }}"
+                    {% if form_data and form_data.document_type == tipo %}selected{% endif %}
+                >
+                    {{ tipo }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="case_subject">Assunto do caso</label>
+        <input
+            type="text"
+            id="case_subject"
+            name="case_subject"
+            placeholder="Ex.: Cobrança indevida em contrato bancário"
+            value="{{ form_data.case_subject if form_data else '' }}"
+            required
+        >
+
+        <label for="facts">Fatos</label>
+        <textarea
+            id="facts"
+            name="facts"
+            rows="6"
+            placeholder="Descreva os fatos principais do caso."
+            required
+        >{{ form_data.facts if form_data else '' }}</textarea>
+
+        <label for="requests">Pedidos</label>
+        <textarea
+            id="requests"
+            name="requests"
+            rows="5"
+            placeholder="Informe os pedidos pretendidos na peça."
+            required
+        >{{ form_data.requests if form_data else '' }}</textarea>
+
+        <label for="legal_basis">Fundamentação jurídica inicial</label>
+        <textarea
+            id="legal_basis"
+            name="legal_basis"
+            rows="5"
+            placeholder="Opcional: informe artigos, teses, entendimentos ou estratégia jurídica inicial."
+        >{{ form_data.legal_basis if form_data else '' }}</textarea>
+
+        <h3>Documentos base</h3>
+        <p class="texto-suave">
+            Selecione um ou mais documentos para compor o contexto usado na geração.
+        </p>
+
+        {% if documentos %}
+            <div class="lista-documentos-selecao">
+                {% for documento in documentos %}
+                    <label class="item-documento-selecao">
+                        <input
+                            type="checkbox"
+                            name="document_ids"
+                            value="{{ documento.id }}"
+                            {% if documento.id in selected_document_ids %}checked{% endif %}
+                        >
+                        <div>
+                            <strong>#{{ documento.id }} - {{ documento.original_filename }}</strong>
+                            <div class="texto-pequeno">Tipo: {{ documento.file_type }}</div>
+                            <div class="texto-pequeno">
+                                {{ documento.created_at.strftime("%d/%m/%Y %H:%M") if documento.created_at else "-" }}
+                            </div>
+                        </div>
+                    </label>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="estado-vazio">
+                <p>Você ainda não possui documentos enviados.</p>
+                <a class="botao" href="/documents/upload">Enviar documento</a>
+            </div>
+        {% endif %}
+
+        <button class="botao" type="submit">Gerar rascunho jurídico</button>
+    </form>
+</section>
+{% endblock %}

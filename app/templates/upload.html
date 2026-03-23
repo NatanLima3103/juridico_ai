@@ -4,15 +4,43 @@
 
 {% block content %}
 <section class="card">
-    <h2>Upload de documento</h2>
-    <p>Envie um arquivo PDF ou DOCX para extração de texto.</p>
+    <div class="cabecalho-pagina">
+        <div>
+            <h2>Upload de documento</h2>
+            <p class="texto-suave">
+                Envie um arquivo para armazenar no sistema e extrair o texto automaticamente.
+            </p>
+        </div>
+
+        <div class="acoes-topo">
+            <a class="botao" href="/documents">Ver documentos enviados</a>
+        </div>
+    </div>
 
     {% if error_message %}
         <div class="erro">{{ error_message }}</div>
     {% endif %}
 
+    <div class="grid-detalhes">
+        <div class="info-box">
+            <span class="info-label">Formatos aceitos</span>
+            <span class="info-value">PDF, DOCX e TXT</span>
+        </div>
+
+        <div class="info-box">
+            <span class="info-label">Tamanho máximo</span>
+            <span class="info-value">{{ max_upload_size_mb }} MB</span>
+        </div>
+    </div>
+
     <form action="/documents/upload" method="post" enctype="multipart/form-data">
-        <input type="file" name="file" accept=".pdf,.docx" required>
+        <label for="file">Selecione o arquivo</label>
+        <input id="file" type="file" name="file" accept=".pdf,.docx,.txt" required>
+
+        <p class="texto-pequeno">
+            Dica: envie petições, contratos, modelos ou documentos-base para já começar a montar sua base jurídica.
+        </p>
+
         <button class="botao" type="submit">Enviar arquivo</button>
     </form>
 </section>

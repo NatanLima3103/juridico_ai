@@ -4,18 +4,66 @@
 
 {% block content %}
 <section class="card">
-    <h2>Documento processado</h2>
+    <div class="cabecalho-pagina">
+        <div>
+            <h2>Documento processado com sucesso</h2>
+            <p class="texto-suave">
+                O arquivo foi salvo, registrado no banco e o texto já foi extraído.
+            </p>
+        </div>
 
-    <p><strong>ID no banco:</strong> {{ document_id }}</p>
-    <p><strong>Arquivo original:</strong> {{ filename }}</p>
-    <p><strong>Caminho salvo:</strong> {{ file_path }}</p>
-
-    <h3>Texto extraído</h3>
-    <div class="resultado-texto">
-        <pre>{{ extracted_text }}</pre>
+        <div class="acoes-topo">
+            <a class="botao" href="/documents/upload">Novo upload</a>
+            <a class="botao" href="/documents">Ver documentos</a>
+            <a class="botao" href="/documents/{{ documento.id }}">Abrir detalhes</a>
+        </div>
     </div>
 
-    <a class="botao" href="/documents/upload">Enviar outro arquivo</a>
-    <a class="botao" href="/documents">Ver documentos salvos</a>
+    <div class="grid-detalhes">
+        <div class="info-box">
+            <span class="info-label">ID</span>
+            <span class="info-value">#{{ documento.id }}</span>
+        </div>
+
+        <div class="info-box">
+            <span class="info-label">Tipo</span>
+            <span class="info-value">{{ documento.file_type }}</span>
+        </div>
+
+        <div class="info-box">
+            <span class="info-label">Tamanho</span>
+            <span class="info-value">{{ documento.file_size_label }}</span>
+        </div>
+
+        <div class="info-box">
+            <span class="info-label">Palavras</span>
+            <span class="info-value">{{ documento.word_count }}</span>
+        </div>
+
+        <div class="info-box info-box-largo">
+            <span class="info-label">Arquivo original</span>
+            <span class="info-value">{{ documento.original_filename }}</span>
+        </div>
+
+        <div class="info-box info-box-largo">
+            <span class="info-label">Nome salvo</span>
+            <span class="info-value">{{ documento.saved_filename }}</span>
+        </div>
+
+        <div class="info-box info-box-largo">
+            <span class="info-label">Caminho do arquivo</span>
+            <span class="info-value">{{ documento.file_path }}</span>
+        </div>
+    </div>
+
+    <h3>Resumo do texto extraído</h3>
+    <div class="resultado-texto">
+        <p>{{ documento.text_preview }}</p>
+    </div>
+
+    <h3>Texto extraído completo</h3>
+    <div class="resultado-texto">
+        <pre>{{ documento.extracted_text }}</pre>
+    </div>
 </section>
 {% endblock %}

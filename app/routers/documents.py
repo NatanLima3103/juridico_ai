@@ -3,11 +3,12 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from app.core.config import TEMPLATES_DIR
+from app.core.config import MAX_UPLOAD_SIZE_MB, TEMPLATES_DIR
 from app.database import get_db
 from app.services.document_service import (
     buscar_documento_por_id,
     contar_caracteres_texto,
+    contar_palavras_texto,
     criar_documento,
     documento_existe,
     formatar_tamanho_arquivo,
@@ -32,6 +33,7 @@ def upload_page(request: Request):
             "request": request,
             "title": "Upload de documentos",
             "error_message": None,
+            "max_upload_size_mb": MAX_UPLOAD_SIZE_MB,
         },
     )
 
@@ -53,15 +55,27 @@ async def upload_document(
         )
         documento = criar_documento(db, document_data)
 
+        tamanho_bytes = obter_tamanho_arquivo(documento)
+
         return templates.TemplateResponse(
             "result.html",
             {
                 "request": request,
                 "title": "Resultado do documento",
-                "filename": documento.original_filename,
-                "file_path": documento.file_path,
-                "extracted_text": documento.extracted_text,
-                "document_id": documento.id,
+                "documento": {
+                    "id": documento.id,
+                    "original_filename": documento.original_filename,
+                    "saved_filename": documento.saved_filename,
+                    "file_path": documento.file_path,
+                    "file_type": documento.file_type,
+                    "created_at": documento.created_at,
+                    "file_exists": documento_existe(documento),
+                    "file_size_label": formatar_tamanho_arquivo(tamanho_bytes),
+                    "text_length": contar_caracteres_texto(documento.extracted_text),
+                    "word_count": contar_palavras_texto(documento.extracted_text),
+                    "text_preview": resumir_texto_extraido(documento.extracted_text, 500),
+                    "extracted_text": documento.extracted_text,
+                },
             },
         )
     except ValueError as exc:
@@ -71,6 +85,7 @@ async def upload_document(
                 "request": request,
                 "title": "Upload de documentos",
                 "error_message": str(exc),
+                "max_upload_size_mb": MAX_UPLOAD_SIZE_MB,
             },
         )
     except Exception as exc:
@@ -80,6 +95,7 @@ async def upload_document(
                 "request": request,
                 "title": "Upload de documentos",
                 "error_message": f"Ocorreu um erro ao processar o arquivo: {exc}",
+                "max_upload_size_mb": MAX_UPLOAD_SIZE_MB,
             },
         )
 
@@ -102,6 +118,7 @@ def documents_list(request: Request, db: Session = Depends(get_db)):
                 "file_size_label": formatar_tamanho_arquivo(tamanho_bytes),
                 "text_preview": resumir_texto_extraido(documento.extracted_text, 180),
                 "text_length": contar_caracteres_texto(documento.extracted_text),
+                "word_count": contar_palavras_texto(documento.extracted_text),
             }
         )
 
@@ -139,6 +156,7 @@ def document_detail(
         "file_exists": documento_existe(documento),
         "file_size_label": formatar_tamanho_arquivo(tamanho_bytes),
         "text_length": contar_caracteres_texto(documento.extracted_text),
+        "word_count": contar_palavras_texto(documento.extracted_text),
         "text_preview": resumir_texto_extraido(documento.extracted_text, 300),
     }
 
@@ -165,7 +183,10 @@ def download_document(
     caminho_arquivo = obter_path_documento(documento)
 
     if not caminho_arquivo.exists():
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado no armazenamento.")
+        raise HTTPException(
+            status_code=404,
+            detail="Arquivo não encontrado no armazenamento.",
+        )
 
     return FileResponse(
         path=str(caminho_arquivo),

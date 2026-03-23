@@ -60,7 +60,7 @@ def montar_dados_documento(
         saved_filename=saved_path.name,
         file_path=str(saved_path),
         file_type=saved_path.suffix.lower(),
-        extracted_text=extracted_text,
+        extracted_text=normalizar_texto_extraido(extracted_text),
     )
 
 
@@ -94,6 +94,15 @@ def formatar_tamanho_arquivo(size_in_bytes: int | None) -> str:
     return f"{size_in_bytes / (1024 * 1024):.2f} MB"
 
 
+def normalizar_texto_extraido(texto: str) -> str:
+    texto = (texto or "").replace("\x00", "").strip()
+
+    if not texto:
+        return "Nenhum texto foi encontrado no arquivo."
+
+    return texto
+
+
 def resumir_texto_extraido(texto: str, limite: int = 300) -> str:
     texto_limpo = " ".join((texto or "").split())
 
@@ -108,3 +117,12 @@ def resumir_texto_extraido(texto: str, limite: int = 300) -> str:
 
 def contar_caracteres_texto(texto: str) -> int:
     return len(texto or "")
+
+
+def contar_palavras_texto(texto: str) -> int:
+    texto_limpo = " ".join((texto or "").split())
+
+    if not texto_limpo:
+        return 0
+
+    return len(texto_limpo.split())
