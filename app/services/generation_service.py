@@ -143,16 +143,17 @@ def montar_contexto_documentos(
     limite_caracteres: int = 4000,
 ) -> str:
     if not documentos:
-        return "Nenhum documento de referência foi encontrado no sistema."
+        return "Nenhum documento de referência foi selecionado."
 
     partes = [
-        f"Foram encontrados {len(documentos)} documento(s) de referência mais recente(s) no sistema."
+        f"Foram utilizados {len(documentos)} documento(s) de referência selecionado(s) pelo usuário."
     ]
 
     for indice, documento in enumerate(documentos, start=1):
         resumo = resumir_texto_documento(documento.extracted_text)
         parte = (
             f"[Documento {indice}]\n"
+            f"ID: {documento.id}\n"
             f"Nome original: {documento.original_filename}\n"
             f"Tipo do arquivo: {documento.file_type}\n"
             f"Resumo do conteúdo extraído:\n{resumo}"
@@ -168,6 +169,14 @@ def montar_contexto_documentos(
         )
 
     return contexto
+
+
+def extrair_ids_do_contexto(contexto: str) -> list[int]:
+    if not contexto:
+        return []
+
+    encontrados = re.findall(r"ID:\s*(\d+)", contexto)
+    return [int(item) for item in encontrados]
 
 
 def montar_fundamentacao(case_subject: str, legal_basis: str | None) -> str:
@@ -311,3 +320,35 @@ def listar_geracoes(db: Session) -> list[Generation]:
 
 def buscar_geracao_por_id(db: Session, generation_id: int) -> Generation | None:
     return db.query(Generation).filter(Generation.id == generation_id).first()
+
+
+def resumir_texto_gerado(texto: str, limite: int = 220) -> str:
+    texto_limpo = " ".join((texto or "").split())
+
+    if not texto_limpo:
+        return "Nenhum texto gerado."
+
+    if len(texto_limpo) <= limite:
+        return texto_limpo
+
+    return texto_limpo[:limite].rstrip() + "..."
+
+
+def contar_caracteres_texto_gerado(texto: str) -> int:
+    return len(texto or "")
+
+
+def contar_documentos_no_contexto(contexto: str) -> int:
+    return len(extrair_ids_do_contexto(contexto))
+
+
+def resumir_contexto(contexto: str, limite: int = 300) -> str:
+    contexto_limpo = " ".join((contexto or "").split())
+
+    if not contexto_limpo:
+        return "Nenhum contexto salvo."
+
+    if len(contexto_limpo) <= limite:
+        return contexto_limpo
+
+    return contexto_limpo[:limite].rstrip() + "..."

@@ -4,39 +4,61 @@
 
 {% block content %}
 <section class="card">
-    <h2>Gerações realizadas</h2>
+    <div class="cabecalho-pagina">
+        <div>
+            <h2>Gerações salvas</h2>
+            <p class="texto-suave">
+                Aqui ficam registradas as minutas já geradas pelo sistema, com seus dados principais e acesso rápido aos detalhes.
+            </p>
+        </div>
+        <div class="acoes-topo">
+            <a class="botao" href="/generations/create">Nova geração</a>
+        </div>
+    </div>
 
     {% if geracoes %}
-        <table class="tabela">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Cliente</th>
-                    <th>Tipo de peça</th>
-                    <th>Tema</th>
-                    <th>Data</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for geracao in geracoes %}
-                <tr>
-                    <td>{{ geracao.id }}</td>
-                    <td>{{ geracao.client_name }}</td>
-                    <td>{{ geracao.document_type }}</td>
-                    <td>{{ geracao.case_subject }}</td>
-                    <td>{{ geracao.created_at.strftime("%d/%m/%Y %H:%M") if geracao.created_at else "-" }}</td>
-                    <td>
-                        <a href="/generations/{{ geracao.id }}">Visualizar</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="tabela-responsiva">
+            <table class="tabela">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Cliente</th>
+                        <th>Tipo de peça</th>
+                        <th>Tema</th>
+                        <th>Documentos</th>
+                        <th>Texto gerado</th>
+                        <th>Data</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for geracao in geracoes %}
+                    <tr>
+                        <td>#{{ geracao.id }}</td>
+                        <td><strong>{{ geracao.client_name }}</strong></td>
+                        <td>{{ geracao.document_type }}</td>
+                        <td>
+                            {{ geracao.case_subject }}
+                            <div class="texto-pequeno">{{ geracao.generated_text_preview }}</div>
+                        </td>
+                        <td>{{ geracao.documents_count }} documento(s)</td>
+                        <td>{{ geracao.generated_text_length }} caracteres</td>
+                        <td>{{ geracao.created_at.strftime("%d/%m/%Y %H:%M") if geracao.created_at else "-" }}</td>
+                        <td>
+                            <div class="acoes-linha">
+                                <a href="/generations/{{ geracao.id }}">Detalhes</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     {% else %}
-        <p>Nenhuma geração foi realizada ainda.</p>
+        <div class="estado-vazio">
+            <p>Nenhuma geração foi criada ainda.</p>
+            <a class="botao" href="/generations/create">Criar primeira geração</a>
+        </div>
     {% endif %}
-
-    <a class="botao" href="/generations/create">Nova geração</a>
 </section>
 {% endblock %}

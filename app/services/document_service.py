@@ -24,6 +24,28 @@ def listar_documentos(db: Session) -> list[Document]:
     return db.query(Document).order_by(Document.created_at.desc()).all()
 
 
+def listar_documentos_por_ids(db: Session, document_ids: list[int]) -> list[Document]:
+    if not document_ids:
+        return []
+
+    documentos = (
+        db.query(Document)
+        .filter(Document.id.in_(document_ids))
+        .order_by(Document.created_at.desc())
+        .all()
+    )
+
+    documentos_por_id = {documento.id: documento for documento in documentos}
+
+    documentos_ordenados = [
+        documentos_por_id[document_id]
+        for document_id in document_ids
+        if document_id in documentos_por_id
+    ]
+
+    return documentos_ordenados
+
+
 def buscar_documento_por_id(db: Session, document_id: int) -> Document | None:
     return db.query(Document).filter(Document.id == document_id).first()
 
@@ -40,3 +62,49 @@ def montar_dados_documento(
         file_type=saved_path.suffix.lower(),
         extracted_text=extracted_text,
     )
+
+
+def obter_path_documento(documento: Document) -> Path:
+    return Path(documento.file_path)
+
+
+def documento_existe(documento: Document) -> bool:
+    return obter_path_documento(documento).exists()
+
+
+def obter_tamanho_arquivo(documento: Document) -> int | None:
+    caminho = obter_path_documento(documento)
+
+    if not caminho.exists():
+        return None
+
+    return caminho.stat().st_size
+
+
+def formatar_tamanho_arquivo(size_in_bytes: int | None) -> str:
+    if size_in_bytes is None:
+        return "Arquivo não localizado"
+
+    if size_in_bytes < 1024:
+        return f"{size_in_bytes} B"
+
+    if size_in_bytes < 1024 * 1024:
+        return f"{size_in_bytes / 1024:.2f} KB"
+
+    return f"{size_in_bytes / (1024 * 1024):.2f} MB"
+
+
+def resumir_texto_extraido(texto: str, limite: int = 300) -> str:
+    texto_limpo = " ".join((texto or "").split())
+
+    if not texto_limpo:
+        return "Nenhum texto foi extraído."
+
+    if len(texto_limpo) <= limite:
+        return texto_limpo
+
+    return texto_limpo[:limite].rstrip() + "..."
+
+
+def contar_caracteres_texto(texto: str) -> int:
+    return len(texto or "")

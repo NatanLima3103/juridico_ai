@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Novo perfil de escrita{% endblock %}
+
+{% block content %}
+<section class="card">
+    <div class="cabecalho-pagina">
+        <div>
+            <h2>Novo perfil de escrita</h2>
+            <p class="texto-suave">
+                Cadastre um estilo jurídico para ser usado nas próximas minutas geradas pelo sistema.
+            </p>
+        </div>
+        <div class="acoes-topo">
+            <a class="botao" href="/writing-profiles">Voltar para perfis</a>
+        </div>
+    </div>
+
+    {% if error_message %}
+        <div class="erro">{{ error_message }}</div>
+    {% endif %}
+
+    <form action="/writing-profiles/new" method="post">
+        <label for="profile_name">Nome do perfil</label>
+        <input
+            type="text"
+            id="profile_name"
+            name="profile_name"
+            value="{{ form_data.profile_name if form_data else '' }}"
+            placeholder="Ex.: Contencioso cível formal"
+            required
+        >
+
+        <label for="tone">Tom de escrita</label>
+        <input
+            type="text"
+            id="tone"
+            name="tone"
+            value="{{ form_data.tone if form_data else '' }}"
+            placeholder="Ex.: Formal, técnico, objetivo"
+            required
+        >
+
+        <label for="lawyer_name">Nome do advogado (opcional)</label>
+        <input
+            type="text"
+            id="lawyer_name"
+            name="lawyer_name"
+            value="{{ form_data.lawyer_name if form_data else '' }}"
+            placeholder="Ex.: Dr. João da Silva"
+        >
+
+        <label for="office_name">Nome do escritório (opcional)</label>
+        <input
+            type="text"
+            id="office_name"
+            name="office_name"
+            value="{{ form_data.office_name if form_data else '' }}"
+            placeholder="Ex.: Silva & Associados"
+        >
+
+        <label for="qualification_style">Estilo de qualificação (opcional)</label>
+        <textarea
+            id="qualification_style"
+            name="qualification_style"
+            rows="4"
+            placeholder="Ex.: já qualificado(a) nos autos, por seu advogado infra-assinado..."
+        >{{ form_data.qualification_style if form_data else '' }}</textarea>
+
+        <label for="opening_phrase">Frase de abertura (opcional)</label>
+        <textarea
+            id="opening_phrase"
+            name="opening_phrase"
+            rows="4"
+            placeholder="Ex.: vem, respeitosamente, à presença de Vossa Excelência..."
+        >{{ form_data.opening_phrase if form_data else '' }}</textarea>
+
+        <label for="request_intro">Introdução dos pedidos (opcional)</label>
+        <textarea
+            id="request_intro"
+            name="request_intro"
+            rows="4"
+            placeholder="Ex.: Diante do exposto, requer-se..."
+        >{{ form_data.request_intro if form_data else '' }}</textarea>
+
+        <label for="closing_phrase">Frase de encerramento (opcional)</label>
+        <textarea
+            id="closing_phrase"
+            name="closing_phrase"
+            rows="4"
+            placeholder="Ex.: Termos em que, pede deferimento."
+        >{{ form_data.closing_phrase if form_data else '' }}</textarea>
+
+        <label for="legal_style_notes">Observações de estilo (opcional)</label>
+        <textarea
+            id="legal_style_notes"
+            name="legal_style_notes"
+            rows="5"
+            placeholder="Ex.: Priorizar linguagem técnica, períodos médios, estrutura objetiva e tom respeitoso."
+        >{{ form_data.legal_style_notes if form_data else '' }}</textarea>
+
+        <label for="recurring_expressions">Expressões recorrentes (opcional)</label>
+        <textarea
+            id="recurring_expressions"
+            name="recurring_expressions"
+            rows="5"
+            placeholder="Ex.: data venia, com o devido respeito, nesse sentido, requer a Vossa Excelência..."
+        >{{ form_data.recurring_expressions if form_data else '' }}</textarea>
+
+        <button class="botao" type="submit">Salvar perfil</button>
+    </form>
+</section>
+{% endblock %}

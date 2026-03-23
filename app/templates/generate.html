@@ -5,7 +5,7 @@
 {% block content %}
 <section class="card">
     <h2>Gerar minuta jurídica</h2>
-    <p>Preencha os dados abaixo para montar uma minuta inicial com base nos documentos salvos.</p>
+    <p>Preencha os dados abaixo para montar uma minuta inicial com base nos documentos que você selecionar.</p>
 
     {% if perfil_ativo %}
         <div class="sucesso" style="margin-bottom: 16px;">
@@ -80,6 +80,35 @@
             rows="6"
             placeholder="Ex.: CDC, responsabilidade civil, dano moral, obrigação de fazer..."
         >{{ form_data.legal_basis if form_data else '' }}</textarea>
+
+        <h3>Documentos de referência</h3>
+
+        {% if documentos %}
+            <p>Selecione os documentos que deverão ser considerados na geração desta minuta.</p>
+
+            <div class="resultado-texto">
+                {% for documento in documentos %}
+                    <label style="display: flex; align-items: flex-start; gap: 10px; margin-top: 10px;">
+                        <input
+                            type="checkbox"
+                            name="selected_document_ids"
+                            value="{{ documento.id }}"
+                            {% if documento.id in selected_document_ids %}checked{% endif %}
+                            style="margin-top: 4px;"
+                        >
+                        <span>
+                            <strong>#{{ documento.id }} — {{ documento.original_filename }}</strong><br>
+                            Tipo: {{ documento.file_type }} |
+                            Enviado em: {{ documento.created_at.strftime("%d/%m/%Y %H:%M") if documento.created_at else "-" }}
+                        </span>
+                    </label>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="erro">
+                Nenhum documento foi enviado ainda. A geração pode ser feita sem documentos, mas o ideal é enviar ao menos um arquivo de referência.
+            </div>
+        {% endif %}
 
         <button class="botao" type="submit">Gerar minuta</button>
     </form>

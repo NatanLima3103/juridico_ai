@@ -4,37 +4,72 @@
 
 {% block content %}
 <section class="card">
-    <h2>Documentos enviados</h2>
+    <div class="cabecalho-pagina">
+        <div>
+            <h2>Documentos enviados</h2>
+            <p class="texto-suave">
+                Aqui você pode acompanhar os arquivos já enviados, abrir os detalhes e baixar o documento original.
+            </p>
+        </div>
+        <div class="acoes-topo">
+            <a class="botao" href="/documents/upload">Novo upload</a>
+        </div>
+    </div>
 
     {% if documentos %}
-        <table class="tabela">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Arquivo original</th>
-                    <th>Tipo</th>
-                    <th>Data</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for documento in documentos %}
-                <tr>
-                    <td>{{ documento.id }}</td>
-                    <td>{{ documento.original_filename }}</td>
-                    <td>{{ documento.file_type }}</td>
-                    <td>{{ documento.created_at.strftime("%d/%m/%Y %H:%M") if documento.created_at else "-" }}</td>
-                    <td>
-                        <a href="/documents/{{ documento.id }}">Visualizar</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="tabela-responsiva">
+            <table class="tabela">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Arquivo original</th>
+                        <th>Nome salvo</th>
+                        <th>Tipo</th>
+                        <th>Tamanho</th>
+                        <th>Texto extraído</th>
+                        <th>Data</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for documento in documentos %}
+                    <tr>
+                        <td>#{{ documento.id }}</td>
+                        <td>
+                            <strong>{{ documento.original_filename }}</strong>
+                            <div class="texto-pequeno">{{ documento.text_preview }}</div>
+                        </td>
+                        <td>{{ documento.saved_filename }}</td>
+                        <td>{{ documento.file_type }}</td>
+                        <td>{{ documento.file_size_label }}</td>
+                        <td>{{ documento.text_length }} caracteres</td>
+                        <td>{{ documento.created_at.strftime("%d/%m/%Y %H:%M") if documento.created_at else "-" }}</td>
+                        <td>
+                            {% if documento.file_exists %}
+                                <span class="badge badge-sucesso">Disponível</span>
+                            {% else %}
+                                <span class="badge badge-erro">Não localizado</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="acoes-linha">
+                                <a href="/documents/{{ documento.id }}">Detalhes</a>
+                                {% if documento.file_exists %}
+                                    <a href="/documents/{{ documento.id }}/download">Baixar</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     {% else %}
-        <p>Nenhum documento foi enviado ainda.</p>
+        <div class="estado-vazio">
+            <p>Nenhum documento foi enviado ainda.</p>
+            <a class="botao" href="/documents/upload">Enviar primeiro documento</a>
+        </div>
     {% endif %}
-
-    <a class="botao" href="/documents/upload">Novo upload</a>
 </section>
 {% endblock %}

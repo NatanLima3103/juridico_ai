@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -7,9 +7,15 @@ from app.core.config import TEMPLATES_DIR
 from app.database import get_db
 from app.services.document_service import (
     buscar_documento_por_id,
+    contar_caracteres_texto,
     criar_documento,
+    documento_existe,
+    formatar_tamanho_arquivo,
     listar_documentos,
     montar_dados_documento,
+    obter_path_documento,
+    obter_tamanho_arquivo,
+    resumir_texto_extraido,
 )
 from app.services.file_service import salvar_arquivo_upload
 from app.services.text_extractor import extrair_texto_arquivo
@@ -82,12 +88,29 @@ async def upload_document(
 def documents_list(request: Request, db: Session = Depends(get_db)):
     documentos = listar_documentos(db)
 
+    documentos_view = []
+    for documento in documentos:
+        tamanho_bytes = obter_tamanho_arquivo(documento)
+        documentos_view.append(
+            {
+                "id": documento.id,
+                "original_filename": documento.original_filename,
+                "saved_filename": documento.saved_filename,
+                "file_type": documento.file_type,
+                "created_at": documento.created_at,
+                "file_exists": documento_existe(documento),
+                "file_size_label": formatar_tamanho_arquivo(tamanho_bytes),
+                "text_preview": resumir_texto_extraido(documento.extracted_text, 180),
+                "text_length": contar_caracteres_texto(documento.extracted_text),
+            }
+        )
+
     return templates.TemplateResponse(
         "documents_list.html",
         {
             "request": request,
             "title": "Documentos enviados",
-            "documentos": documentos,
+            "documentos": documentos_view,
         },
     )
 
@@ -103,11 +126,49 @@ def document_detail(
     if not documento:
         raise HTTPException(status_code=404, detail="Documento não encontrado.")
 
+    tamanho_bytes = obter_tamanho_arquivo(documento)
+
+    documento_view = {
+        "id": documento.id,
+        "original_filename": documento.original_filename,
+        "saved_filename": documento.saved_filename,
+        "file_type": documento.file_type,
+        "file_path": documento.file_path,
+        "created_at": documento.created_at,
+        "extracted_text": documento.extracted_text,
+        "file_exists": documento_existe(documento),
+        "file_size_label": formatar_tamanho_arquivo(tamanho_bytes),
+        "text_length": contar_caracteres_texto(documento.extracted_text),
+        "text_preview": resumir_texto_extraido(documento.extracted_text, 300),
+    }
+
     return templates.TemplateResponse(
         "document_detail.html",
         {
             "request": request,
             "title": "Detalhes do documento",
-            "documento": documento,
+            "documento": documento_view,
         },
+    )
+
+
+@router.get("/{document_id}/download")
+def download_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+):
+    documento = buscar_documento_por_id(db, document_id)
+
+    if not documento:
+        raise HTTPException(status_code=404, detail="Documento não encontrado.")
+
+    caminho_arquivo = obter_path_documento(documento)
+
+    if not caminho_arquivo.exists():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado no armazenamento.")
+
+    return FileResponse(
+        path=str(caminho_arquivo),
+        filename=documento.original_filename,
+        media_type="application/octet-stream",
     )

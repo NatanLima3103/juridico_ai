@@ -4,20 +4,84 @@
 
 {% block content %}
 <section class="card">
-    <h2>Detalhes do documento</h2>
+    <div class="cabecalho-pagina">
+        <div>
+            <h2>Detalhes do documento</h2>
+            <p class="texto-suave">
+                Visualize as informações completas do arquivo, confira o texto extraído e baixe o original.
+            </p>
+        </div>
+        <div class="acoes-topo">
+            <a class="botao" href="/documents">Voltar para lista</a>
+            {% if documento.file_exists %}
+                <a class="botao" href="/documents/{{ documento.id }}/download">Baixar arquivo</a>
+            {% endif %}
+        </div>
+    </div>
 
-    <p><strong>ID:</strong> {{ documento.id }}</p>
-    <p><strong>Nome original:</strong> {{ documento.original_filename }}</p>
-    <p><strong>Nome salvo:</strong> {{ documento.saved_filename }}</p>
-    <p><strong>Tipo:</strong> {{ documento.file_type }}</p>
-    <p><strong>Caminho:</strong> {{ documento.file_path }}</p>
-    <p><strong>Data de criação:</strong> {{ documento.created_at.strftime("%d/%m/%Y %H:%M") if documento.created_at else "-" }}</p>
+    <div class="grid-detalhes">
+        <div class="info-box">
+            <span class="info-label">ID</span>
+            <span class="info-value">#{{ documento.id }}</span>
+        </div>
 
-    <h3>Texto extraído</h3>
+        <div class="info-box">
+            <span class="info-label">Tipo</span>
+            <span class="info-value">{{ documento.file_type }}</span>
+        </div>
+
+        <div class="info-box">
+            <span class="info-label">Tamanho</span>
+            <span class="info-value">{{ documento.file_size_label }}</span>
+        </div>
+
+        <div class="info-box">
+            <span class="info-label">Texto extraído</span>
+            <span class="info-value">{{ documento.text_length }} caracteres</span>
+        </div>
+
+        <div class="info-box info-box-largo">
+            <span class="info-label">Nome original</span>
+            <span class="info-value">{{ documento.original_filename }}</span>
+        </div>
+
+        <div class="info-box info-box-largo">
+            <span class="info-label">Nome salvo</span>
+            <span class="info-value">{{ documento.saved_filename }}</span>
+        </div>
+
+        <div class="info-box info-box-largo">
+            <span class="info-label">Caminho do arquivo</span>
+            <span class="info-value">{{ documento.file_path }}</span>
+        </div>
+
+        <div class="info-box">
+            <span class="info-label">Data de envio</span>
+            <span class="info-value">
+                {{ documento.created_at.strftime("%d/%m/%Y %H:%M") if documento.created_at else "-" }}
+            </span>
+        </div>
+
+        <div class="info-box">
+            <span class="info-label">Status do arquivo</span>
+            <span class="info-value">
+                {% if documento.file_exists %}
+                    <span class="badge badge-sucesso">Disponível</span>
+                {% else %}
+                    <span class="badge badge-erro">Não localizado</span>
+                {% endif %}
+            </span>
+        </div>
+    </div>
+
+    <h3>Resumo do texto extraído</h3>
+    <div class="resultado-texto">
+        <p>{{ documento.text_preview }}</p>
+    </div>
+
+    <h3>Texto extraído completo</h3>
     <div class="resultado-texto">
         <pre>{{ documento.extracted_text }}</pre>
     </div>
-
-    <a class="botao" href="/documents">Voltar para lista</a>
 </section>
 {% endblock %}
