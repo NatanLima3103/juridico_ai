@@ -16,6 +16,14 @@
         </div>
     </div>
 
+    {% if sucesso %}
+        <div class="sucesso">{{ sucesso }}</div>
+    {% endif %}
+
+    {% if erro %}
+        <div class="erro">{{ erro }}</div>
+    {% endif %}
+
     {% if perfil_ativo %}
         <div class="sucesso">
             Perfil ativo no momento: <strong>{{ perfil_ativo.profile_name }}</strong>
@@ -65,7 +73,7 @@
                         {{ perfil.created_at.strftime("%d/%m/%Y %H:%M") if perfil.created_at else "-" }}
                     </p>
 
-                    <div class="acoes-topo">
+                    <div class="acoes-topo acoes-perfil">
                         {% if not perfil.is_active %}
                             <form action="/writing-profiles/{{ perfil.id }}/activate" method="post">
                                 <button class="botao" type="submit">Ativar perfil</button>
@@ -73,6 +81,14 @@
                         {% else %}
                             <span class="badge badge-sucesso">Perfil em uso</span>
                         {% endif %}
+
+                        <form
+                            action="/writing-profiles/{{ perfil.id }}/delete"
+                            method="post"
+                            onsubmit="return confirm('Tem certeza que deseja excluir este perfil de escrita?');"
+                        >
+                            <button class="botao-perigo" type="submit">Excluir</button>
+                        </form>
                     </div>
                 </div>
             {% endfor %}

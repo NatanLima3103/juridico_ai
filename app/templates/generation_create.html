@@ -8,14 +8,11 @@
         <div>
             <h2>Nova geração jurídica</h2>
             <p class="texto-suave">
-                Preencha os dados do caso, selecione os documentos base e escolha um perfil de escrita para personalizar a minuta.
+                Preencha os dados do caso, selecione o perfil de escrita e escolha os documentos base que serão utilizados.
             </p>
         </div>
-
         <div class="acoes-topo">
             <a class="botao" href="/generations">Ver histórico</a>
-            <a class="botao" href="/documents">Ver documentos</a>
-            <a class="botao" href="/writing-profiles">Ver perfis</a>
         </div>
     </div>
 
@@ -29,14 +26,27 @@
             type="text"
             id="client_name"
             name="client_name"
-            placeholder="Ex.: João da Silva"
             value="{{ form_data.client_name if form_data else '' }}"
+            placeholder="Ex.: Maria de Souza"
             required
         >
 
+        <label for="document_type">Tipo de documento</label>
+        <select id="document_type" name="document_type" required>
+            <option value="">Selecione</option>
+            {% for tipo in tipos_de_documento %}
+                <option
+                    value="{{ tipo }}"
+                    {% if form_data.document_type == tipo %}selected{% endif %}
+                >
+                    {{ tipo }}
+                </option>
+            {% endfor %}
+        </select>
+
         <label for="writing_profile_id">Perfil de escrita</label>
         <select id="writing_profile_id" name="writing_profile_id">
-            <option value="">Sem perfil específico</option>
+            <option value="">Usar padrão do sistema</option>
             {% for perfil in perfis %}
                 <option
                     value="{{ perfil.id }}"
@@ -48,37 +58,26 @@
             {% endfor %}
         </select>
 
-        <label for="document_type">Tipo de documento</label>
-        <select id="document_type" name="document_type" required>
-            <option value="">Selecione</option>
-            {% for tipo in tipos_de_documento %}
-                <option
-                    value="{{ tipo }}"
-                    {% if form_data and form_data.document_type == tipo %}selected{% endif %}
-                >
-                    {{ tipo }}
-                </option>
-            {% endfor %}
-        </select>
-
         <label for="case_subject">Assunto do caso</label>
         <input
             type="text"
             id="case_subject"
             name="case_subject"
-            placeholder="Ex.: Cobrança indevida em contrato bancário"
+            placeholder="Ex.: Revisão contratual bancária"
             value="{{ form_data.case_subject if form_data else '' }}"
             required
         >
+        <p class="texto-pequeno">Descreva o assunto com clareza. Exemplo: “Ação de obrigação de fazer com tutela de urgência”.</p>
 
         <label for="facts">Fatos</label>
         <textarea
             id="facts"
             name="facts"
             rows="6"
-            placeholder="Descreva os fatos principais do caso."
+            placeholder="Descreva os fatos principais do caso com o máximo de clareza possível."
             required
         >{{ form_data.facts if form_data else '' }}</textarea>
+        <p class="texto-pequeno">Informe os fatos com um nível mínimo de detalhe para a minuta ficar consistente.</p>
 
         <label for="requests">Pedidos</label>
         <textarea
@@ -88,6 +87,7 @@
             placeholder="Informe os pedidos pretendidos na peça."
             required
         >{{ form_data.requests if form_data else '' }}</textarea>
+        <p class="texto-pequeno">Evite pedidos muito genéricos. Quanto mais claro, melhor a geração.</p>
 
         <label for="legal_basis">Fundamentação jurídica inicial</label>
         <textarea
@@ -97,37 +97,50 @@
             placeholder="Opcional: informe artigos, teses, entendimentos ou estratégia jurídica inicial."
         >{{ form_data.legal_basis if form_data else '' }}</textarea>
 
-        <h3>Documentos base</h3>
-        <p class="texto-suave">
-            Selecione um ou mais documentos para compor o contexto usado na geração.
-        </p>
+        <div class="secao-documentos-base">
+            <h3>Documentos base</h3>
+            <p class="texto-suave">
+                Selecione os arquivos que serão utilizados como base para gerar a minuta.
+            </p>
 
-        {% if documentos %}
-            <div class="lista-documentos-selecao">
-                {% for documento in documentos %}
-                    <label class="item-documento-selecao">
-                        <input
-                            type="checkbox"
-                            name="document_ids"
-                            value="{{ documento.id }}"
-                            {% if documento.id in selected_document_ids %}checked{% endif %}
-                        >
-                        <div>
-                            <strong>#{{ documento.id }} - {{ documento.original_filename }}</strong>
-                            <div class="texto-pequeno">Tipo: {{ documento.file_type }}</div>
-                            <div class="texto-pequeno">
-                                {{ documento.created_at.strftime("%d/%m/%Y %H:%M") if documento.created_at else "-" }}
+            {% if documentos %}
+                <div class="lista-documentos-base">
+                    {% for documento in documentos %}
+                        <label class="documento-base-item {% if documento.id in selected_document_ids %}selecionado{% endif %}">
+                            <div class="documento-base-topo">
+                                <input
+                                    type="checkbox"
+                                    name="document_ids"
+                                    value="{{ documento.id }}"
+                                    {% if documento.id in selected_document_ids %}checked{% endif %}
+                                >
+                                <span class="marcador-documento">
+                                    {% if documento.id in selected_document_ids %}
+                                        [X]
+                                    {% else %}
+                                        [ ]
+                                    {% endif %}
+                                </span>
+                                <span class="nome-documento">{{ documento.original_filename }}</span>
                             </div>
-                        </div>
-                    </label>
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="estado-vazio">
-                <p>Você ainda não possui documentos enviados.</p>
-                <a class="botao" href="/documents/upload">Enviar documento</a>
-            </div>
-        {% endif %}
+
+                            <div class="documento-base-info">
+                                <p><strong>ID:</strong> #{{ documento.id }}</p>
+                                <p><strong>Tipo:</strong> {{ documento.file_type }}</p>
+                                <p class="texto-pequeno">
+                                    {{ documento.created_at.strftime("%d/%m/%Y %H:%M") if documento.created_at else "-" }}
+                                </p>
+                            </div>
+                        </label>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="estado-vazio">
+                    <p>Você ainda não possui documentos enviados.</p>
+                    <a class="botao" href="/documents/upload">Enviar documento</a>
+                </div>
+            {% endif %}
+        </div>
 
         <button class="botao" type="submit">Gerar rascunho jurídico</button>
     </form>

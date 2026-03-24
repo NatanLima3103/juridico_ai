@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 
+from app.models.generation import Generation
 from app.models.writing_profile import WritingProfile
 
 
@@ -113,6 +114,49 @@ def ativar_perfil(db: Session, profile_id: int) -> WritingProfile | None:
     db.commit()
     db.refresh(perfil)
     return perfil
+
+
+def perfil_possui_geracoes(db: Session, profile_id: int) -> bool:
+    quantidade = (
+        db.query(Generation)
+        .filter(Generation.writing_profile_id == profile_id)
+        .count()
+    )
+    return quantidade > 0
+
+
+def excluir_perfil(db: Session, profile_id: int) -> tuple[bool, str]:
+    perfil = buscar_perfil_por_id(db, profile_id)
+
+    if not perfil:
+        return False, "Perfil de escrita não encontrado."
+
+    if perfil_possui_geracoes(db, profile_id):
+        return (
+            False,
+            "Este perfil não pode ser excluído porque já está vinculado a uma ou mais gerações.",
+        )
+
+    perfil_era_ativo = perfil.is_active
+
+    db.delete(perfil)
+    db.commit()
+
+    if perfil_era_ativo:
+        proximo_perfil = buscar_perfil_ativo(db)
+
+        if not proximo_perfil:
+            perfil_mais_recente = (
+                db.query(WritingProfile)
+                .order_by(WritingProfile.created_at.desc())
+                .first()
+            )
+
+            if perfil_mais_recente:
+                perfil_mais_recente.is_active = True
+                db.commit()
+
+    return True, "Perfil excluído com sucesso."
 
 
 def montar_resumo_perfil(perfil: WritingProfile) -> dict:

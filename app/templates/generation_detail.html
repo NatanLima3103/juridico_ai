@@ -3,30 +3,39 @@
 {% block title %}Detalhes da geração{% endblock %}
 
 {% block content %}
-<section class="card">
-    <div class="cabecalho-pagina">
+<section class="card card-detalhes-geracao">
+    <div class="cabecalho-pagina cabecalho-geracao">
         <div>
+            <p class="etiqueta-secao">Jurídico AI</p>
             <h2>Detalhes da geração</h2>
             <p class="texto-suave">
-                Confira os dados informados, o contexto utilizado e o texto jurídico gerado.
+                Confira os dados informados e o texto jurídico gerado.
             </p>
         </div>
 
         <div class="acoes-topo">
-            <a class="botao" href="/generations">Voltar para histórico</a>
+            <a class="botao botao-secundario" href="/generations">Voltar para histórico</a>
             <a class="botao" href="/generations/create">Nova geração</a>
         </div>
     </div>
 
-    <div class="grid-detalhes">
-        <div class="info-box">
-            <span class="info-label">ID</span>
-            <span class="info-value">#{{ geracao.id }}</span>
+    {% if sucesso %}
+        <div class="sucesso">{{ sucesso }}</div>
+    {% endif %}
+
+    {% if erro %}
+        <div class="erro">{{ erro }}</div>
+    {% endif %}
+
+    <div class="painel-resumo-geracao">
+        <div class="info-box destaque-principal">
+            <span class="info-label">Cliente</span>
+            <span class="info-value">{{ geracao.client_name }}</span>
         </div>
 
         <div class="info-box">
-            <span class="info-label">Cliente</span>
-            <span class="info-value">{{ geracao.client_name }}</span>
+            <span class="info-label">ID</span>
+            <span class="info-value">#{{ geracao.id }}</span>
         </div>
 
         <div class="info-box">
@@ -47,20 +56,6 @@
         </div>
 
         <div class="info-box">
-            <span class="info-label">Advogado</span>
-            <span class="info-value">
-                {{ geracao.writing_profile.lawyer_name if geracao.writing_profile and geracao.writing_profile.lawyer_name else "Não informado" }}
-            </span>
-        </div>
-
-        <div class="info-box">
-            <span class="info-label">Escritório</span>
-            <span class="info-value">
-                {{ geracao.writing_profile.office_name if geracao.writing_profile and geracao.writing_profile.office_name else "Não informado" }}
-            </span>
-        </div>
-
-        <div class="info-box">
             <span class="info-label">Data</span>
             <span class="info-value">
                 {{ geracao.created_at.strftime("%d/%m/%Y %H:%M") if geracao.created_at else "-" }}
@@ -68,29 +63,132 @@
         </div>
     </div>
 
-    <h3>Fatos</h3>
-    <div class="resultado-texto">
-        <pre>{{ geracao.facts }}</pre>
+    <section class="bloco-resultado-principal bloco-destaque-texto">
+        <div class="cabecalho-resultado">
+            <div>
+                <p class="etiqueta-secao">Resultado final</p>
+                <h3>Texto jurídico gerado</h3>
+                <p class="texto-suave">
+                    Copie ou baixe apenas o texto jurídico final, sem contexto técnico.
+                </p>
+            </div>
+
+            <div class="acoes-resultado">
+                <a
+                    class="botao botao-secundario"
+                    href="/generations/{{ geracao.id }}/download-txt"
+                >
+                    Baixar .txt
+                </a>
+
+                <a
+                    class="botao botao-secundario"
+                    href="/generations/{{ geracao.id }}/download-docx"
+                >
+                    Baixar .docx
+                </a>
+
+                <button
+                    type="button"
+                    class="botao"
+                    id="botao-copiar-texto"
+                    onclick="copiarTextoJuridico()"
+                >
+                    Copiar texto jurídico
+                </button>
+            </div>
+        </div>
+
+        <div class="resultado-texto resultado-texto-claro resultado-texto-juridico">
+            <pre id="texto-juridico">{{ geracao.generated_text }}</pre>
+        </div>
+
+        <p id="mensagem-copia" class="mensagem-copia" aria-live="polite"></p>
+    </section>
+
+    <div class="grid-conteudo-auxiliar">
+        <section class="bloco-informativo">
+            <div class="bloco-informativo-topo">
+                <h3>Fatos informados</h3>
+                <span class="badge badge-neutro">Entrada do usuário</span>
+            </div>
+            <div class="resultado-texto">
+                <pre>{{ geracao.facts }}</pre>
+            </div>
+        </section>
+
+        <section class="bloco-informativo">
+            <div class="bloco-informativo-topo">
+                <h3>Pedidos informados</h3>
+                <span class="badge badge-neutro">Entrada do usuário</span>
+            </div>
+            <div class="resultado-texto">
+                <pre>{{ geracao.requests }}</pre>
+            </div>
+        </section>
     </div>
 
-    <h3>Pedidos</h3>
-    <div class="resultado-texto">
-        <pre>{{ geracao.requests }}</pre>
-    </div>
+    <section class="bloco-informativo">
+        <div class="bloco-informativo-topo">
+            <h3>Fundamentação jurídica inicial</h3>
+            <span class="badge badge-neutro">Base jurídica</span>
+        </div>
+        <div class="resultado-texto">
+            <pre>{{ geracao.legal_basis or "Não informada." }}</pre>
+        </div>
+    </section>
 
-    <h3>Fundamentação jurídica inicial</h3>
-    <div class="resultado-texto">
-        <pre>{{ geracao.legal_basis or "Não informada." }}</pre>
-    </div>
-
-    <h3>Contexto utilizado</h3>
-    <div class="resultado-texto">
-        <pre>{{ geracao.context_used }}</pre>
-    </div>
-
-    <h3>Texto gerado</h3>
-    <div class="resultado-texto">
-        <pre>{{ geracao.generated_text }}</pre>
-    </div>
+    <details class="detalhes-contexto">
+        <summary>Ver contexto técnico utilizado</summary>
+        <div class="contexto-ajuda">
+            Esta área é técnica e serve apenas para conferência interna do que foi utilizado na geração.
+        </div>
+        <div class="resultado-texto">
+            <pre>{{ geracao.context_used }}</pre>
+        </div>
+    </details>
 </section>
+
+<script>
+    let timeoutMensagemCopia = null;
+
+    async function copiarTextoJuridico() {
+        const textoElemento = document.getElementById("texto-juridico");
+        const mensagem = document.getElementById("mensagem-copia");
+        const botao = document.getElementById("botao-copiar-texto");
+
+        if (!textoElemento || !mensagem || !botao) {
+            return;
+        }
+
+        const texto = textoElemento.innerText.trim();
+
+        if (!texto) {
+            mensagem.textContent = "Não há texto jurídico para copiar.";
+            mensagem.className = "mensagem-copia erro-copia visivel";
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(texto);
+
+            mensagem.textContent = "Texto jurídico copiado com sucesso.";
+            mensagem.className = "mensagem-copia sucesso-copia visivel";
+
+            botao.textContent = "Copiado!";
+            botao.disabled = true;
+
+            clearTimeout(timeoutMensagemCopia);
+            timeoutMensagemCopia = setTimeout(() => {
+                mensagem.textContent = "";
+                mensagem.className = "mensagem-copia";
+                botao.textContent = "Copiar texto jurídico";
+                botao.disabled = false;
+            }, 2500);
+        } catch (erro) {
+            mensagem.textContent = "Não foi possível copiar automaticamente. Tente novamente.";
+            mensagem.className = "mensagem-copia erro-copia visivel";
+        }
+    }
+</script>
 {% endblock %}

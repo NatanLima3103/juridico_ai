@@ -17,6 +17,14 @@
         </div>
     </div>
 
+    {% if sucesso %}
+        <div class="sucesso">{{ sucesso }}</div>
+    {% endif %}
+
+    {% if erro %}
+        <div class="erro">{{ erro }}</div>
+    {% endif %}
+
     {% if geracoes %}
         <div class="tabela-responsiva">
             <table class="tabela">
@@ -49,6 +57,14 @@
                         <td>
                             <div class="acoes-linha">
                                 <a href="/generations/{{ geracao.id }}">Abrir</a>
+
+                                <form
+                                    action="/generations/{{ geracao.id }}/delete"
+                                    method="post"
+                                    onsubmit="return confirm('Tem certeza que deseja excluir esta geração?');"
+                                >
+                                    <button class="botao-perigo" type="submit">Excluir</button>
+                                </form>
                             </div>
                         </td>
                     </tr>
