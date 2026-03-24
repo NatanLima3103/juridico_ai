@@ -40,6 +40,27 @@
         </div>
 
         <div class="info-box">
+            <span class="info-label">Perfil usado</span>
+            <span class="info-value">
+                {{ geracao.writing_profile.profile_name if geracao.writing_profile else "Sem perfil" }}
+            </span>
+        </div>
+
+        <div class="info-box">
+            <span class="info-label">Advogado</span>
+            <span class="info-value">
+                {{ geracao.writing_profile.lawyer_name if geracao.writing_profile and geracao.writing_profile.lawyer_name else "Não informado" }}
+            </span>
+        </div>
+
+        <div class="info-box">
+            <span class="info-label">Escritório</span>
+            <span class="info-value">
+                {{ geracao.writing_profile.office_name if geracao.writing_profile and geracao.writing_profile.office_name else "Não informado" }}
+            </span>
+        </div>
+
+        <div class="info-box">
             <span class="info-label">Data</span>
             <span class="info-value">
                 {{ geracao.created_at.strftime("%d/%m/%Y %H:%M") if geracao.created_at else "-" }}

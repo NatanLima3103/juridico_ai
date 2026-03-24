@@ -13,7 +13,13 @@ from app.services.generation_service import (
     gerar_rascunho_juridico,
     listar_geracoes,
     montar_contexto_documental,
+    montar_contexto_perfil_escrita,
     resumir_texto,
+)
+from app.services.writing_profile_service import (
+    buscar_perfil_ativo,
+    buscar_perfil_por_id,
+    listar_perfis,
 )
 
 router = APIRouter(prefix="/generations", tags=["generations"])
@@ -26,6 +32,8 @@ def generations_list(request: Request, db: Session = Depends(get_db)):
 
     geracoes_view = []
     for geracao in geracoes:
+        perfil = geracao.writing_profile
+
         geracoes_view.append(
             {
                 "id": geracao.id,
@@ -36,6 +44,7 @@ def generations_list(request: Request, db: Session = Depends(get_db)):
                 "requests_preview": resumir_texto(geracao.requests, 180),
                 "generated_text_preview": resumir_texto(geracao.generated_text, 220),
                 "created_at": geracao.created_at,
+                "writing_profile_name": perfil.profile_name if perfil else "Sem perfil",
             }
         )
 
@@ -52,6 +61,10 @@ def generations_list(request: Request, db: Session = Depends(get_db)):
 @router.get("/create", response_class=HTMLResponse)
 def create_generation_page(request: Request, db: Session = Depends(get_db)):
     documentos = listar_documentos(db)
+    perfis = listar_perfis(db)
+    perfil_ativo = buscar_perfil_ativo(db)
+
+    selected_profile_id = perfil_ativo.id if perfil_ativo else None
 
     return templates.TemplateResponse(
         "generation_create.html",
@@ -59,10 +72,12 @@ def create_generation_page(request: Request, db: Session = Depends(get_db)):
             "request": request,
             "title": "Nova geração jurídica",
             "documentos": documentos,
+            "perfis": perfis,
             "tipos_de_documento": TIPOS_DE_DOCUMENTO,
             "error_message": None,
             "form_data": {},
             "selected_document_ids": [],
+            "selected_profile_id": selected_profile_id,
         },
     )
 
@@ -78,6 +93,9 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
     requests = str(form.get("requests", "")).strip()
     legal_basis = str(form.get("legal_basis", "")).strip()
 
+    raw_profile_id = str(form.get("writing_profile_id", "")).strip()
+    selected_profile_id = int(raw_profile_id) if raw_profile_id.isdigit() else None
+
     raw_document_ids = form.getlist("document_ids")
     selected_document_ids = []
 
@@ -87,6 +105,7 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
             selected_document_ids.append(int(item_str))
 
     documentos = listar_documentos(db)
+    perfis = listar_perfis(db)
 
     form_data = {
         "client_name": client_name,
@@ -104,10 +123,12 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
                 "request": request,
                 "title": "Nova geração jurídica",
                 "documentos": documentos,
+                "perfis": perfis,
                 "tipos_de_documento": TIPOS_DE_DOCUMENTO,
                 "error_message": "Preencha cliente, tipo de documento, assunto, fatos e pedidos.",
                 "form_data": form_data,
                 "selected_document_ids": selected_document_ids,
+                "selected_profile_id": selected_profile_id,
             },
         )
 
@@ -120,14 +141,22 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
                 "request": request,
                 "title": "Nova geração jurídica",
                 "documentos": documentos,
+                "perfis": perfis,
                 "tipos_de_documento": TIPOS_DE_DOCUMENTO,
                 "error_message": "Selecione pelo menos um documento base.",
                 "form_data": form_data,
                 "selected_document_ids": selected_document_ids,
+                "selected_profile_id": selected_profile_id,
             },
         )
 
-    context_used = montar_contexto_documental(documentos_selecionados)
+    perfil_escrita = None
+    if selected_profile_id:
+        perfil_escrita = buscar_perfil_por_id(db, selected_profile_id)
+
+    contexto_documental = montar_contexto_documental(documentos_selecionados)
+    contexto_perfil = montar_contexto_perfil_escrita(perfil_escrita)
+    context_used = f"{contexto_perfil}\n\n{'=' * 70}\n\n{contexto_documental}"
 
     generated_text = gerar_rascunho_juridico(
         client_name=client_name,
@@ -137,6 +166,7 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
         requests=requests,
         legal_basis=legal_basis,
         context_used=context_used,
+        writing_profile=perfil_escrita,
     )
 
     geracao = criar_geracao(
@@ -149,6 +179,7 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
         legal_basis=legal_basis,
         context_used=context_used,
         generated_text=generated_text,
+        writing_profile_id=perfil_escrita.id if perfil_escrita else None,
     )
 
     return templates.TemplateResponse(

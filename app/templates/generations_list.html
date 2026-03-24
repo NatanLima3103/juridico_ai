@@ -26,8 +26,10 @@
                         <th>Cliente</th>
                         <th>Tipo</th>
                         <th>Assunto</th>
+                        <th>Perfil usado</th>
                         <th>Fatos</th>
                         <th>Pedidos</th>
+                        <th>Prévia gerada</th>
                         <th>Data</th>
                         <th>Ações</th>
                     </tr>
@@ -39,8 +41,10 @@
                         <td><strong>{{ geracao.client_name }}</strong></td>
                         <td>{{ geracao.document_type }}</td>
                         <td>{{ geracao.case_subject }}</td>
+                        <td>{{ geracao.writing_profile_name }}</td>
                         <td>{{ geracao.facts_preview }}</td>
                         <td>{{ geracao.requests_preview }}</td>
+                        <td>{{ geracao.generated_text_preview }}</td>
                         <td>{{ geracao.created_at.strftime("%d/%m/%Y %H:%M") if geracao.created_at else "-" }}</td>
                         <td>
                             <div class="acoes-linha">

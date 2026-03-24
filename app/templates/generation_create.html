@@ -8,13 +8,14 @@
         <div>
             <h2>Nova geração jurídica</h2>
             <p class="texto-suave">
-                Preencha os dados do caso e selecione os documentos base para gerar um rascunho jurídico inicial.
+                Preencha os dados do caso, selecione os documentos base e escolha um perfil de escrita para personalizar a minuta.
             </p>
         </div>
 
         <div class="acoes-topo">
             <a class="botao" href="/generations">Ver histórico</a>
             <a class="botao" href="/documents">Ver documentos</a>
+            <a class="botao" href="/writing-profiles">Ver perfis</a>
         </div>
     </div>
 
@@ -32,6 +33,20 @@
             value="{{ form_data.client_name if form_data else '' }}"
             required
         >
+
+        <label for="writing_profile_id">Perfil de escrita</label>
+        <select id="writing_profile_id" name="writing_profile_id">
+            <option value="">Sem perfil específico</option>
+            {% for perfil in perfis %}
+                <option
+                    value="{{ perfil.id }}"
+                    {% if selected_profile_id == perfil.id %}selected{% endif %}
+                >
+                    {{ perfil.profile_name }}
+                    {% if perfil.is_active %}(ativo){% endif %}
+                </option>
+            {% endfor %}
+        </select>
 
         <label for="document_type">Tipo de documento</label>
         <select id="document_type" name="document_type" required>

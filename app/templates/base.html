@@ -4,12 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Jurídico AI{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=4.2">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=4.3">
 </head>
 <body>
     <header class="topo">
-        <div class="container">
-            <h1>Jurídico AI</h1>
+        <div class="container topo-conteudo">
+            <div class="marca">
+                <h1>Jurídico AI</h1>
+                <p>Assistente jurídico para apoio na criação de documentos</p>
+            </div>
+
             <nav class="menu">
                 <a href="/">Início</a>
                 <a href="/documents/upload">Upload</a>
@@ -22,7 +26,7 @@
         </div>
     </header>
 
-    <main class="container">
+    <main class="container pagina-conteudo">
         {% block content %}{% endblock %}
     </main>
 </body>

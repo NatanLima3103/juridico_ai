@@ -63,8 +63,8 @@ def profiles_list(request: Request, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/new", response_class=HTMLResponse)
-def profile_form(request: Request):
+@router.get("/create", response_class=HTMLResponse)
+def create_profile_page(request: Request):
     return templates.TemplateResponse(
         "writing_profile_form.html",
         {
@@ -76,7 +76,7 @@ def profile_form(request: Request):
     )
 
 
-@router.post("/new", response_class=HTMLResponse)
+@router.post("/create", response_class=HTMLResponse)
 def create_profile(
     request: Request,
     profile_name: str = Form(...),
