@@ -31,8 +31,11 @@
                 <article class="geracao-card">
                     <div class="geracao-card-topo">
                         <div class="geracao-identificacao">
-                            <span class="badge badge-neutro">#{{ geracao.id }}</span>
-                            <h3>{{ geracao.document_type }}</h3>
+                            <div class="geracao-titulo-linha">
+                                <span class="badge badge-neutro">#{{ geracao.id }}</span>
+                                <h3>{{ geracao.document_type }}</h3>
+                            </div>
+
                             <p class="texto-suave">{{ geracao.case_subject }}</p>
                         </div>
 
@@ -76,19 +79,25 @@
                         </div>
                     </div>
 
-                    <div class="geracao-card-acoes">
-                        <a class="botao botao-secundario" href="/generations/{{ geracao.id }}">Abrir</a>
-                        <a class="botao" href="/generations/{{ geracao.id }}/edit">Editar</a>
+                    <div class="geracao-card-rodape">
+                        <div class="geracao-status-visual">
+                            <span class="texto-pequeno">Ações disponíveis para esta geração</span>
+                        </div>
 
-                        <form action="/generations/{{ geracao.id }}/delete" method="post">
-                            <button
-                                type="submit"
-                                class="botao-perigo"
-                                onclick="return confirm('Deseja realmente excluir esta geração?');"
-                            >
-                                Excluir
-                            </button>
-                        </form>
+                        <div class="geracao-card-acoes">
+                            <a class="botao botao-secundario" href="/generations/{{ geracao.id }}">Abrir</a>
+                            <a class="botao" href="/generations/{{ geracao.id }}/edit">Editar</a>
+
+                            <form action="/generations/{{ geracao.id }}/delete" method="post">
+                                <button
+                                    type="submit"
+                                    class="botao-perigo"
+                                    onclick="return confirm('Deseja realmente excluir esta geração?');"
+                                >
+                                    Excluir
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </article>
             {% endfor %}

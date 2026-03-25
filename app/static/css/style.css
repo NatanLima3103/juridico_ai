@@ -186,6 +186,9 @@ button.botao:disabled,
 }
 
 .botao-perigo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: #b42318;
     color: #ffffff;
     border: none;
@@ -770,11 +773,21 @@ input[type="number"] {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    flex: 1 1 420px;
+    min-width: 0;
+}
+
+.geracao-titulo-linha {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .geracao-identificacao h3 {
     font-size: 22px;
     color: #0f172a;
+    word-break: break-word;
 }
 
 .geracao-meta {
@@ -783,6 +796,12 @@ input[type="number"] {
     gap: 6px;
     color: #475569;
     font-size: 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 14px;
+    min-width: 260px;
+    max-width: 100%;
 }
 
 .geracao-card-grid {
@@ -800,6 +819,7 @@ input[type="number"] {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-width: 0;
 }
 
 .geracao-resumos {
@@ -814,6 +834,7 @@ input[type="number"] {
     border: 1px solid #e2e8f0;
     border-radius: 14px;
     padding: 14px;
+    min-width: 0;
 }
 
 .geracao-resumo-box-largo {
@@ -823,6 +844,23 @@ input[type="number"] {
 .geracao-resumo-box p {
     margin-top: 6px;
     color: #334155;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.geracao-card-rodape {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding-top: 14px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.geracao-status-visual {
+    display: flex;
+    align-items: center;
 }
 
 .geracao-card-acoes {
@@ -830,10 +868,12 @@ input[type="number"] {
     gap: 10px;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-end;
 }
 
 .geracao-card-acoes form {
     margin: 0;
+    display: flex;
 }
 
 @media (max-width: 900px) {
@@ -846,6 +886,10 @@ input[type="number"] {
 
     .info-box-largo {
         grid-column: span 1;
+    }
+
+    .geracao-meta {
+        min-width: 100%;
     }
 }
 
@@ -866,7 +910,8 @@ input[type="number"] {
     .cabecalho-pagina,
     .cabecalho-resultado,
     .bloco-informativo-topo,
-    .geracao-card-topo {
+    .geracao-card-topo,
+    .geracao-card-rodape {
         flex-direction: column;
         align-items: stretch;
     }
@@ -877,6 +922,10 @@ input[type="number"] {
     .geracao-card-acoes {
         width: 100%;
         flex-direction: column;
+    }
+
+    .geracao-card-acoes form {
+        width: 100%;
     }
 
     .botao,
