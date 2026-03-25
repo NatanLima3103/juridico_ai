@@ -1,8 +1,14 @@
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
 
 from app.database import Base
+
+
+def agora_brasil():
+    return datetime.now(ZoneInfo("America/Sao_Paulo")).replace(tzinfo=None)
 
 
 class Generation(Base):
@@ -18,6 +24,8 @@ class Generation(Base):
     context_used = Column(Text, nullable=False)
     generated_text = Column(Text, nullable=False)
 
+    source_document_ids = Column(Text, nullable=True)
+
     writing_profile_id = Column(
         Integer,
         ForeignKey("writing_profiles.id"),
@@ -25,8 +33,14 @@ class Generation(Base):
     )
 
     created_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
+        DateTime,
+        default=agora_brasil,
+        nullable=False,
+    )
+
+    updated_at = Column(
+        DateTime,
+        default=agora_brasil,
         nullable=False,
     )
 

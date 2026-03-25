@@ -1,18 +1,37 @@
 {% extends "base.html" %}
 
-{% block title %}Nova geração jurídica{% endblock %}
+{% block title %}
+    {% if modo_edicao %}
+        Editar geração jurídica
+    {% else %}
+        Nova geração jurídica
+    {% endif %}
+{% endblock %}
 
 {% block content %}
 <section class="card">
     <div class="cabecalho-pagina">
         <div>
-            <h2>Nova geração jurídica</h2>
-            <p class="texto-suave">
-                Preencha os dados do caso, selecione o perfil de escrita e escolha os documentos base que serão utilizados.
-            </p>
+            {% if modo_edicao %}
+                <p class="etiqueta-secao">Edição da geração #{{ geracao.id }}</p>
+                <h2>Editar geração jurídica</h2>
+                <p class="texto-suave">
+                    Atualize os dados da geração e regenere o texto jurídico mantendo o mesmo ID.
+                </p>
+            {% else %}
+                <h2>Nova geração jurídica</h2>
+                <p class="texto-suave">
+                    Preencha os dados do caso, selecione o perfil de escrita e escolha os documentos base que serão utilizados.
+                </p>
+            {% endif %}
         </div>
+
         <div class="acoes-topo">
-            <a class="botao" href="/generations">Ver histórico</a>
+            <a class="botao botao-secundario" href="/generations">Ver histórico</a>
+
+            {% if modo_edicao %}
+                <a class="botao" href="/generations/{{ geracao.id }}">Abrir geração</a>
+            {% endif %}
         </div>
     </div>
 
@@ -20,7 +39,11 @@
         <div class="erro">{{ error_message }}</div>
     {% endif %}
 
-    <form action="/generations/create" method="post" class="formulario-geracao">
+    <form
+        action="{% if modo_edicao %}/generations/{{ geracao.id }}/edit{% else %}/generations/create{% endif %}"
+        method="post"
+        class="formulario-geracao"
+    >
         <label for="client_name">Nome do cliente</label>
         <input
             type="text"
@@ -100,7 +123,7 @@
         <div class="secao-documentos-base">
             <h3>Documentos base</h3>
             <p class="texto-suave">
-                Selecione os arquivos que serão utilizados como base para gerar a minuta.
+                Selecione os arquivos que serão utilizados como base para gerar ou regenerar a minuta.
             </p>
 
             {% if documentos %}
@@ -142,7 +165,19 @@
             {% endif %}
         </div>
 
-        <button class="botao" type="submit">Gerar rascunho jurídico</button>
+        <div class="acoes-formulario-geracao">
+            <a class="botao botao-secundario" href="{% if modo_edicao %}/generations/{{ geracao.id }}{% else %}/generations{% endif %}">
+                Cancelar
+            </a>
+
+            <button class="botao" type="submit">
+                {% if modo_edicao %}
+                    Salvar e regenerar texto
+                {% else %}
+                    Gerar rascunho jurídico
+                {% endif %}
+            </button>
+        </div>
     </form>
 </section>
 {% endblock %}

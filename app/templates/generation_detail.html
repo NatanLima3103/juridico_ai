@@ -15,6 +15,7 @@
 
         <div class="acoes-topo">
             <a class="botao botao-secundario" href="/generations">Voltar para histórico</a>
+            <a class="botao botao-secundario" href="/generations/{{ geracao.id }}/edit">Editar geração</a>
             <a class="botao" href="/generations/create">Nova geração</a>
         </div>
     </div>
@@ -56,12 +57,37 @@
         </div>
 
         <div class="info-box">
-            <span class="info-label">Data</span>
+            <span class="info-label">Criado em</span>
             <span class="info-value">
                 {{ geracao.created_at.strftime("%d/%m/%Y %H:%M") if geracao.created_at else "-" }}
             </span>
         </div>
+
+        <div class="info-box">
+            <span class="info-label">Última atualização</span>
+            <span class="info-value">
+                {{ geracao.updated_at.strftime("%d/%m/%Y %H:%M") if geracao.updated_at else "-" }}
+            </span>
+        </div>
     </div>
+
+    {% if documentos_base %}
+        <section class="bloco-informativo">
+            <div class="bloco-informativo-topo">
+                <h3>Documentos base selecionados</h3>
+                <span class="badge badge-neutro">{{ documentos_base|length }} documento(s)</span>
+            </div>
+
+            <div class="lista-documentos-utilizados">
+                {% for documento in documentos_base %}
+                    <div class="documento-utilizado-item">
+                        <strong>{{ documento.original_filename }}</strong>
+                        <span>ID #{{ documento.id }} • {{ documento.file_type }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
 
     <section class="bloco-resultado-principal bloco-destaque-texto">
         <div class="cabecalho-resultado">
@@ -86,6 +112,13 @@
                     href="/generations/{{ geracao.id }}/download-docx"
                 >
                     Baixar .docx
+                </a>
+
+                <a
+                    class="botao botao-secundario"
+                    href="/generations/{{ geracao.id }}/edit"
+                >
+                    Editar
                 </a>
 
                 <button
