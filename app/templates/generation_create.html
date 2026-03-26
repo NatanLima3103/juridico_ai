@@ -120,31 +120,92 @@
             placeholder="Opcional: informe artigos, teses, entendimentos ou estratégia jurídica inicial."
         >{{ form_data.legal_basis if form_data else '' }}</textarea>
 
-        <div class="secao-documentos-base">
-            <h3>Documentos base</h3>
-            <p class="texto-suave">
-                Selecione os arquivos que serão utilizados como base para gerar ou regenerar a minuta.
-            </p>
+        <div class="secao-documentos-base" data-document-selector>
+            <div class="documentos-base-cabecalho">
+                <div>
+                    <h3>Documentos base</h3>
+                    <p class="texto-suave">
+                        Selecione os arquivos que serão utilizados como base para gerar ou regenerar a minuta.
+                    </p>
+                </div>
+
+                {% if documentos %}
+                    <div class="documentos-base-resumo">
+                        <span class="contador-documentos-base">
+                            <span data-selected-count>{{ selected_document_ids|length }}</span>
+                            <span data-selected-count-label>
+                                {% if selected_document_ids|length == 1 %}
+                                    selecionado
+                                {% else %}
+                                    selecionados
+                                {% endif %}
+                            </span>
+                        </span>
+
+                        <span class="contador-documentos-total">
+                            {{ documentos|length }}
+                            {% if documentos|length == 1 %}
+                                disponível
+                            {% else %}
+                                disponíveis
+                            {% endif %}
+                        </span>
+                    </div>
+                {% endif %}
+            </div>
 
             {% if documentos %}
+                <div class="barra-status-documentos-base">
+                    <div class="texto-status-documentos" data-selected-label>
+                        {% if selected_document_ids|length == 0 %}
+                            Nenhum documento selecionado no momento.
+                        {% elif selected_document_ids|length == 1 %}
+                            1 documento selecionado para compor a geração.
+                        {% else %}
+                            {{ selected_document_ids|length }} documentos selecionados para compor a geração.
+                        {% endif %}
+                    </div>
+                </div>
+
                 <div class="lista-documentos-base">
                     {% for documento in documentos %}
-                        <label class="documento-base-item {% if documento.id in selected_document_ids %}selecionado{% endif %}">
+                        <label
+                            class="documento-base-item {% if documento.id in selected_document_ids %}selecionado{% endif %}"
+                            data-document-card
+                        >
                             <div class="documento-base-topo">
-                                <input
-                                    type="checkbox"
-                                    name="document_ids"
-                                    value="{{ documento.id }}"
-                                    {% if documento.id in selected_document_ids %}checked{% endif %}
-                                >
-                                <span class="marcador-documento">
-                                    {% if documento.id in selected_document_ids %}
-                                        [X]
-                                    {% else %}
-                                        [ ]
-                                    {% endif %}
-                                </span>
-                                <span class="nome-documento">{{ documento.original_filename }}</span>
+                                <div class="documento-base-check">
+                                    <input
+                                        type="checkbox"
+                                        name="document_ids"
+                                        value="{{ documento.id }}"
+                                        {% if documento.id in selected_document_ids %}checked{% endif %}
+                                        data-document-checkbox
+                                    >
+                                </div>
+
+                                <div class="documento-base-conteudo-principal">
+                                    <div class="documento-base-titulo-linha">
+                                        <span class="nome-documento">{{ documento.original_filename }}</span>
+
+                                        <span
+                                            class="selo-selecionado {% if documento.id in selected_document_ids %}visivel{% endif %}"
+                                            data-selected-badge
+                                        >
+                                            Selecionado
+                                        </span>
+                                    </div>
+
+                                    <div class="documento-base-marcacao">
+                                        <span class="marcador-documento" data-marker>
+                                            {% if documento.id in selected_document_ids %}
+                                                ✓ Documento marcado para uso
+                                            {% else %}
+                                                Marcar este documento como base
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="documento-base-info">
