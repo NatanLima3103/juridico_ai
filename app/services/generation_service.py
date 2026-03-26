@@ -277,17 +277,6 @@ def _tipo_normalizado(document_type: str) -> str:
     return (document_type or "").strip().lower()
 
 
-def _normalizar_espacos(texto: str) -> str:
-    return " ".join((texto or "").split()).strip()
-
-
-def _capitalizar_inicio(texto: str) -> str:
-    texto = (texto or "").strip()
-    if not texto:
-        return ""
-    return texto[0].upper() + texto[1:]
-
-
 def _limpar_pontuacao_final(texto: str) -> str:
     return (texto or "").strip().rstrip(".;:,")
 
@@ -358,187 +347,132 @@ def _titulo_documento(document_type: str) -> str:
     return "MINUTA JURÍDICA"
 
 
-def _qualificacao_base_por_tipo(document_type: str) -> str:
+def _qualificacao_base_por_tipo(document_type: str, client_name: str) -> str:
     tipo = _tipo_normalizado(document_type)
+    cliente = (client_name or "").strip()
 
     if tipo == "contrato":
-        return "As partes abaixo identificadas, de comum acordo,"
+        return f"As partes interessadas, dentre elas {cliente}, de comum acordo,"
     if tipo == "parecer jurídico":
-        return "Submete-se à apreciação jurídica a situação abaixo delineada,"
+        return f"Em atenção à consulta formulada por {cliente},"
     if tipo == "notificação extrajudicial":
-        return "A parte notificante, por meio da presente,"
-    return "já qualificado(a) nos autos ou a ser devidamente qualificado(a)"
+        return f"{cliente}, na qualidade de parte notificante,"
+    return f"{cliente}, já devidamente qualificado(a),"
 
 
 def _abertura_base_por_tipo(document_type: str) -> str:
     tipo = _tipo_normalizado(document_type)
 
     if tipo == "petição inicial":
-        return "vem, com o devido respeito, à presença de Vossa Excelência, propor a presente:"
+        return "vem, respeitosamente, à presença de Vossa Excelência, propor a presente"
     if tipo == "contestação":
-        return "vem, com o devido respeito, à presença de Vossa Excelência, apresentar:"
+        return "vem, respeitosamente, à presença de Vossa Excelência, apresentar"
     if tipo == "réplica":
-        return "vem, respeitosamente, à presença de Vossa Excelência, apresentar:"
+        return "vem, respeitosamente, à presença de Vossa Excelência, apresentar"
     if tipo == "manifestação":
-        return "vem, respeitosamente, à presença de Vossa Excelência, apresentar a presente:"
+        return "vem, respeitosamente, à presença de Vossa Excelência, apresentar a presente"
     if tipo == "parecer jurídico":
-        return "para emitir o presente parecer:"
+        return "apresentar o presente parecer jurídico"
     if tipo == "contrato":
-        return "resolvem firmar a presente minuta:"
+        return "resolvem firmar a presente minuta contratual"
     if tipo == "notificação extrajudicial":
-        return "promove a presente notificação:"
+        return "vem, por meio da presente, promover a presente notificação extrajudicial"
     if tipo == "recurso":
-        return "vem, com o devido respeito, à presença de Vossa Excelência, interpor o presente:"
-    return "vem, com o devido respeito, à presença de Vossa Excelência, apresentar a presente:"
+        return "vem, respeitosamente, à presença de Vossa Excelência, interpor o presente"
+    return "vem, respeitosamente, apresentar a presente minuta"
 
 
-def _bloco_estrutura_por_tipo(document_type: str) -> str:
-    tipo = _tipo_normalizado(document_type)
+def _texto_parece_placeholder(texto: str) -> bool:
+    texto_limpo = (texto or "").strip().lower()
 
-    if tipo == "petição inicial":
-        return (
-            "- endereçamento;\n"
-            "- qualificação das partes;\n"
-            "- exposição dos fatos;\n"
-            "- fundamentos jurídicos;\n"
-            "- pedidos;\n"
-            "- provas;\n"
-            "- requerimentos finais."
-        )
+    if not texto_limpo:
+        return True
 
-    if tipo == "contestação":
-        return (
-            "- endereçamento;\n"
-            "- síntese da demanda;\n"
-            "- preliminares, se cabíveis;\n"
-            "- impugnação específica dos fatos;\n"
-            "- fundamentos defensivos;\n"
-            "- pedidos finais;\n"
-            "- provas."
-        )
+    marcadores_ruins = [
+        "...",
+        "já qualificado nos autos",
+        "a presença de vossa",
+        "diante do exposto, requer-se",
+        "termos, em que",
+        "peço, por gentileza",
+        "peço, com a devida gentileza",
+        "artigos, teses",
+        "principais fatos do caso",
+        "os principais fatos do caso são",
+    ]
 
-    if tipo == "réplica":
-        return (
-            "- síntese da contestação;\n"
-            "- impugnação dos argumentos defensivos;\n"
-            "- reforço da tese autoral;\n"
-            "- ratificação dos pedidos;\n"
-            "- requerimentos finais."
-        )
+    return any(marcador in texto_limpo for marcador in marcadores_ruins)
 
-    if tipo == "manifestação":
-        return (
-            "- contextualização do ponto processual;\n"
-            "- esclarecimentos relevantes;\n"
-            "- argumentação objetiva;\n"
-            "- requerimento correspondente;\n"
-            "- fechamento."
-        )
 
-    if tipo == "parecer jurídico":
-        return (
-            "- relatório;\n"
-            "- questão submetida à análise;\n"
-            "- fundamentação jurídica;\n"
-            "- conclusão."
-        )
+def _texto_curto_demais(texto: str, minimo: int = 12) -> bool:
+    return len((texto or "").strip()) < minimo
 
-    if tipo == "contrato":
-        return (
-            "- identificação das partes;\n"
-            "- objeto;\n"
-            "- obrigações e responsabilidades;\n"
-            "- prazo e vigência;\n"
-            "- valores e forma de pagamento;\n"
-            "- penalidades;\n"
-            "- rescisão;\n"
-            "- foro."
-        )
 
-    if tipo == "notificação extrajudicial":
-        return (
-            "- identificação das partes;\n"
-            "- relato objetivo dos fatos;\n"
-            "- fundamento da exigência;\n"
-            "- providência esperada;\n"
-            "- prazo para cumprimento;\n"
-            "- advertência final."
-        )
-
-    if tipo == "recurso":
-        return (
-            "- tempestividade;\n"
-            "- cabimento;\n"
-            "- síntese da decisão recorrida;\n"
-            "- fundamentos para reforma ou invalidação;\n"
-            "- pedido recursal."
-        )
-
-    return (
-        "- qualificação das partes;\n"
-        "- exposição dos fatos;\n"
-        "- fundamentos aplicáveis;\n"
-        "- pedidos ou conclusão;\n"
-        "- encerramento."
-    )
+def _usar_texto_do_perfil(texto: str, minimo: int = 12) -> bool:
+    if not texto:
+        return False
+    if _texto_curto_demais(texto, minimo=minimo):
+        return False
+    if _texto_parece_placeholder(texto):
+        return False
+    return True
 
 
 def _introducao_especifica_por_tipo(document_type: str, case_subject: str, facts: str) -> str:
     tipo = _tipo_normalizado(document_type)
     assunto = _limpar_pontuacao_final(case_subject)
-    resumo_fatos = _primeira_frase(facts, limite=180)
 
     if tipo == "petição inicial":
         return (
-            f"A controvérsia apresentada diz respeito a {assunto}. "
-            f"Em síntese, {resumo_fatos.lower() if resumo_fatos else 'os fatos narrados demonstram a necessidade de tutela jurisdicional.'}"
+            f"A presente demanda decorre de {assunto.lower()}, "
+            "conforme fatos e fundamentos a seguir expostos."
         )
 
     if tipo == "contestação":
         return (
-            f"A presente defesa volta-se à demanda relacionada a {assunto}. "
-            f"Considerando o quadro fático descrito, passa-se à delimitação das teses defensivas cabíveis."
+            f"A presente defesa refere-se à controvérsia envolvendo {assunto.lower()}, "
+            "passando-se à exposição das razões defensivas pertinentes."
         )
 
     if tipo == "réplica":
         return (
-            f"Em continuidade à discussão sobre {assunto}, a presente réplica busca enfrentar, de modo objetivo, "
-            "os argumentos deduzidos na contestação e reafirmar a pretensão inicialmente formulada."
+            f"Em atenção à controvérsia relativa a {assunto.lower()}, "
+            "apresenta-se a presente réplica para impugnação dos argumentos defensivos."
         )
 
     if tipo == "manifestação":
         return (
-            f"No contexto da matéria relacionada a {assunto}, apresenta-se a presente manifestação "
-            "para esclarecer os pontos relevantes e formular o requerimento pertinente."
+            f"No contexto da matéria relativa a {assunto.lower()}, "
+            "apresenta-se a presente manifestação para apreciação do ponto controvertido."
         )
 
     if tipo == "parecer jurídico":
         return (
-            f"Submete-se à análise a questão jurídica relacionada a {assunto}. "
-            "A seguir, são examinados os elementos relevantes para formação de conclusão técnica preliminar."
+            f"Submete-se à análise a questão jurídica relacionada a {assunto.lower()}, "
+            "passando-se ao exame técnico da matéria."
         )
 
     if tipo == "contrato":
         return (
-            f"A presente minuta tem por finalidade disciplinar a relação jurídica ligada a {assunto}, "
-            "com definição clara do objeto, das obrigações e das condições essenciais do ajuste."
+            f"A presente minuta tem por objeto disciplinar a relação jurídica referente a {assunto.lower()}, "
+            "mediante a definição das cláusulas e condições essenciais do ajuste."
         )
 
     if tipo == "notificação extrajudicial":
         return (
-            f"Por meio desta comunicação formal, leva-se ao conhecimento da parte notificada a situação referente a {assunto}, "
-            "para ciência inequívoca e adoção da providência esperada."
+            f"A presente notificação extrajudicial refere-se a {assunto.lower()}, "
+            "para ciência formal da parte notificada e adoção das providências cabíveis."
         )
 
     if tipo == "recurso":
         return (
-            f"A insurgência recursal decorre da controvérsia relativa a {assunto}. "
-            "Passa-se, assim, à exposição dos fundamentos que amparam a revisão da decisão impugnada."
+            f"O presente recurso decorre da controvérsia relativa a {assunto.lower()}, "
+            "passando-se à exposição das razões recursais cabíveis."
         )
 
     return (
-        f"A presente minuta refere-se à questão envolvendo {assunto}, "
-        "observados os elementos fáticos e jurídicos disponibilizados."
+        f"A presente minuta refere-se à questão envolvendo {assunto.lower()}, "
+        "conforme os elementos apresentados a seguir."
     )
 
 
@@ -549,8 +483,6 @@ def _titulo_secao_fatos_por_tipo(document_type: str) -> str:
         return "I - DO RELATÓRIO"
     if tipo == "contrato":
         return "I - DO CONTEXTO CONTRATUAL"
-    if tipo == "notificação extrajudicial":
-        return "I - DOS FATOS"
     return "I - DOS FATOS"
 
 
@@ -559,20 +491,19 @@ def _conteudo_secao_fatos_por_tipo(document_type: str, facts: str) -> str:
 
     if tipo == "contrato":
         return (
-            "Para adequada compreensão do objeto contratual e das obrigações a serem delimitadas, "
-            "considera-se o seguinte contexto:\n\n"
+            "Considerando o ajuste pretendido entre as partes, tem-se o seguinte contexto:\n\n"
             f"{facts}"
         )
 
     if tipo == "parecer jurídico":
         return (
-            "Os elementos submetidos à apreciação podem ser assim resumidos:\n\n"
+            "Os fatos submetidos à análise podem ser assim resumidos:\n\n"
             f"{facts}"
         )
 
     if tipo == "notificação extrajudicial":
         return (
-            "Os fatos que motivam a presente notificação podem ser descritos nos seguintes termos:\n\n"
+            "Os fatos que motivam a presente notificação podem ser descritos da seguinte forma:\n\n"
             f"{facts}"
         )
 
@@ -585,7 +516,7 @@ def _titulo_secao_fundamentacao_por_tipo(document_type: str) -> str:
     if tipo == "parecer jurídico":
         return "II - DA ANÁLISE JURÍDICA"
     if tipo == "contrato":
-        return "II - DOS FUNDAMENTOS JURÍDICOS E DAS PREMISSAS CONTRATUAIS"
+        return "II - DOS FUNDAMENTOS JURÍDICOS"
     return "II - DA FUNDAMENTAÇÃO JURÍDICA"
 
 
@@ -594,216 +525,81 @@ def _secao_fundamentacao_por_tipo(document_type: str, base_legal: str) -> str:
 
     if tipo == "contestação":
         return (
-            "À vista da narrativa apresentada na demanda, a defesa poderá ser desenvolvida "
-            "com apoio nas seguintes teses e fundamentos:\n\n"
+            "A defesa poderá ser sustentada pelos fundamentos jurídicos a seguir indicados:\n\n"
             f"{base_legal}"
         )
 
     if tipo == "réplica":
         return (
-            "Em resposta aos argumentos defensivos, a parte autora poderá reforçar sua tese "
-            "a partir dos seguintes fundamentos:\n\n"
+            "A parte autora poderá rebater os argumentos defensivos com apoio nos seguintes fundamentos:\n\n"
             f"{base_legal}"
         )
 
     if tipo == "manifestação":
         return (
-            "A manifestação poderá ser sustentada pelos fundamentos jurídicos e processuais abaixo indicados:\n\n"
+            "A presente manifestação poderá ser amparada pelos seguintes fundamentos jurídicos e processuais:\n\n"
             f"{base_legal}"
         )
 
     if tipo == "parecer jurídico":
         return (
-            "A análise da matéria pode ser desenvolvida a partir das seguintes premissas normativas, doutrinárias e jurisprudenciais:\n\n"
+            "A análise da matéria pode ser desenvolvida a partir das seguintes premissas jurídicas:\n\n"
             f"{base_legal}"
         )
 
     if tipo == "contrato":
         return (
-            "A elaboração da minuta deve observar as seguintes premissas legais e contratuais, "
-            "com atenção ao equilíbrio entre direitos e obrigações:\n\n"
+            "A elaboração da minuta deve observar os seguintes fundamentos e premissas jurídicas:\n\n"
             f"{base_legal}"
         )
 
     if tipo == "notificação extrajudicial":
         return (
-            "A exigência veiculada nesta notificação encontra amparo, em tese, nos seguintes fundamentos:\n\n"
+            "A presente notificação encontra respaldo, em tese, nos seguintes fundamentos:\n\n"
             f"{base_legal}"
         )
 
     if tipo == "recurso":
         return (
-            "A pretensão recursal poderá ser estruturada com apoio nos seguintes fundamentos jurídicos:\n\n"
+            "A pretensão recursal poderá ser sustentada pelos seguintes fundamentos jurídicos:\n\n"
             f"{base_legal}"
         )
 
     if tipo == "petição inicial":
         return (
-            "A pretensão deduzida poderá ser amparada pelos seguintes fundamentos jurídicos:\n\n"
+            "A pretensão deduzida encontra amparo, em tese, nos seguintes fundamentos jurídicos:\n\n"
             f"{base_legal}"
         )
 
     return base_legal
 
 
-def _titulo_secao_estrategica_por_tipo(document_type: str) -> str:
-    tipo = _tipo_normalizado(document_type)
-
-    if tipo == "parecer jurídico":
-        return "III - DA ESTRUTURA DE ANÁLISE"
-    if tipo == "contrato":
-        return "III - DA ORGANIZAÇÃO DA MINUTA"
-    if tipo == "notificação extrajudicial":
-        return "III - DA ORGANIZAÇÃO DA COMUNICAÇÃO"
-    if tipo == "recurso":
-        return "III - DA ESTRUTURA RECURSAL"
-    return "III - DA ESTRUTURA SUGERIDA"
-
-
-def _texto_secao_estrategica_por_tipo(document_type: str, estrutura_tipo: str) -> str:
-    tipo = _tipo_normalizado(document_type)
-
-    if tipo == "petição inicial":
-        prefixo = (
-            "Para assegurar encadeamento lógico entre causa de pedir, fundamentos e tutela pretendida, "
-            "recomenda-se a seguinte organização da peça:"
-        )
-    elif tipo == "contestação":
-        prefixo = (
-            "Para permitir defesa clara e tecnicamente consistente, recomenda-se a seguinte sistematização:"
-        )
-    elif tipo == "réplica":
-        prefixo = (
-            "Para impugnação objetiva dos argumentos defensivos e reforço da tese autoral, sugere-se a seguinte estrutura:"
-        )
-    elif tipo == "manifestação":
-        prefixo = (
-            "Para maior clareza e adequação ao momento processual, recomenda-se organizar a peça nos seguintes termos:"
-        )
-    elif tipo == "parecer jurídico":
-        prefixo = (
-            "Para formação de conclusão técnica consistente, a análise pode ser organizada da seguinte forma:"
-        )
-    elif tipo == "contrato":
-        prefixo = (
-            "Para conferir clareza ao instrumento e adequada distribuição de direitos e obrigações, "
-            "recomenda-se a seguinte organização:"
-        )
-    elif tipo == "notificação extrajudicial":
-        prefixo = (
-            "Para garantir objetividade, efetividade e compreensão inequívoca da exigência formulada, "
-            "recomenda-se a seguinte organização:"
-        )
-    elif tipo == "recurso":
-        prefixo = (
-            "Para adequada demonstração do cabimento e das razões de reforma ou invalidação, "
-            "recomenda-se a seguinte estrutura:"
-        )
-    else:
-        prefixo = "Para fins de organização e revisão, recomenda-se observar a seguinte estrutura:"
-
-    return f"{prefixo}\n\n{estrutura_tipo}"
-
-
 def _titulo_secao_final_por_tipo(document_type: str) -> str:
     tipo = _tipo_normalizado(document_type)
 
     if tipo == "contrato":
-        return "IV - DAS CLÁUSULAS E CONDIÇÕES ESSENCIAIS"
+        return "III - DAS CLÁUSULAS ESSENCIAIS"
     if tipo == "parecer jurídico":
-        return "IV - DA CONCLUSÃO"
+        return "III - DA CONCLUSÃO"
     if tipo == "notificação extrajudicial":
-        return "IV - DA PROVIDÊNCIA EXIGIDA"
-    return "IV - DOS PEDIDOS"
+        return "III - DA PROVIDÊNCIA EXIGIDA"
+    return "III - DOS PEDIDOS"
 
 
 def _introducao_secao_final_por_tipo(document_type: str, request_intro: str) -> str:
     tipo = _tipo_normalizado(document_type)
 
-    if tipo == "contestação":
-        return "Ao final, a parte demandada poderá requerer:"
-    if tipo == "réplica":
-        return "Ao final, a parte autora poderá requerer:"
-    if tipo == "manifestação":
-        return "Considerando o exposto, o requerimento poderá ser formulado nos seguintes termos:"
     if tipo == "parecer jurídico":
-        return "Diante da análise desenvolvida, a conclusão preliminar pode ser apresentada da seguinte forma:"
+        return "Diante do exposto, conclui-se que:"
     if tipo == "contrato":
-        return "As cláusulas e condições essenciais podem ser organizadas nos seguintes termos:"
+        return "As cláusulas essenciais da presente minuta poderão contemplar:"
     if tipo == "notificação extrajudicial":
-        return "Fica a parte notificada cientificada para, nos termos abaixo, adotar a providência exigida:"
-    if tipo == "recurso":
-        return "Ao término, o recorrente poderá formular os seguintes requerimentos:"
+        return "Diante do exposto, fica a parte notificada instada a:"
     return request_intro
 
 
 def _conteudo_secao_final_por_tipo(document_type: str, requests: str) -> str:
-    tipo = _tipo_normalizado(document_type)
-    pedidos_em_topicos = _bulletizar_texto(requests)
-
-    if tipo == "petição inicial":
-        return (
-            "Os pedidos devem guardar correspondência com a narrativa fática e com a tutela jurisdicional pretendida, "
-            "podendo ser organizados da seguinte forma:\n\n"
-            f"{pedidos_em_topicos}"
-        )
-
-    if tipo == "contestação":
-        return (
-            "Os requerimentos defensivos podem contemplar, conforme o caso concreto, matérias preliminares, "
-            "improcedência dos pedidos, produção probatória e demais consequências pertinentes:\n\n"
-            f"{pedidos_em_topicos}"
-        )
-
-    if tipo == "réplica":
-        return (
-            "Nesta fase processual, a parte autora poderá ratificar a pretensão inicial, impugnar as teses defensivas "
-            "e requerer o regular prosseguimento do feito nos seguintes termos:\n\n"
-            f"{pedidos_em_topicos}"
-        )
-
-    if tipo == "manifestação":
-        return (
-            "Os requerimentos podem ser apresentados de maneira compatível com a finalidade específica desta manifestação, "
-            "nos seguintes termos:\n\n"
-            f"{pedidos_em_topicos}"
-        )
-
-    if tipo == "parecer jurídico":
-        return (
-            "À luz dos elementos examinados, a conclusão técnica preliminar pode ser sintetizada nos seguintes pontos:\n\n"
-            f"{pedidos_em_topicos}"
-        )
-
-    if tipo == "contrato":
-        return (
-            "Considerando o objeto do ajuste, as cláusulas e condições essenciais podem ser organizadas da seguinte forma:\n\n"
-            f"{pedidos_em_topicos}"
-        )
-
-    if tipo == "notificação extrajudicial":
-        return (
-            "A providência esperada da parte notificada pode ser delimitada, com clareza e objetividade, nos seguintes termos:\n\n"
-            f"{pedidos_em_topicos}"
-        )
-
-    if tipo == "recurso":
-        return (
-            "O pedido recursal pode ser estruturado com foco na revisão da decisão impugnada e nos efeitos pretendidos, "
-            "nos seguintes termos:\n\n"
-            f"{pedidos_em_topicos}"
-        )
-
-    return pedidos_em_topicos
-
-
-def _secao_final_estilo(tom: str, observacoes_estilo: str, expressoes: str) -> str:
-    return (
-        "V - OBSERVAÇÕES FINAIS DE ESTILO\n\n"
-        f"- tom predominante: {tom}\n"
-        f"- observações de estilo: {observacoes_estilo}\n"
-        f"- expressões recorrentes sugeridas: {expressoes}"
-    )
+    return _bulletizar_texto(requests)
 
 
 def _fechamento_por_tipo(document_type: str, fechamento_padrao: str) -> str:
@@ -814,14 +610,13 @@ def _fechamento_por_tipo(document_type: str, fechamento_padrao: str) -> str:
     if tipo == "contrato":
         return "E, por estarem assim ajustadas, as partes poderão firmar o instrumento correspondente."
     if tipo == "notificação extrajudicial":
-        return "Sem mais para o momento, firma-se a presente para os fins de direito."
+        return "Sem mais para o momento, firma-se a presente para os devidos fins de direito."
     if tipo == "recurso":
         return "Nesses termos, requer-se o regular processamento do recurso."
     return fechamento_padrao
 
 
 def _cabecalho_contextual_por_tipo(
-    client_name: str,
     document_type: str,
     case_subject: str,
     qualificacao: str,
@@ -832,31 +627,23 @@ def _cabecalho_contextual_por_tipo(
 
     if tipo == "parecer jurídico":
         return (
-            f"Interessado: {client_name}\n\n"
             f"Assunto: {assunto}\n\n"
-            f"{qualificacao} {abertura}"
+            f"{qualificacao}, passa a {abertura}, nos seguintes termos:"
         )
 
     if tipo == "contrato":
         return (
-            f"Partes envolvidas:\n{client_name}\n\n"
-            f"Objeto:\n{assunto}\n\n"
-            f"{qualificacao} {abertura}"
+            f"{qualificacao}, tendo por objeto {assunto.lower()}, "
+            f"{abertura}, mediante as cláusulas e condições a seguir:"
         )
 
     if tipo == "notificação extrajudicial":
         return (
-            f"Notificante / interessado:\n{client_name}\n\n"
-            f"Assunto:\n{assunto}\n\n"
-            f"{qualificacao} {abertura}"
+            f"{qualificacao}, em razão de {assunto.lower()}, "
+            f"{abertura}, nos seguintes termos:"
         )
 
-    return (
-        f"Cliente:\n{client_name}\n\n"
-        f"Tipo de documento:\n{document_type}\n\n"
-        f"Assunto do caso:\n{assunto}\n\n"
-        f"{qualificacao}, {abertura}"
-    )
+    return f"{qualificacao} {abertura}, nos termos a seguir expostos:"
 
 
 def gerar_rascunho_juridico(
@@ -873,33 +660,40 @@ def gerar_rascunho_juridico(
     base_legal = (
         legal_basis.strip()
         if legal_basis
-        else "A fundamentação jurídica específica deverá ser aprofundada conforme a legislação aplicável, a jurisprudência pertinente e a estratégia processual adotada."
+        else "A fundamentação jurídica específica deverá ser aprofundada conforme a legislação aplicável, a jurisprudência pertinente e a estratégia adotada para o caso concreto."
     )
 
     titulo_documento = _titulo_documento(document_type)
-    estrutura_tipo = _bloco_estrutura_por_tipo(document_type)
     introducao_especifica = _introducao_especifica_por_tipo(document_type, case_subject, facts)
 
-    tom = "Formal"
-    qualificacao = _qualificacao_base_por_tipo(document_type)
+    qualificacao = _qualificacao_base_por_tipo(document_type, client_name)
     abertura = _abertura_base_por_tipo(document_type)
+    introducao_pedidos = "Diante do exposto, requer:"
     fechamento = "Termos em que,\nPede deferimento."
-    introducao_pedidos_padrao = "Diante do exposto, requer:"
-    observacoes_estilo = "Utilizar linguagem jurídica formal, objetiva e técnica."
-    expressoes = "data venia; conforme entendimento jurisprudencial; nos termos da legislação aplicável"
+
     advogado = ""
     escritorio = ""
 
     if writing_profile:
-        tom = writing_profile.tone or tom
-        qualificacao = writing_profile.qualification_style or qualificacao
-        abertura = writing_profile.opening_phrase or abertura
-        fechamento = writing_profile.closing_phrase or fechamento
-        introducao_pedidos_padrao = writing_profile.request_intro or introducao_pedidos_padrao
-        observacoes_estilo = writing_profile.legal_style_notes or observacoes_estilo
-        expressoes = writing_profile.recurring_expressions or expressoes
-        advogado = writing_profile.lawyer_name or ""
-        escritorio = writing_profile.office_name or ""
+        texto_qualificacao = (writing_profile.qualification_style or "").strip()
+        texto_abertura = (writing_profile.opening_phrase or "").strip()
+        texto_pedidos = (writing_profile.request_intro or "").strip()
+        texto_fechamento = (writing_profile.closing_phrase or "").strip()
+
+        if _usar_texto_do_perfil(texto_qualificacao, minimo=18):
+            qualificacao = f"{client_name}, {texto_qualificacao.rstrip(',')}"
+
+        if _usar_texto_do_perfil(texto_abertura, minimo=20):
+            abertura = texto_abertura.rstrip(" .,:;")
+
+        if _usar_texto_do_perfil(texto_pedidos, minimo=12):
+            introducao_pedidos = texto_pedidos.rstrip(" .,:;") + ":"
+
+        if _usar_texto_do_perfil(texto_fechamento, minimo=12):
+            fechamento = texto_fechamento
+
+        advogado = (writing_profile.lawyer_name or "").strip()
+        escritorio = (writing_profile.office_name or "").strip()
 
     titulo_fatos = _titulo_secao_fatos_por_tipo(document_type)
     conteudo_fatos = _conteudo_secao_fatos_por_tipo(document_type, facts)
@@ -907,16 +701,12 @@ def gerar_rascunho_juridico(
     titulo_fundamentacao = _titulo_secao_fundamentacao_por_tipo(document_type)
     conteudo_fundamentacao = _secao_fundamentacao_por_tipo(document_type, base_legal)
 
-    titulo_estrategico = _titulo_secao_estrategica_por_tipo(document_type)
-    conteudo_estrategico = _texto_secao_estrategica_por_tipo(document_type, estrutura_tipo)
-
     titulo_final = _titulo_secao_final_por_tipo(document_type)
-    introducao_final = _introducao_secao_final_por_tipo(document_type, introducao_pedidos_padrao)
+    introducao_final = _introducao_secao_final_por_tipo(document_type, introducao_pedidos)
     conteudo_final = _conteudo_secao_final_por_tipo(document_type, requests)
 
     fechamento_final = _fechamento_por_tipo(document_type, fechamento)
     cabecalho_contextual = _cabecalho_contextual_por_tipo(
-        client_name=client_name,
         document_type=document_type,
         case_subject=case_subject,
         qualificacao=qualificacao,
@@ -946,17 +736,11 @@ def gerar_rascunho_juridico(
 
 {conteudo_fundamentacao}
 
-{titulo_estrategico}
-
-{conteudo_estrategico}
-
 {titulo_final}
 
 {introducao_final}
 
 {conteudo_final}
-
-{_secao_final_estilo(tom, observacoes_estilo, expressoes)}
 
 {fechamento_final}
 """.strip()
