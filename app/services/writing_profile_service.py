@@ -103,6 +103,28 @@ def criar_perfil(db: Session, profile_data) -> WritingProfile:
     return perfil
 
 
+def atualizar_perfil(db: Session, profile_id: int, profile_data) -> WritingProfile | None:
+    perfil = buscar_perfil_por_id(db, profile_id)
+
+    if not perfil:
+        return None
+
+    perfil.profile_name = profile_data.profile_name
+    perfil.lawyer_name = profile_data.lawyer_name
+    perfil.office_name = profile_data.office_name
+    perfil.tone = profile_data.tone
+    perfil.qualification_style = profile_data.qualification_style
+    perfil.opening_phrase = profile_data.opening_phrase
+    perfil.closing_phrase = profile_data.closing_phrase
+    perfil.request_intro = profile_data.request_intro
+    perfil.legal_style_notes = profile_data.legal_style_notes
+    perfil.recurring_expressions = profile_data.recurring_expressions
+
+    db.commit()
+    db.refresh(perfil)
+    return perfil
+
+
 def ativar_perfil(db: Session, profile_id: int) -> WritingProfile | None:
     perfil = buscar_perfil_por_id(db, profile_id)
 

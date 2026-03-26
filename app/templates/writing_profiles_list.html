@@ -74,6 +74,10 @@
                     </p>
 
                     <div class="acoes-topo acoes-perfil">
+                        <a class="botao botao-secundario" href="/writing-profiles/{{ perfil.id }}/edit">
+                            Editar perfil
+                        </a>
+
                         {% if not perfil.is_active %}
                             <form action="/writing-profiles/{{ perfil.id }}/activate" method="post">
                                 <button class="botao" type="submit">Ativar perfil</button>

@@ -9,10 +9,12 @@ from app.services.generation_service import resumir_texto
 from app.services.writing_profile_service import (
     ativar_perfil,
     buscar_perfil_ativo,
+    buscar_perfil_por_id,
     criar_perfil,
     excluir_perfil,
     listar_perfis,
     montar_resumo_perfil,
+    atualizar_perfil,
     validar_dados_perfil,
 )
 
@@ -56,6 +58,8 @@ def exibir_formulario_perfil(request: Request):
             "request": request,
             "erro": None,
             "form_data": {},
+            "modo_edicao": False,
+            "perfil_id": None,
         },
     )
 
@@ -115,6 +119,116 @@ def criar_perfil_page(
                     "legal_style_notes": legal_style_notes,
                     "recurring_expressions": recurring_expressions,
                 },
+                "modo_edicao": False,
+                "perfil_id": None,
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+@router.get("/{profile_id}/edit")
+def exibir_formulario_edicao_perfil(
+    profile_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    perfil = buscar_perfil_por_id(db, profile_id)
+
+    if not perfil:
+        return RedirectResponse(
+            url="/writing-profiles?erro=Perfil não encontrado.",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    return templates.TemplateResponse(
+        "writing_profile_form.html",
+        {
+            "request": request,
+            "erro": None,
+            "form_data": {
+                "profile_name": perfil.profile_name,
+                "tone": perfil.tone,
+                "lawyer_name": perfil.lawyer_name or "",
+                "office_name": perfil.office_name or "",
+                "qualification_style": perfil.qualification_style or "",
+                "opening_phrase": perfil.opening_phrase or "",
+                "request_intro": perfil.request_intro or "",
+                "closing_phrase": perfil.closing_phrase or "",
+                "legal_style_notes": perfil.legal_style_notes or "",
+                "recurring_expressions": perfil.recurring_expressions or "",
+            },
+            "modo_edicao": True,
+            "perfil_id": perfil.id,
+        },
+    )
+
+
+@router.post("/{profile_id}/edit")
+def editar_perfil_page(
+    profile_id: int,
+    request: Request,
+    profile_name: str = Form(...),
+    tone: str = Form(...),
+    lawyer_name: str = Form(""),
+    office_name: str = Form(""),
+    qualification_style: str = Form(""),
+    opening_phrase: str = Form(""),
+    request_intro: str = Form(""),
+    closing_phrase: str = Form(""),
+    legal_style_notes: str = Form(""),
+    recurring_expressions: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    perfil = buscar_perfil_por_id(db, profile_id)
+
+    if not perfil:
+        return RedirectResponse(
+            url="/writing-profiles?erro=Perfil não encontrado.",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    try:
+        dados = validar_dados_perfil(
+            profile_name=profile_name,
+            tone=tone,
+            lawyer_name=lawyer_name,
+            office_name=office_name,
+            qualification_style=qualification_style,
+            opening_phrase=opening_phrase,
+            request_intro=request_intro,
+            closing_phrase=closing_phrase,
+            legal_style_notes=legal_style_notes,
+            recurring_expressions=recurring_expressions,
+        )
+
+        payload = WritingProfileCreate(**dados)
+        atualizar_perfil(db, profile_id, payload)
+
+        return RedirectResponse(
+            url="/writing-profiles?sucesso=Perfil atualizado com sucesso.",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    except ValueError as exc:
+        return templates.TemplateResponse(
+            "writing_profile_form.html",
+            {
+                "request": request,
+                "erro": str(exc),
+                "form_data": {
+                    "profile_name": profile_name,
+                    "tone": tone,
+                    "lawyer_name": lawyer_name,
+                    "office_name": office_name,
+                    "qualification_style": qualification_style,
+                    "opening_phrase": opening_phrase,
+                    "request_intro": request_intro,
+                    "closing_phrase": closing_phrase,
+                    "legal_style_notes": legal_style_notes,
+                    "recurring_expressions": recurring_expressions,
+                },
+                "modo_edicao": True,
+                "perfil_id": profile_id,
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )

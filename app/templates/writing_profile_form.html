@@ -1,14 +1,26 @@
 {% extends "base.html" %}
 
-{% block title %}Novo perfil de escrita{% endblock %}
+{% block title %}
+    {% if modo_edicao %}Editar perfil de escrita{% else %}Novo perfil de escrita{% endif %}
+{% endblock %}
 
 {% block content %}
 <section class="card">
     <div class="cabecalho-pagina">
         <div>
-            <h2>Novo perfil de escrita</h2>
+            <h2>
+                {% if modo_edicao %}
+                    Editar perfil de escrita
+                {% else %}
+                    Novo perfil de escrita
+                {% endif %}
+            </h2>
             <p class="texto-suave">
-                Cadastre um estilo jurídico para ser usado nas próximas minutas geradas pelo sistema.
+                {% if modo_edicao %}
+                    Atualize os dados do perfil de escrita sem recriá-lo.
+                {% else %}
+                    Cadastre um estilo jurídico para ser usado nas próximas minutas geradas pelo sistema.
+                {% endif %}
             </p>
         </div>
         <div class="acoes-topo">
@@ -16,11 +28,14 @@
         </div>
     </div>
 
-    {% if error_message %}
-        <div class="erro">{{ error_message }}</div>
+    {% if erro %}
+        <div class="erro">{{ erro }}</div>
     {% endif %}
 
-    <form action="/writing-profiles/create" method="post">
+    <form
+        action="{% if modo_edicao %}/writing-profiles/{{ perfil_id }}/edit{% else %}/writing-profiles/create{% endif %}"
+        method="post"
+    >
         <label for="profile_name">Nome do perfil</label>
         <input
             type="text"
@@ -107,7 +122,17 @@
             placeholder="Ex.: data venia, com o devido respeito, nesse sentido, requer a Vossa Excelência..."
         >{{ form_data.recurring_expressions if form_data else '' }}</textarea>
 
-        <button class="botao" type="submit">Salvar perfil</button>
+        <div class="acoes-topo">
+            <button class="botao" type="submit">
+                {% if modo_edicao %}
+                    Salvar alterações
+                {% else %}
+                    Salvar perfil
+                {% endif %}
+            </button>
+
+            <a class="botao botao-secundario" href="/writing-profiles">Cancelar</a>
+        </div>
     </form>
 </section>
 {% endblock %}
