@@ -3,13 +3,13 @@
 {% block title %}Detalhes da geração{% endblock %}
 
 {% block content %}
-<section class="card card-detalhes-geracao">
-    <div class="cabecalho-pagina cabecalho-geracao">
-        <div>
+<section class="card card-detalhes-geracao detalhe-geracao-profissional">
+    <div class="cabecalho-pagina cabecalho-geracao cabecalho-geracao-profissional">
+        <div class="cabecalho-geracao-textos">
             <p class="etiqueta-secao">Jurídico AI</p>
             <h2>Detalhes da geração</h2>
             <p class="texto-suave">
-                Confira os dados informados e o texto jurídico gerado.
+                Visualize a estrutura da geração, revise o conteúdo final e acesse as principais ações em um layout mais organizado.
             </p>
         </div>
 
@@ -28,7 +28,82 @@
         <div class="erro">{{ erro }}</div>
     {% endif %}
 
-    <div class="painel-resumo-geracao">
+    <section class="detalhe-geracao-hero">
+        <div class="detalhe-geracao-identidade">
+            <div class="detalhe-geracao-identidade-topo">
+                <span class="badge badge-neutro">Geração #{{ geracao.id }}</span>
+                <span class="badge badge-neutro">{{ geracao.document_type }}</span>
+            </div>
+
+            <h3>{{ geracao.client_name }}</h3>
+
+            <p class="detalhe-geracao-assunto">
+                {{ geracao.case_subject }}
+            </p>
+
+            <div class="detalhe-geracao-meta-lista">
+                <div class="detalhe-geracao-meta-item">
+                    <span class="detalhe-geracao-meta-label">Perfil usado</span>
+                    <strong>
+                        {{ geracao.writing_profile.profile_name if geracao.writing_profile else "Sem perfil" }}
+                    </strong>
+                </div>
+
+                <div class="detalhe-geracao-meta-item">
+                    <span class="detalhe-geracao-meta-label">Criado em</span>
+                    <strong>
+                        {{ geracao.created_at.strftime("%d/%m/%Y %H:%M") if geracao.created_at else "-" }}
+                    </strong>
+                </div>
+
+                <div class="detalhe-geracao-meta-item">
+                    <span class="detalhe-geracao-meta-label">Última atualização</span>
+                    <strong>
+                        {{ geracao.updated_at.strftime("%d/%m/%Y %H:%M") if geracao.updated_at else "-" }}
+                    </strong>
+                </div>
+            </div>
+        </div>
+
+        <aside class="detalhe-geracao-acoes">
+            <div class="detalhe-geracao-acoes-topo">
+                <p class="etiqueta-secao">Ações rápidas</p>
+                <h3>O que deseja fazer agora?</h3>
+                <p class="texto-suave">
+                    As ações mais utilizadas ficam concentradas aqui para facilitar o fluxo.
+                </p>
+            </div>
+
+            <div class="detalhe-geracao-acoes-botoes">
+                <button
+                    type="button"
+                    class="botao"
+                    id="botao-copiar-texto"
+                    onclick="copiarTextoJuridico()"
+                >
+                    Copiar texto jurídico
+                </button>
+
+                <a
+                    class="botao botao-secundario"
+                    href="/generations/{{ geracao.id }}/download-docx"
+                >
+                    Baixar .docx
+                </a>
+
+                <a
+                    class="botao botao-secundario"
+                    href="/generations/{{ geracao.id }}/download-txt"
+                >
+                    Baixar .txt
+                </a>
+            </div>
+
+            <p id="mensagem-copia" class="mensagem-copia" aria-live="polite"></p>
+        </aside>
+    </section>
+
+    <div class="painel-resumo-geracao painel-resumo-geracao-profissional">
         <div class="info-box destaque-principal">
             <span class="info-label">Cliente</span>
             <span class="info-value">{{ geracao.client_name }}</span>
@@ -48,98 +123,25 @@
             <span class="info-label">Assunto do caso</span>
             <span class="info-value">{{ geracao.case_subject }}</span>
         </div>
-
-        <div class="info-box">
-            <span class="info-label">Perfil usado</span>
-            <span class="info-value">
-                {{ geracao.writing_profile.profile_name if geracao.writing_profile else "Sem perfil" }}
-            </span>
-        </div>
-
-        <div class="info-box">
-            <span class="info-label">Criado em</span>
-            <span class="info-value">
-                {{ geracao.created_at.strftime("%d/%m/%Y %H:%M") if geracao.created_at else "-" }}
-            </span>
-        </div>
-
-        <div class="info-box">
-            <span class="info-label">Última atualização</span>
-            <span class="info-value">
-                {{ geracao.updated_at.strftime("%d/%m/%Y %H:%M") if geracao.updated_at else "-" }}
-            </span>
-        </div>
     </div>
 
-    {% if documentos_base %}
-        <section class="bloco-informativo">
-            <div class="bloco-informativo-topo">
-                <h3>Documentos base selecionados</h3>
-                <span class="badge badge-neutro">{{ documentos_base|length }} documento(s)</span>
-            </div>
-
-            <div class="lista-documentos-utilizados">
-                {% for documento in documentos_base %}
-                    <div class="documento-utilizado-item">
-                        <strong>{{ documento.original_filename }}</strong>
-                        <span>ID #{{ documento.id }} • {{ documento.file_type }}</span>
-                    </div>
-                {% endfor %}
-            </div>
-        </section>
-    {% endif %}
-
-    <section class="bloco-resultado-principal bloco-destaque-texto">
-        <div class="cabecalho-resultado">
+    <section class="bloco-resultado-principal bloco-destaque-texto bloco-destaque-texto-profissional">
+        <div class="cabecalho-resultado cabecalho-resultado-profissional">
             <div>
-                <p class="etiqueta-secao">Resultado final</p>
+                <p class="etiqueta-secao">Resultado principal</p>
                 <h3>Texto jurídico gerado</h3>
                 <p class="texto-suave">
-                    Copie ou baixe apenas o texto jurídico final, sem contexto técnico.
+                    Este é o conteúdo final da geração. O foco principal da tela fica nesta área.
                 </p>
-            </div>
-
-            <div class="acoes-resultado">
-                <a
-                    class="botao botao-secundario"
-                    href="/generations/{{ geracao.id }}/download-txt"
-                >
-                    Baixar .txt
-                </a>
-
-                <a
-                    class="botao botao-secundario"
-                    href="/generations/{{ geracao.id }}/download-docx"
-                >
-                    Baixar .docx
-                </a>
-
-                <a
-                    class="botao botao-secundario"
-                    href="/generations/{{ geracao.id }}/edit"
-                >
-                    Editar
-                </a>
-
-                <button
-                    type="button"
-                    class="botao"
-                    id="botao-copiar-texto"
-                    onclick="copiarTextoJuridico()"
-                >
-                    Copiar texto jurídico
-                </button>
             </div>
         </div>
 
         <div class="resultado-texto resultado-texto-claro resultado-texto-juridico">
             <pre id="texto-juridico">{{ geracao.generated_text }}</pre>
         </div>
-
-        <p id="mensagem-copia" class="mensagem-copia" aria-live="polite"></p>
     </section>
 
-    <div class="grid-conteudo-auxiliar">
+    <div class="grid-conteudo-auxiliar grid-conteudo-auxiliar-profissional">
         <section class="bloco-informativo">
             <div class="bloco-informativo-topo">
                 <h3>Fatos informados</h3>
@@ -161,7 +163,7 @@
         </section>
     </div>
 
-    <section class="bloco-informativo">
+    <section class="bloco-informativo bloco-informativo-secundario">
         <div class="bloco-informativo-topo">
             <h3>Fundamentação jurídica inicial</h3>
             <span class="badge badge-neutro">Base jurídica</span>
@@ -171,12 +173,30 @@
         </div>
     </section>
 
-    <details class="detalhes-contexto">
+    {% if documentos_base %}
+        <section class="bloco-informativo bloco-informativo-discreto">
+            <div class="bloco-informativo-topo">
+                <h3>Documentos base selecionados</h3>
+                <span class="badge badge-neutro">{{ documentos_base|length }} documento(s)</span>
+            </div>
+
+            <div class="lista-documentos-utilizados">
+                {% for documento in documentos_base %}
+                    <div class="documento-utilizado-item">
+                        <strong>{{ documento.original_filename }}</strong>
+                        <span>ID #{{ documento.id }} • {{ documento.file_type }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+
+    <details class="detalhes-contexto detalhes-contexto-discreto">
         <summary>Ver contexto técnico utilizado</summary>
         <div class="contexto-ajuda">
-            Esta área é técnica e serve apenas para conferência interna do que foi utilizado na geração.
+            Esta área é técnica e serve apenas para conferência interna do material utilizado na geração.
         </div>
-        <div class="resultado-texto">
+        <div class="resultado-texto resultado-texto-tecnico">
             <pre>{{ geracao.context_used }}</pre>
         </div>
     </details>
