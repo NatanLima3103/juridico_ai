@@ -84,6 +84,14 @@
                     Copiar texto jurídico
                 </button>
 
+                <button
+                    type="submit"
+                    form="form-salvar-texto-juridico"
+                    class="botao botao-secundario"
+                >
+                    Salvar versão ajustada
+                </button>
+
                 <a
                     class="botao botao-secundario"
                     href="/generations/{{ geracao.id }}/download-docx"
@@ -131,14 +139,26 @@
                 <p class="etiqueta-secao">Resultado principal</p>
                 <h3>Texto jurídico gerado</h3>
                 <p class="texto-suave">
-                    Este é o conteúdo final da geração. O foco principal da tela fica nesta área.
+                    Esta área agora pode ser ajustada manualmente antes da exportação. Ao salvar, a versão editada passa a ser a versão oficial da geração.
                 </p>
             </div>
         </div>
 
-        <div class="resultado-texto resultado-texto-claro resultado-texto-juridico">
-            <pre id="texto-juridico">{{ geracao.generated_text }}</pre>
-        </div>
+        <form
+            id="form-salvar-texto-juridico"
+            method="post"
+            action="/generations/{{ geracao.id }}/save-text"
+        >
+            <div class="resultado-texto resultado-texto-claro resultado-texto-juridico">
+                <textarea
+                    id="texto-juridico"
+                    name="generated_text"
+                    rows="22"
+                    spellcheck="false"
+                    style="min-height: 520px; font-family: 'Times New Roman', Georgia, serif; font-size: 16px; line-height: 1.9; background: transparent; border: none; box-shadow: none; resize: vertical; padding: 0; margin: 0;"
+                >{{ geracao.generated_text }}</textarea>
+            </div>
+        </form>
     </section>
 
     <div class="grid-conteudo-auxiliar grid-conteudo-auxiliar-profissional">
@@ -214,7 +234,7 @@
             return;
         }
 
-        const texto = textoElemento.innerText.trim();
+        const texto = textoElemento.value.trim();
 
         if (!texto) {
             mensagem.textContent = "Não há texto jurídico para copiar.";

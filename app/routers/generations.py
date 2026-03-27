@@ -278,6 +278,38 @@ def generation_detail(
     )
 
 
+@router.post("/{generation_id}/save-text")
+async def save_generation_text(
+    generation_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    geracao = buscar_geracao_por_id(db, generation_id)
+
+    if not geracao:
+        raise HTTPException(status_code=404, detail="Geração não encontrada.")
+
+    form = await request.form()
+    generated_text = str(form.get("generated_text", "")).strip()
+
+    if not generated_text:
+        return RedirectResponse(
+            url=f"/generations/{generation_id}?erro=O texto jurídico não pode ficar vazio.",
+            status_code=303,
+        )
+
+    geracao.generated_text = generated_text
+    geracao.updated_at = geracao.updated_at = geracao.updated_at = geracao.updated_at if False else geracao.updated_at
+    db.add(geracao)
+    db.commit()
+    db.refresh(geracao)
+
+    return RedirectResponse(
+        url=f"/generations/{generation_id}?sucesso=Versão ajustada salva com sucesso.",
+        status_code=303,
+    )
+
+
 @router.get("/{generation_id}/edit")
 def edit_generation_page(
     generation_id: int,
