@@ -8,6 +8,9 @@
 <section class="card">
     <div class="cabecalho-pagina">
         <div>
+            <span class="etiqueta-secao">
+                {% if modo_edicao %}Edição{% else %}Novo perfil{% endif %}
+            </span>
             <h2>
                 {% if modo_edicao %}
                     Editar perfil de escrita
@@ -24,17 +27,29 @@
             </p>
         </div>
         <div class="acoes-topo">
-            <a class="botao" href="/writing-profiles">Voltar para perfis</a>
+            <a class="botao botao-secundario" href="/writing-profiles">
+                <span class="icone-botao" aria-hidden="true">←</span>
+                Voltar para perfis
+            </a>
         </div>
     </div>
 
     {% if erro %}
-        <div class="erro">{{ erro }}</div>
+        <div class="alerta alerta-erro" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Verifique os dados informados</span>
+                <p>{{ erro }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
     {% endif %}
 
     <form
         action="{% if modo_edicao %}/writing-profiles/{{ perfil_id }}/edit{% else %}/writing-profiles/create{% endif %}"
         method="post"
+        data-loading-form
+        data-loading-message="{% if modo_edicao %}Salvando alterações do perfil...{% else %}Criando perfil de escrita...{% endif %}"
+        data-loading-button-text="{% if modo_edicao %}Salvando...{% else %}Criando...{% endif %}"
     >
         <label for="profile_name">Nome do perfil</label>
         <input
@@ -122,8 +137,9 @@
             placeholder="Ex.: data venia, com o devido respeito, nesse sentido, requer a Vossa Excelência..."
         >{{ form_data.recurring_expressions if form_data else '' }}</textarea>
 
-        <div class="acoes-topo">
+        <div class="acoes-formulario-geracao">
             <button class="botao" type="submit">
+                <span class="icone-botao" aria-hidden="true">💾</span>
                 {% if modo_edicao %}
                     Salvar alterações
                 {% else %}
@@ -131,7 +147,10 @@
                 {% endif %}
             </button>
 
-            <a class="botao botao-secundario" href="/writing-profiles">Cancelar</a>
+            <a class="botao botao-secundario" href="/writing-profiles">
+                <span class="icone-botao" aria-hidden="true">←</span>
+                Cancelar
+            </a>
         </div>
     </form>
 </section>

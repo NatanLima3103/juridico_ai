@@ -6,18 +6,45 @@
 <section class="card">
     <div class="cabecalho-pagina">
         <div>
+            <span class="etiqueta-secao">Documento</span>
             <h2>Detalhes do documento</h2>
             <p class="texto-suave">
                 Visualize as informações completas do arquivo, confira o texto extraído e baixe o original.
             </p>
         </div>
         <div class="acoes-topo">
-            <a class="botao" href="/documents">Voltar para lista</a>
+            <a class="botao botao-secundario" href="/documents">
+                <span class="icone-botao" aria-hidden="true">←</span>
+                Voltar para lista
+            </a>
             {% if documento.file_exists %}
-                <a class="botao" href="/documents/{{ documento.id }}/download">Baixar arquivo</a>
+                <a class="botao" href="/documents/{{ documento.id }}/download">
+                    <span class="icone-botao" aria-hidden="true">↓</span>
+                    Baixar arquivo
+                </a>
             {% endif %}
         </div>
     </div>
+
+    {% if sucesso %}
+        <div class="alerta alerta-sucesso" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Operação realizada com sucesso</span>
+                <p>{{ sucesso }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
+    {% endif %}
+
+    {% if erro %}
+        <div class="alerta alerta-erro" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Ocorreu um problema</span>
+                <p>{{ erro }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
+    {% endif %}
 
     <div class="grid-detalhes">
         <div class="info-box">
@@ -79,14 +106,22 @@
         </div>
     </div>
 
-    <h3>Resumo do texto extraído</h3>
-    <div class="resultado-texto">
-        <p>{{ documento.text_preview }}</p>
-    </div>
+    <section class="bloco-informativo">
+        <div class="bloco-informativo-topo">
+            <h3>Resumo do texto extraído</h3>
+        </div>
+        <div class="resultado-texto">
+            <p>{{ documento.text_preview }}</p>
+        </div>
+    </section>
 
-    <h3>Texto extraído completo</h3>
-    <div class="resultado-texto">
-        <pre>{{ documento.extracted_text }}</pre>
-    </div>
+    <section class="bloco-informativo">
+        <div class="bloco-informativo-topo">
+            <h3>Texto extraído completo</h3>
+        </div>
+        <div class="resultado-texto">
+            <pre>{{ documento.extracted_text }}</pre>
+        </div>
+    </section>
 </section>
 {% endblock %}

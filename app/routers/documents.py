@@ -33,6 +33,9 @@ def upload_page(request: Request):
             "request": request,
             "title": "Upload de documentos",
             "error_message": None,
+            "sucesso": None,
+            "erro": None,
+            "form_data": {},
             "max_upload_size_mb": MAX_UPLOAD_SIZE_MB,
         },
     )
@@ -57,25 +60,29 @@ async def upload_document(
 
         tamanho_bytes = obter_tamanho_arquivo(documento)
 
+        documento_view = {
+            "id": documento.id,
+            "original_filename": documento.original_filename,
+            "saved_filename": documento.saved_filename,
+            "file_path": documento.file_path,
+            "file_type": documento.file_type,
+            "created_at": documento.created_at,
+            "file_exists": documento_existe(documento),
+            "file_size_label": formatar_tamanho_arquivo(tamanho_bytes),
+            "text_length": contar_caracteres_texto(documento.extracted_text),
+            "word_count": contar_palavras_texto(documento.extracted_text),
+            "text_preview": resumir_texto_extraido(documento.extracted_text, 500),
+            "extracted_text": documento.extracted_text,
+        }
+
         return templates.TemplateResponse(
-            "result.html",
+            "document_detail.html",
             {
                 "request": request,
-                "title": "Resultado do documento",
-                "documento": {
-                    "id": documento.id,
-                    "original_filename": documento.original_filename,
-                    "saved_filename": documento.saved_filename,
-                    "file_path": documento.file_path,
-                    "file_type": documento.file_type,
-                    "created_at": documento.created_at,
-                    "file_exists": documento_existe(documento),
-                    "file_size_label": formatar_tamanho_arquivo(tamanho_bytes),
-                    "text_length": contar_caracteres_texto(documento.extracted_text),
-                    "word_count": contar_palavras_texto(documento.extracted_text),
-                    "text_preview": resumir_texto_extraido(documento.extracted_text, 500),
-                    "extracted_text": documento.extracted_text,
-                },
+                "title": "Detalhes do documento",
+                "documento": documento_view,
+                "sucesso": "Documento enviado e salvo com sucesso.",
+                "erro": None,
             },
         )
     except ValueError as exc:
@@ -85,8 +92,12 @@ async def upload_document(
                 "request": request,
                 "title": "Upload de documentos",
                 "error_message": str(exc),
+                "sucesso": None,
+                "erro": None,
+                "form_data": {},
                 "max_upload_size_mb": MAX_UPLOAD_SIZE_MB,
             },
+            status_code=400,
         )
     except Exception as exc:
         return templates.TemplateResponse(
@@ -95,8 +106,12 @@ async def upload_document(
                 "request": request,
                 "title": "Upload de documentos",
                 "error_message": f"Ocorreu um erro ao processar o arquivo: {exc}",
+                "sucesso": None,
+                "erro": None,
+                "form_data": {},
                 "max_upload_size_mb": MAX_UPLOAD_SIZE_MB,
             },
+            status_code=500,
         )
 
 
@@ -128,6 +143,8 @@ def documents_list(request: Request, db: Session = Depends(get_db)):
             "request": request,
             "title": "Documentos enviados",
             "documentos": documentos_view,
+            "sucesso": request.query_params.get("sucesso"),
+            "erro": request.query_params.get("erro"),
         },
     )
 
@@ -166,6 +183,8 @@ def document_detail(
             "request": request,
             "title": "Detalhes do documento",
             "documento": documento_view,
+            "sucesso": request.query_params.get("sucesso"),
+            "erro": request.query_params.get("erro"),
         },
     )
 

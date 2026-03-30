@@ -9,6 +9,7 @@ from app.database import get_db
 from app.services.document_service import listar_documentos, listar_documentos_por_ids
 from app.services.generation_service import (
     TIPOS_DE_DOCUMENTO,
+    agora_brasil,
     atualizar_geracao,
     buscar_geracao_por_id,
     criar_geracao,
@@ -299,7 +300,8 @@ async def save_generation_text(
         )
 
     geracao.generated_text = generated_text
-    geracao.updated_at = geracao.updated_at = geracao.updated_at = geracao.updated_at if False else geracao.updated_at
+    geracao.updated_at = agora_brasil()
+
     db.add(geracao)
     db.commit()
     db.refresh(geracao)

@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Jurídico AI{% endblock %}</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', path='img/favicon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=4.6">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=4.8">
 </head>
 <body>
     <header class="topo">
         <div class="container topo-conteudo">
-            <a href="/" class="marca-link">
+            <a href="/" class="marca-link" aria-label="Ir para a página inicial do Jurídico AI">
                 <img
                     src="{{ url_for('static', path='img/logo-juridico-ai-sem-fundo.png') }}"
                     alt="Jurídico AI"
@@ -34,6 +34,37 @@
         {% block content %}{% endblock %}
     </main>
 
-    <script src="{{ url_for('static', path='js/main.js') }}?v=1.0"></script>
+    <div class="loading-overlay" id="loading-overlay" aria-hidden="true">
+        <div class="loading-card" role="status" aria-live="polite">
+            <div class="spinner-loading"></div>
+            <h3>Processando sua solicitação</h3>
+            <p id="loading-texto">Aguarde um instante...</p>
+        </div>
+    </div>
+
+    <div class="modal-confirmacao" id="modal-confirmacao" aria-hidden="true">
+        <div class="modal-confirmacao-backdrop" data-confirm-close></div>
+        <div class="modal-confirmacao-card" role="dialog" aria-modal="true" aria-labelledby="modal-confirmacao-titulo">
+            <div class="modal-confirmacao-icone" aria-hidden="true">!</div>
+
+            <div class="modal-confirmacao-conteudo">
+                <h3 id="modal-confirmacao-titulo">Confirmar ação</h3>
+                <p id="modal-confirmacao-mensagem">Deseja continuar?</p>
+            </div>
+
+            <div class="modal-confirmacao-acoes">
+                <button type="button" class="botao botao-secundario" data-confirm-close>
+                    <span class="icone-botao" aria-hidden="true">←</span>
+                    Cancelar
+                </button>
+                <button type="button" class="botao-perigo" id="modal-confirmacao-confirmar">
+                    <span class="icone-botao" aria-hidden="true">🗑</span>
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', path='js/main.js') }}?v=1.8"></script>
 </body>
 </html>

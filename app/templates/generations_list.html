@@ -6,6 +6,7 @@
 <section class="card">
     <div class="cabecalho-pagina">
         <div>
+            <span class="etiqueta-secao">Gerações</span>
             <h2>Histórico de gerações</h2>
             <p class="texto-suave">
                 Consulte, abra, edite e exclua as gerações já criadas de forma mais prática e visual.
@@ -13,16 +14,31 @@
         </div>
 
         <div class="acoes-topo">
-            <a class="botao" href="/generations/create">Nova geração</a>
+            <a class="botao" href="/generations/create">
+                <span class="icone-botao" aria-hidden="true">＋</span>
+                Nova geração
+            </a>
         </div>
     </div>
 
     {% if sucesso %}
-        <div class="sucesso">{{ sucesso }}</div>
+        <div class="alerta alerta-sucesso" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Operação realizada com sucesso</span>
+                <p>{{ sucesso }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
     {% endif %}
 
     {% if erro %}
-        <div class="erro">{{ erro }}</div>
+        <div class="alerta alerta-erro" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Não foi possível concluir a ação</span>
+                <p>{{ erro }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
     {% endif %}
 
     {% if geracoes %}
@@ -85,15 +101,30 @@
                         </div>
 
                         <div class="geracao-card-acoes">
-                            <a class="botao botao-secundario" href="/generations/{{ geracao.id }}">Abrir</a>
-                            <a class="botao" href="/generations/{{ geracao.id }}/edit">Editar</a>
+                            <a class="botao botao-secundario" href="/generations/{{ geracao.id }}">
+                                <span class="icone-botao" aria-hidden="true">👁</span>
+                                Abrir
+                            </a>
 
-                            <form action="/generations/{{ geracao.id }}/delete" method="post">
-                                <button
-                                    type="submit"
-                                    class="botao-perigo"
-                                    onclick="return confirm('Deseja realmente excluir esta geração?');"
-                                >
+                            <a class="botao" href="/generations/{{ geracao.id }}/edit">
+                                <span class="icone-botao" aria-hidden="true">✎</span>
+                                Editar
+                            </a>
+
+                            <form
+                                action="/generations/{{ geracao.id }}/delete"
+                                method="post"
+                                data-confirm-action
+                                data-loading-form
+                                data-loading-message="Excluindo geração..."
+                                data-loading-button-text="Excluindo..."
+                                data-confirm-title="Excluir geração"
+                                data-confirm-message="Deseja realmente excluir esta geração? Esta ação não poderá ser desfeita."
+                                data-confirm-submit-label="Excluir geração"
+                                data-confirm-submit-icon='<span class="icone-botao" aria-hidden="true">🗑</span>'
+                            >
+                                <button type="submit" class="botao-perigo">
+                                    <span class="icone-botao" aria-hidden="true">🗑</span>
                                     Excluir
                                 </button>
                             </form>
@@ -104,8 +135,15 @@
         </div>
     {% else %}
         <div class="estado-vazio">
-            <p>Nenhuma geração foi criada até o momento.</p>
-            <a class="botao" href="/generations/create">Criar primeira geração</a>
+            <div class="estado-vazio-icone" aria-hidden="true">📄</div>
+            <h3>Nenhuma geração foi criada até o momento</h3>
+            <p>Crie sua primeira geração jurídica para começar a montar minutas com apoio do sistema.</p>
+            <div class="estado-vazio-acoes">
+                <a class="botao" href="/generations/create">
+                    <span class="icone-botao" aria-hidden="true">＋</span>
+                    Criar primeira geração
+                </a>
+            </div>
         </div>
     {% endif %}
 </section>

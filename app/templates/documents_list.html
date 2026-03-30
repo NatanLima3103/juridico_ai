@@ -6,15 +6,39 @@
 <section class="card">
     <div class="cabecalho-pagina">
         <div>
+            <span class="etiqueta-secao">Documentos</span>
             <h2>Documentos enviados</h2>
             <p class="texto-suave">
                 Aqui você pode acompanhar os arquivos já enviados, abrir os detalhes e baixar o documento original.
             </p>
         </div>
         <div class="acoes-topo">
-            <a class="botao" href="/documents/upload">Novo upload</a>
+            <a class="botao" href="/documents/upload">
+                <span class="icone-botao" aria-hidden="true">↑</span>
+                Novo upload
+            </a>
         </div>
     </div>
+
+    {% if sucesso %}
+        <div class="alerta alerta-sucesso" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Operação realizada com sucesso</span>
+                <p>{{ sucesso }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
+    {% endif %}
+
+    {% if erro %}
+        <div class="alerta alerta-erro" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Não foi possível concluir a ação</span>
+                <p>{{ erro }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
+    {% endif %}
 
     {% if documentos %}
         <div class="tabela-responsiva">
@@ -56,10 +80,16 @@
                             {% endif %}
                         </td>
                         <td>
-                            <div class="acoes-linha">
-                                <a href="/documents/{{ documento.id }}">Detalhes</a>
+                            <div class="barra-acoes-tabela">
+                                <a class="botao botao-secundario" href="/documents/{{ documento.id }}">
+                                    <span class="icone-botao" aria-hidden="true">👁</span>
+                                    Detalhes
+                                </a>
                                 {% if documento.file_exists %}
-                                    <a href="/documents/{{ documento.id }}/download">Baixar</a>
+                                    <a class="botao" href="/documents/{{ documento.id }}/download">
+                                        <span class="icone-botao" aria-hidden="true">↓</span>
+                                        Baixar
+                                    </a>
                                 {% endif %}
                             </div>
                         </td>
@@ -70,8 +100,15 @@
         </div>
     {% else %}
         <div class="estado-vazio">
-            <p>Nenhum documento foi enviado ainda.</p>
-            <a class="botao" href="/documents/upload">Enviar primeiro documento</a>
+            <div class="estado-vazio-icone" aria-hidden="true">📁</div>
+            <h3>Nenhum documento foi enviado ainda</h3>
+            <p>Envie o primeiro documento para começar a montar sua base jurídica.</p>
+            <div class="estado-vazio-acoes">
+                <a class="botao" href="/documents/upload">
+                    <span class="icone-botao" aria-hidden="true">↑</span>
+                    Enviar primeiro documento
+                </a>
+            </div>
         </div>
     {% endif %}
 </section>

@@ -6,6 +6,7 @@
 <section class="card">
     <div class="cabecalho-pagina">
         <div>
+            <span class="etiqueta-secao">Upload</span>
             <h2>Upload de documento</h2>
             <p class="texto-suave">
                 Envie um arquivo para armazenar no sistema e extrair o texto automaticamente.
@@ -13,12 +14,21 @@
         </div>
 
         <div class="acoes-topo">
-            <a class="botao" href="/documents">Ver documentos enviados</a>
+            <a class="botao botao-secundario" href="/documents">
+                <span class="icone-botao" aria-hidden="true">←</span>
+                Ver documentos enviados
+            </a>
         </div>
     </div>
 
     {% if error_message %}
-        <div class="erro">{{ error_message }}</div>
+        <div class="alerta alerta-erro" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Não foi possível enviar o arquivo</span>
+                <p>{{ error_message }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
     {% endif %}
 
     <div class="grid-detalhes">
@@ -33,7 +43,14 @@
         </div>
     </div>
 
-    <form action="/documents/upload" method="post" enctype="multipart/form-data">
+    <form
+        action="/documents/upload"
+        method="post"
+        enctype="multipart/form-data"
+        data-loading-form
+        data-loading-message="Enviando documento e processando conteúdo..."
+        data-loading-button-text="Enviando..."
+    >
         <label for="file">Selecione o arquivo</label>
         <input id="file" type="file" name="file" accept=".pdf,.docx,.txt" required>
 
@@ -41,7 +58,12 @@
             Dica: envie petições, contratos, modelos ou documentos-base para já começar a montar sua base jurídica.
         </p>
 
-        <button class="botao" type="submit">Enviar arquivo</button>
+        <div class="acoes-formulario-geracao">
+            <button class="botao" type="submit">
+                <span class="icone-botao" aria-hidden="true">↑</span>
+                Enviar arquivo
+            </button>
+        </div>
     </form>
 </section>
 {% endblock %}

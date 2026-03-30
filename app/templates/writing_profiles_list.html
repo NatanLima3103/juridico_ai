@@ -6,37 +6,51 @@
 <section class="card">
     <div class="cabecalho-pagina">
         <div>
+            <span class="etiqueta-secao">Perfis de escrita</span>
             <h2>Perfis de escrita</h2>
             <p class="texto-suave">
                 Cadastre estilos jurídicos diferentes e escolha qual deles ficará ativo para as próximas gerações.
             </p>
         </div>
         <div class="acoes-topo">
-            <a class="botao" href="/writing-profiles/create">Novo perfil</a>
+            <a class="botao" href="/writing-profiles/create">
+                <span class="icone-botao" aria-hidden="true">＋</span>
+                Novo perfil
+            </a>
         </div>
     </div>
 
     {% if sucesso %}
-        <div class="sucesso">{{ sucesso }}</div>
+        <div class="alerta alerta-sucesso" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Operação realizada com sucesso</span>
+                <p>{{ sucesso }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
     {% endif %}
 
     {% if erro %}
-        <div class="erro">{{ erro }}</div>
+        <div class="alerta alerta-erro" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Não foi possível concluir a ação</span>
+                <p>{{ erro }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
     {% endif %}
 
     {% if perfil_ativo %}
-        <div class="sucesso">
-            Perfil ativo no momento: <strong>{{ perfil_ativo.profile_name }}</strong>
-            {% if perfil_ativo.lawyer_name %}
-                — Advogado: {{ perfil_ativo.lawyer_name }}
-            {% endif %}
-            {% if perfil_ativo.office_name %}
-                — Escritório: {{ perfil_ativo.office_name }}
-            {% endif %}
-        </div>
-    {% else %}
-        <div class="erro">
-            Nenhum perfil de escrita está ativo no momento.
+        <div class="alerta alerta-sucesso" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Perfil ativo no momento</span>
+                <p>
+                    <strong>{{ perfil_ativo.profile_name }}</strong>
+                    {% if perfil_ativo.lawyer_name %} — Advogado: {{ perfil_ativo.lawyer_name }}{% endif %}
+                    {% if perfil_ativo.office_name %} — Escritório: {{ perfil_ativo.office_name }}{% endif %}
+                </p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
         </div>
     {% endif %}
 
@@ -75,12 +89,22 @@
 
                     <div class="acoes-topo acoes-perfil">
                         <a class="botao botao-secundario" href="/writing-profiles/{{ perfil.id }}/edit">
-                            Editar perfil
+                            <span class="icone-botao" aria-hidden="true">✎</span>
+                            Editar
                         </a>
 
                         {% if not perfil.is_active %}
-                            <form action="/writing-profiles/{{ perfil.id }}/activate" method="post">
-                                <button class="botao" type="submit">Ativar perfil</button>
+                            <form
+                                action="/writing-profiles/{{ perfil.id }}/activate"
+                                method="post"
+                                data-loading-form
+                                data-loading-message="Ativando perfil..."
+                                data-loading-button-text="Ativando..."
+                            >
+                                <button class="botao" type="submit">
+                                    <span class="icone-botao" aria-hidden="true">✓</span>
+                                    Ativar perfil
+                                </button>
                             </form>
                         {% else %}
                             <span class="badge badge-sucesso">Perfil em uso</span>
@@ -89,9 +113,19 @@
                         <form
                             action="/writing-profiles/{{ perfil.id }}/delete"
                             method="post"
-                            onsubmit="return confirm('Tem certeza que deseja excluir este perfil de escrita?');"
+                            data-confirm-action
+                            data-loading-form
+                            data-loading-message="Excluindo perfil..."
+                            data-loading-button-text="Excluindo..."
+                            data-confirm-title="Excluir perfil de escrita"
+                            data-confirm-message="Tem certeza que deseja excluir este perfil de escrita?"
+                            data-confirm-submit-label="Excluir perfil"
+                            data-confirm-submit-icon='<span class="icone-botao" aria-hidden="true">🗑</span>'
                         >
-                            <button class="botao-perigo" type="submit">Excluir</button>
+                            <button class="botao-perigo" type="submit">
+                                <span class="icone-botao" aria-hidden="true">🗑</span>
+                                Excluir
+                            </button>
                         </form>
                     </div>
                 </div>
@@ -99,8 +133,15 @@
         </div>
     {% else %}
         <div class="estado-vazio">
-            <p>Nenhum perfil de escrita foi cadastrado ainda.</p>
-            <a class="botao" href="/writing-profiles/create">Criar primeiro perfil</a>
+            <div class="estado-vazio-icone" aria-hidden="true">✍</div>
+            <h3>Nenhum perfil de escrita foi cadastrado ainda</h3>
+            <p>Crie o primeiro perfil para personalizar o estilo das próximas minutas.</p>
+            <div class="estado-vazio-acoes">
+                <a class="botao" href="/writing-profiles/create">
+                    <span class="icone-botao" aria-hidden="true">＋</span>
+                    Criar primeiro perfil
+                </a>
+            </div>
         </div>
     {% endif %}
 </section>
