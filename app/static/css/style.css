@@ -1411,3 +1411,70 @@ button.botao,
         width: 100%;
     }
 }
+/* =========================
+   Etapa 7.1 - Busca e filtros avançados em gerações
+   ========================= */
+
+.bloco-filtros-avancados {
+    gap: 18px;
+}
+
+.bloco-informativo-topo-entre-linhas {
+    align-items: flex-start;
+}
+
+.formulario-filtros-avancados {
+    gap: 18px;
+}
+
+.grid-filtros-avancados {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+}
+
+.grid-filtros-avancados > div {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.filtros-ativos-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: #f8fbff;
+    border: 1px solid #dbeafe;
+}
+
+.chips-filtros-ativos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.chip-filtro {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.painel-resumo-sem-inline {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+    .grid-filtros-avancados {
+        grid-template-columns: 1fr;
+    }
+}

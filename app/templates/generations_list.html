@@ -41,12 +41,12 @@
         </div>
     {% endif %}
 
-    <section class="bloco-informativo">
-        <div class="bloco-informativo-topo">
+    <section class="bloco-informativo bloco-filtros-avancados">
+        <div class="bloco-informativo-topo bloco-informativo-topo-entre-linhas">
             <div>
                 <h3>Busca e filtros</h3>
                 <p class="texto-suave">
-                    Esta área já prepara a listagem para futuras evoluções, como filtros mais avançados, ordenações e duplicações.
+                    Use busca geral, filtros específicos, intervalo de datas e ordenação para localizar gerações com mais rapidez.
                 </p>
             </div>
 
@@ -55,38 +55,99 @@
             </span>
         </div>
 
-        <form method="get" action="/generations" class="formulario-geracao">
-            <label for="search">Busca</label>
-            <input
-                type="text"
-                id="search"
-                name="search"
-                value="{{ filtros.search }}"
-                placeholder="Pesquisar por cliente, assunto, fatos, pedidos ou texto gerado"
-            >
+        <form method="get" action="/generations" class="formulario-geracao formulario-filtros-avancados">
+            <div class="grid-filtros-avancados">
+                <div>
+                    <label for="search">Busca geral</label>
+                    <input
+                        type="text"
+                        id="search"
+                        name="search"
+                        value="{{ filtros.search }}"
+                        placeholder="Pesquisar em cliente, assunto, fatos, pedidos ou texto gerado"
+                    >
+                </div>
 
-            <label for="document_type">Tipo de documento</label>
-            <select id="document_type" name="document_type">
-                <option value="">Todos</option>
-                {% for tipo in tipos_de_documento %}
-                    <option value="{{ tipo }}" {% if filtros.document_type == tipo %}selected{% endif %}>
-                        {{ tipo }}
-                    </option>
-                {% endfor %}
-            </select>
+                <div>
+                    <label for="client_name">Cliente</label>
+                    <input
+                        type="text"
+                        id="client_name"
+                        name="client_name"
+                        value="{{ filtros.client_name }}"
+                        placeholder="Filtrar pelo nome do cliente"
+                    >
+                </div>
 
-            <label for="writing_profile_id">Perfil de escrita</label>
-            <select id="writing_profile_id" name="writing_profile_id">
-                <option value="">Todos</option>
-                <option value="none" {% if filtros.writing_profile_id == "none" %}selected{% endif %}>
-                    Sem perfil
-                </option>
-                {% for perfil in perfis %}
-                    <option value="{{ perfil.id }}" {% if filtros.writing_profile_id == perfil.id|string %}selected{% endif %}>
-                        {{ perfil.profile_name }}{% if perfil.is_active %} (ativo){% endif %}
-                    </option>
-                {% endfor %}
-            </select>
+                <div>
+                    <label for="case_subject">Assunto do caso</label>
+                    <input
+                        type="text"
+                        id="case_subject"
+                        name="case_subject"
+                        value="{{ filtros.case_subject }}"
+                        placeholder="Ex.: rescisão contratual"
+                    >
+                </div>
+
+                <div>
+                    <label for="document_type">Tipo de documento</label>
+                    <select id="document_type" name="document_type">
+                        <option value="">Todos</option>
+                        {% for tipo in tipos_de_documento %}
+                            <option value="{{ tipo }}" {% if filtros.document_type == tipo %}selected{% endif %}>
+                                {{ tipo }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="writing_profile_id">Perfil de escrita</label>
+                    <select id="writing_profile_id" name="writing_profile_id">
+                        <option value="">Todos</option>
+                        <option value="none" {% if filtros.writing_profile_id == "none" %}selected{% endif %}>
+                            Sem perfil
+                        </option>
+                        {% for perfil in perfis %}
+                            <option value="{{ perfil.id }}" {% if filtros.writing_profile_id == perfil.id|string %}selected{% endif %}>
+                                {{ perfil.profile_name }}{% if perfil.is_active %} (ativo){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="sort_by">Ordenação</label>
+                    <select id="sort_by" name="sort_by">
+                        {% for chave, descricao in ordenacoes.items() %}
+                            <option value="{{ chave }}" {% if filtros.sort_by == chave %}selected{% endif %}>
+                                {{ descricao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="created_from">Criada a partir de</label>
+                    <input
+                        type="date"
+                        id="created_from"
+                        name="created_from"
+                        value="{{ filtros.created_from }}"
+                    >
+                </div>
+
+                <div>
+                    <label for="created_to">Criada até</label>
+                    <input
+                        type="date"
+                        id="created_to"
+                        name="created_to"
+                        value="{{ filtros.created_to }}"
+                    >
+                </div>
+            </div>
 
             <div class="acoes-formulario-geracao">
                 <a class="botao botao-secundario" href="/generations">
@@ -101,7 +162,45 @@
             </div>
         </form>
 
-        <div class="painel-resumo-geracao" style="margin-top: 18px; margin-bottom: 0;">
+        {% if total_filtros_ativos > 0 %}
+            <div class="filtros-ativos-wrap">
+                <span class="info-label">Filtros ativos</span>
+                <div class="chips-filtros-ativos">
+                    {% if filtros.search %}
+                        <span class="chip-filtro">Busca: {{ filtros.search }}</span>
+                    {% endif %}
+                    {% if filtros.client_name %}
+                        <span class="chip-filtro">Cliente: {{ filtros.client_name }}</span>
+                    {% endif %}
+                    {% if filtros.case_subject %}
+                        <span class="chip-filtro">Assunto: {{ filtros.case_subject }}</span>
+                    {% endif %}
+                    {% if filtros.document_type %}
+                        <span class="chip-filtro">Tipo: {{ filtros.document_type }}</span>
+                    {% endif %}
+                    {% if filtros.writing_profile_id == "none" %}
+                        <span class="chip-filtro">Perfil: Sem perfil</span>
+                    {% elif filtros.writing_profile_id %}
+                        {% for perfil in perfis %}
+                            {% if filtros.writing_profile_id == perfil.id|string %}
+                                <span class="chip-filtro">Perfil: {{ perfil.profile_name }}</span>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    {% if filtros.created_from %}
+                        <span class="chip-filtro">De: {{ filtros.created_from }}</span>
+                    {% endif %}
+                    {% if filtros.created_to %}
+                        <span class="chip-filtro">Até: {{ filtros.created_to }}</span>
+                    {% endif %}
+                    {% if filtros.sort_by != "updated_desc" %}
+                        <span class="chip-filtro">Ordem: {{ ordenacoes[filtros.sort_by] }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="painel-resumo-geracao painel-resumo-sem-inline">
             <div class="info-box">
                 <span class="info-label">Resultados</span>
                 <span class="info-value">{{ total_resultados }}</span>
@@ -116,7 +215,7 @@
                 <span class="info-label">Estado da listagem</span>
                 <span class="info-value">
                     {% if total_filtros_ativos > 0 %}
-                        A listagem está filtrada no momento.
+                        A listagem está refinada conforme os critérios selecionados.
                     {% else %}
                         Exibindo todas as gerações disponíveis.
                     {% endif %}
