@@ -46,6 +46,54 @@ def _parse_selected_document_ids(form) -> list[int]:
     return selected_document_ids
 
 
+def _parse_writing_profile_filter(raw_value: str | None) -> tuple[int | None, bool, str]:
+    valor = str(raw_value or "").strip()
+
+    if valor == "none":
+        return None, True, "none"
+
+    if valor.isdigit():
+        return int(valor), False, valor
+
+    return None, False, ""
+
+
+def _extrair_dados_formulario(form) -> tuple[dict, int | None, list[int]]:
+    client_name = str(form.get("client_name", "")).strip()
+    document_type = str(form.get("document_type", "")).strip()
+    case_subject = str(form.get("case_subject", "")).strip()
+    facts = str(form.get("facts", "")).strip()
+    requests = str(form.get("requests", "")).strip()
+    legal_basis = str(form.get("legal_basis", "")).strip()
+
+    raw_profile_id = str(form.get("writing_profile_id", "")).strip()
+    selected_profile_id = int(raw_profile_id) if raw_profile_id.isdigit() else None
+
+    selected_document_ids = _parse_selected_document_ids(form)
+
+    form_data = {
+        "client_name": client_name,
+        "document_type": document_type,
+        "case_subject": case_subject,
+        "facts": facts,
+        "requests": requests,
+        "legal_basis": legal_basis,
+    }
+
+    return form_data, selected_profile_id, selected_document_ids
+
+
+def _obter_form_data_da_geracao(geracao) -> dict:
+    return {
+        "client_name": geracao.client_name,
+        "document_type": geracao.document_type,
+        "case_subject": geracao.case_subject,
+        "facts": geracao.facts,
+        "requests": geracao.requests,
+        "legal_basis": geracao.legal_basis or "",
+    }
+
+
 def _montar_contexto_completo(perfil_escrita, documentos_selecionados: list) -> str:
     contexto_documental = montar_contexto_documental(documentos_selecionados)
     contexto_perfil = montar_contexto_perfil_escrita(perfil_escrita)
@@ -55,6 +103,25 @@ def _montar_contexto_completo(perfil_escrita, documentos_selecionados: list) -> 
         f"{'=' * 70}\n\n"
         f"{contexto_documental}"
     )
+
+
+def _montar_item_lista_geracao(geracao) -> dict:
+    perfil = geracao.writing_profile
+    document_ids = desserializar_ids_documentos(geracao.source_document_ids)
+
+    return {
+        "id": geracao.id,
+        "client_name": geracao.client_name,
+        "document_type": geracao.document_type,
+        "case_subject": geracao.case_subject,
+        "facts_preview": resumir_texto(geracao.facts, 160),
+        "requests_preview": resumir_texto(geracao.requests, 160),
+        "generated_text_preview": resumir_texto(geracao.generated_text, 260),
+        "created_at": geracao.created_at,
+        "updated_at": geracao.updated_at,
+        "writing_profile_name": perfil.profile_name if perfil else "Sem perfil",
+        "document_count": len(document_ids),
+    }
 
 
 def _render_generation_form(
@@ -69,6 +136,7 @@ def _render_generation_form(
     selected_profile_id: int | None,
     modo_edicao: bool,
     geracao=None,
+    success_message: str | None = None,
 ):
     return templates.TemplateResponse(
         "generation_create.html",
@@ -82,7 +150,7 @@ def _render_generation_form(
             "form_data": form_data,
             "selected_document_ids": selected_document_ids,
             "selected_profile_id": selected_profile_id,
-            "sucesso": request.query_params.get("sucesso"),
+            "sucesso": success_message or request.query_params.get("sucesso"),
             "erro": request.query_params.get("erro"),
             "modo_edicao": modo_edicao,
             "geracao": geracao,
@@ -92,26 +160,38 @@ def _render_generation_form(
 
 @router.get("/")
 def generations_list(request: Request, db: Session = Depends(get_db)):
-    geracoes = listar_geracoes(db)
+    search_term = str(request.query_params.get("search", "")).strip()
+    document_type = str(request.query_params.get("document_type", "")).strip()
+    writing_profile_id, sem_perfil, writing_profile_value = _parse_writing_profile_filter(
+        request.query_params.get("writing_profile_id")
+    )
 
-    geracoes_view = []
-    for geracao in geracoes:
-        perfil = geracao.writing_profile
+    geracoes = listar_geracoes(
+        db,
+        search_term=search_term,
+        document_type=document_type,
+        writing_profile_id=writing_profile_id,
+        sem_perfil=sem_perfil,
+    )
 
-        geracoes_view.append(
-            {
-                "id": geracao.id,
-                "client_name": geracao.client_name,
-                "document_type": geracao.document_type,
-                "case_subject": geracao.case_subject,
-                "facts_preview": resumir_texto(geracao.facts, 160),
-                "requests_preview": resumir_texto(geracao.requests, 160),
-                "generated_text_preview": resumir_texto(geracao.generated_text, 260),
-                "created_at": geracao.created_at,
-                "updated_at": geracao.updated_at,
-                "writing_profile_name": perfil.profile_name if perfil else "Sem perfil",
-            }
-        )
+    geracoes_view = [_montar_item_lista_geracao(geracao) for geracao in geracoes]
+    perfis = listar_perfis(db)
+
+    filtros = {
+        "search": search_term,
+        "document_type": document_type,
+        "writing_profile_id": writing_profile_value,
+    }
+
+    total_filtros_ativos = sum(
+        1
+        for valor in [
+            filtros["search"],
+            filtros["document_type"],
+            filtros["writing_profile_id"],
+        ]
+        if valor
+    )
 
     return templates.TemplateResponse(
         "generations_list.html",
@@ -119,6 +199,11 @@ def generations_list(request: Request, db: Session = Depends(get_db)):
             "request": request,
             "title": "Histórico de gerações",
             "geracoes": geracoes_view,
+            "perfis": perfis,
+            "tipos_de_documento": TIPOS_DE_DOCUMENTO,
+            "filtros": filtros,
+            "total_resultados": len(geracoes_view),
+            "total_filtros_ativos": total_filtros_ativos,
             "sucesso": request.query_params.get("sucesso"),
             "erro": request.query_params.get("erro"),
         },
@@ -132,6 +217,18 @@ def create_generation_page(request: Request, db: Session = Depends(get_db)):
     perfil_ativo = buscar_perfil_ativo(db)
 
     selected_profile_id = perfil_ativo.id if perfil_ativo else None
+    form_data = {}
+    selected_document_ids = []
+    success_message = None
+
+    duplicate_from = str(request.query_params.get("duplicate_from", "")).strip()
+    if duplicate_from.isdigit():
+        geracao_origem = buscar_geracao_por_id(db, int(duplicate_from))
+        if geracao_origem:
+            form_data = _obter_form_data_da_geracao(geracao_origem)
+            selected_document_ids = desserializar_ids_documentos(geracao_origem.source_document_ids)
+            selected_profile_id = geracao_origem.writing_profile_id
+            success_message = f"Base da geração #{geracao_origem.id} carregada para duplicação."
 
     return _render_generation_form(
         request,
@@ -139,11 +236,12 @@ def create_generation_page(request: Request, db: Session = Depends(get_db)):
         perfis=perfis,
         tipos_de_documento=TIPOS_DE_DOCUMENTO,
         error_message=None,
-        form_data={},
-        selected_document_ids=[],
+        form_data=form_data,
+        selected_document_ids=selected_document_ids,
         selected_profile_id=selected_profile_id,
         modo_edicao=False,
         geracao=None,
+        success_message=success_message,
     )
 
 
@@ -151,39 +249,13 @@ def create_generation_page(request: Request, db: Session = Depends(get_db)):
 async def create_generation(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
 
-    client_name = str(form.get("client_name", "")).strip()
-    document_type = str(form.get("document_type", "")).strip()
-    case_subject = str(form.get("case_subject", "")).strip()
-    facts = str(form.get("facts", "")).strip()
-    requests = str(form.get("requests", "")).strip()
-    legal_basis = str(form.get("legal_basis", "")).strip()
-
-    raw_profile_id = str(form.get("writing_profile_id", "")).strip()
-    selected_profile_id = int(raw_profile_id) if raw_profile_id.isdigit() else None
-
-    selected_document_ids = _parse_selected_document_ids(form)
+    form_data, selected_profile_id, selected_document_ids = _extrair_dados_formulario(form)
 
     documentos = listar_documentos(db)
     perfis = listar_perfis(db)
 
-    form_data = {
-        "client_name": client_name,
-        "document_type": document_type,
-        "case_subject": case_subject,
-        "facts": facts,
-        "requests": requests,
-        "legal_basis": legal_basis,
-    }
-
     try:
-        dados_validados = validar_dados_geracao(
-            client_name=client_name,
-            document_type=document_type,
-            case_subject=case_subject,
-            facts=facts,
-            requests=requests,
-            legal_basis=legal_basis,
-        )
+        dados_validados = validar_dados_geracao(**form_data)
     except ValueError as exc:
         return _render_generation_form(
             request,
@@ -326,15 +398,7 @@ def edit_generation_page(
     documentos = listar_documentos(db)
     perfis = listar_perfis(db)
 
-    form_data = {
-        "client_name": geracao.client_name,
-        "document_type": geracao.document_type,
-        "case_subject": geracao.case_subject,
-        "facts": geracao.facts,
-        "requests": geracao.requests,
-        "legal_basis": geracao.legal_basis or "",
-    }
-
+    form_data = _obter_form_data_da_geracao(geracao)
     selected_document_ids = desserializar_ids_documentos(geracao.source_document_ids)
     selected_profile_id = geracao.writing_profile_id
 
@@ -365,39 +429,13 @@ async def edit_generation(
 
     form = await request.form()
 
-    client_name = str(form.get("client_name", "")).strip()
-    document_type = str(form.get("document_type", "")).strip()
-    case_subject = str(form.get("case_subject", "")).strip()
-    facts = str(form.get("facts", "")).strip()
-    requests = str(form.get("requests", "")).strip()
-    legal_basis = str(form.get("legal_basis", "")).strip()
-
-    raw_profile_id = str(form.get("writing_profile_id", "")).strip()
-    selected_profile_id = int(raw_profile_id) if raw_profile_id.isdigit() else None
-
-    selected_document_ids = _parse_selected_document_ids(form)
+    form_data, selected_profile_id, selected_document_ids = _extrair_dados_formulario(form)
 
     documentos = listar_documentos(db)
     perfis = listar_perfis(db)
 
-    form_data = {
-        "client_name": client_name,
-        "document_type": document_type,
-        "case_subject": case_subject,
-        "facts": facts,
-        "requests": requests,
-        "legal_basis": legal_basis,
-    }
-
     try:
-        dados_validados = validar_dados_geracao(
-            client_name=client_name,
-            document_type=document_type,
-            case_subject=case_subject,
-            facts=facts,
-            requests=requests,
-            legal_basis=legal_basis,
-        )
+        dados_validados = validar_dados_geracao(**form_data)
     except ValueError as exc:
         return _render_generation_form(
             request,

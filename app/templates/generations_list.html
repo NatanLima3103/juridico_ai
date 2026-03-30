@@ -9,7 +9,7 @@
             <span class="etiqueta-secao">Gerações</span>
             <h2>Histórico de gerações</h2>
             <p class="texto-suave">
-                Consulte, abra, edite e exclua as gerações já criadas de forma mais prática e visual.
+                Consulte, abra, edite, filtre, pesquise e reaproveite gerações já criadas de forma mais prática.
             </p>
         </div>
 
@@ -41,6 +41,90 @@
         </div>
     {% endif %}
 
+    <section class="bloco-informativo">
+        <div class="bloco-informativo-topo">
+            <div>
+                <h3>Busca e filtros</h3>
+                <p class="texto-suave">
+                    Esta área já prepara a listagem para futuras evoluções, como filtros mais avançados, ordenações e duplicações.
+                </p>
+            </div>
+
+            <span class="badge badge-neutro">
+                {{ total_resultados }} resultado(s)
+            </span>
+        </div>
+
+        <form method="get" action="/generations" class="formulario-geracao">
+            <label for="search">Busca</label>
+            <input
+                type="text"
+                id="search"
+                name="search"
+                value="{{ filtros.search }}"
+                placeholder="Pesquisar por cliente, assunto, fatos, pedidos ou texto gerado"
+            >
+
+            <label for="document_type">Tipo de documento</label>
+            <select id="document_type" name="document_type">
+                <option value="">Todos</option>
+                {% for tipo in tipos_de_documento %}
+                    <option value="{{ tipo }}" {% if filtros.document_type == tipo %}selected{% endif %}>
+                        {{ tipo }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <label for="writing_profile_id">Perfil de escrita</label>
+            <select id="writing_profile_id" name="writing_profile_id">
+                <option value="">Todos</option>
+                <option value="none" {% if filtros.writing_profile_id == "none" %}selected{% endif %}>
+                    Sem perfil
+                </option>
+                {% for perfil in perfis %}
+                    <option value="{{ perfil.id }}" {% if filtros.writing_profile_id == perfil.id|string %}selected{% endif %}>
+                        {{ perfil.profile_name }}{% if perfil.is_active %} (ativo){% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <div class="acoes-formulario-geracao">
+                <a class="botao botao-secundario" href="/generations">
+                    <span class="icone-botao" aria-hidden="true">↺</span>
+                    Limpar
+                </a>
+
+                <button type="submit" class="botao">
+                    <span class="icone-botao" aria-hidden="true">🔎</span>
+                    Aplicar filtros
+                </button>
+            </div>
+        </form>
+
+        <div class="painel-resumo-geracao" style="margin-top: 18px; margin-bottom: 0;">
+            <div class="info-box">
+                <span class="info-label">Resultados</span>
+                <span class="info-value">{{ total_resultados }}</span>
+            </div>
+
+            <div class="info-box">
+                <span class="info-label">Filtros ativos</span>
+                <span class="info-value">{{ total_filtros_ativos }}</span>
+            </div>
+
+            <div class="info-box info-box-largo">
+                <span class="info-label">Estado da listagem</span>
+                <span class="info-value">
+                    {% if total_filtros_ativos > 0 %}
+                        A listagem está filtrada no momento.
+                    {% else %}
+                        Exibindo todas as gerações disponíveis.
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </section>
+
     {% if geracoes %}
         <div class="lista-geracoes-cards">
             {% for geracao in geracoes %}
@@ -57,6 +141,7 @@
 
                         <div class="geracao-meta">
                             <span><strong>Perfil:</strong> {{ geracao.writing_profile_name }}</span>
+                            <span><strong>Docs base:</strong> {{ geracao.document_count }}</span>
                             <span>
                                 <strong>Atualizada em:</strong>
                                 {{ geracao.updated_at.strftime("%d/%m/%Y %H:%M") if geracao.updated_at else "-" }}
@@ -106,6 +191,11 @@
                                 Abrir
                             </a>
 
+                            <a class="botao botao-secundario" href="/generations/create?duplicate_from={{ geracao.id }}">
+                                <span class="icone-botao" aria-hidden="true">⧉</span>
+                                Duplicar base
+                            </a>
+
                             <a class="botao" href="/generations/{{ geracao.id }}/edit">
                                 <span class="icone-botao" aria-hidden="true">✎</span>
                                 Editar
@@ -136,14 +226,25 @@
     {% else %}
         <div class="estado-vazio">
             <div class="estado-vazio-icone" aria-hidden="true">📄</div>
-            <h3>Nenhuma geração foi criada até o momento</h3>
-            <p>Crie sua primeira geração jurídica para começar a montar minutas com apoio do sistema.</p>
-            <div class="estado-vazio-acoes">
-                <a class="botao" href="/generations/create">
-                    <span class="icone-botao" aria-hidden="true">＋</span>
-                    Criar primeira geração
-                </a>
-            </div>
+            {% if total_filtros_ativos > 0 %}
+                <h3>Nenhuma geração encontrada com os filtros informados</h3>
+                <p>Revise os critérios da busca ou limpe os filtros para visualizar novamente todas as gerações.</p>
+                <div class="estado-vazio-acoes">
+                    <a class="botao botao-secundario" href="/generations">
+                        <span class="icone-botao" aria-hidden="true">↺</span>
+                        Limpar filtros
+                    </a>
+                </div>
+            {% else %}
+                <h3>Nenhuma geração foi criada até o momento</h3>
+                <p>Crie sua primeira geração jurídica para começar a montar minutas com apoio do sistema.</p>
+                <div class="estado-vazio-acoes">
+                    <a class="botao" href="/generations/create">
+                        <span class="icone-botao" aria-hidden="true">＋</span>
+                        Criar primeira geração
+                    </a>
+                </div>
+            {% endif %}
         </div>
     {% endif %}
 </section>

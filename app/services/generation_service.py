@@ -10,6 +10,7 @@ except ImportError:
 from docx import Document as DocxDocument
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.generation import Generation
@@ -38,6 +39,20 @@ def agora_brasil():
             pass
 
     return datetime.now()
+
+
+def normalizar_filtros_listagem(
+    search_term: str = "",
+    document_type: str = "",
+    writing_profile_id: int | None = None,
+    sem_perfil: bool = False,
+) -> dict:
+    return {
+        "search_term": (search_term or "").strip(),
+        "document_type": (document_type or "").strip(),
+        "writing_profile_id": writing_profile_id if isinstance(writing_profile_id, int) and writing_profile_id > 0 else None,
+        "sem_perfil": bool(sem_perfil),
+    }
 
 
 def validar_dados_geracao(
@@ -186,13 +201,45 @@ def atualizar_geracao(
     return geracao
 
 
-def listar_geracoes(db: Session) -> list[Generation]:
-    return (
-        db.query(Generation)
-        .options(joinedload(Generation.writing_profile))
-        .order_by(Generation.updated_at.desc(), Generation.created_at.desc())
-        .all()
+def listar_geracoes(
+    db: Session,
+    *,
+    search_term: str = "",
+    document_type: str = "",
+    writing_profile_id: int | None = None,
+    sem_perfil: bool = False,
+) -> list[Generation]:
+    filtros = normalizar_filtros_listagem(
+        search_term=search_term,
+        document_type=document_type,
+        writing_profile_id=writing_profile_id,
+        sem_perfil=sem_perfil,
     )
+
+    query = db.query(Generation).options(joinedload(Generation.writing_profile))
+
+    if filtros["search_term"]:
+        termo = f"%{filtros['search_term']}%"
+        query = query.filter(
+            or_(
+                Generation.client_name.ilike(termo),
+                Generation.document_type.ilike(termo),
+                Generation.case_subject.ilike(termo),
+                Generation.facts.ilike(termo),
+                Generation.requests.ilike(termo),
+                Generation.generated_text.ilike(termo),
+            )
+        )
+
+    if filtros["document_type"]:
+        query = query.filter(Generation.document_type == filtros["document_type"])
+
+    if filtros["sem_perfil"]:
+        query = query.filter(Generation.writing_profile_id.is_(None))
+    elif filtros["writing_profile_id"] is not None:
+        query = query.filter(Generation.writing_profile_id == filtros["writing_profile_id"])
+
+    return query.order_by(Generation.updated_at.desc(), Generation.created_at.desc()).all()
 
 
 def buscar_geracao_por_id(db: Session, generation_id: int) -> Generation | None:
