@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
 from io import BytesIO
 
 try:
@@ -41,17 +41,48 @@ def agora_brasil():
     return datetime.now()
 
 
+def _parse_date_input(raw_value: str | None) -> date | None:
+    valor = (raw_value or "").strip()
+
+    if not valor:
+        return None
+
+    try:
+        return datetime.strptime(valor, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
 def normalizar_filtros_listagem(
     search_term: str = "",
     document_type: str = "",
     writing_profile_id: int | None = None,
     sem_perfil: bool = False,
+    client_name: str = "",
+    case_subject: str = "",
+    created_from: str = "",
+    created_to: str = "",
+    sort_by: str = "updated_desc",
 ) -> dict:
+    opcoes_ordenacao = {
+        "updated_desc",
+        "updated_asc",
+        "created_desc",
+        "created_asc",
+        "client_asc",
+        "client_desc",
+    }
+
     return {
         "search_term": (search_term or "").strip(),
         "document_type": (document_type or "").strip(),
         "writing_profile_id": writing_profile_id if isinstance(writing_profile_id, int) and writing_profile_id > 0 else None,
         "sem_perfil": bool(sem_perfil),
+        "client_name": (client_name or "").strip(),
+        "case_subject": (case_subject or "").strip(),
+        "created_from": _parse_date_input(created_from),
+        "created_to": _parse_date_input(created_to),
+        "sort_by": sort_by if sort_by in opcoes_ordenacao else "updated_desc",
     }
 
 
@@ -208,12 +239,22 @@ def listar_geracoes(
     document_type: str = "",
     writing_profile_id: int | None = None,
     sem_perfil: bool = False,
+    client_name: str = "",
+    case_subject: str = "",
+    created_from: str = "",
+    created_to: str = "",
+    sort_by: str = "updated_desc",
 ) -> list[Generation]:
     filtros = normalizar_filtros_listagem(
         search_term=search_term,
         document_type=document_type,
         writing_profile_id=writing_profile_id,
         sem_perfil=sem_perfil,
+        client_name=client_name,
+        case_subject=case_subject,
+        created_from=created_from,
+        created_to=created_to,
+        sort_by=sort_by,
     )
 
     query = db.query(Generation).options(joinedload(Generation.writing_profile))
@@ -231,6 +272,12 @@ def listar_geracoes(
             )
         )
 
+    if filtros["client_name"]:
+        query = query.filter(Generation.client_name.ilike(f"%{filtros['client_name']}%"))
+
+    if filtros["case_subject"]:
+        query = query.filter(Generation.case_subject.ilike(f"%{filtros['case_subject']}%"))
+
     if filtros["document_type"]:
         query = query.filter(Generation.document_type == filtros["document_type"])
 
@@ -239,7 +286,25 @@ def listar_geracoes(
     elif filtros["writing_profile_id"] is not None:
         query = query.filter(Generation.writing_profile_id == filtros["writing_profile_id"])
 
-    return query.order_by(Generation.updated_at.desc(), Generation.created_at.desc()).all()
+    if filtros["created_from"] is not None:
+        data_inicio = datetime.combine(filtros["created_from"], time.min)
+        query = query.filter(Generation.created_at >= data_inicio)
+
+    if filtros["created_to"] is not None:
+        proximo_dia = filtros["created_to"] + timedelta(days=1)
+        data_limite = datetime.combine(proximo_dia, time.min)
+        query = query.filter(Generation.created_at < data_limite)
+
+    ordenacoes = {
+        "updated_desc": [Generation.updated_at.desc(), Generation.created_at.desc()],
+        "updated_asc": [Generation.updated_at.asc(), Generation.created_at.asc()],
+        "created_desc": [Generation.created_at.desc(), Generation.updated_at.desc()],
+        "created_asc": [Generation.created_at.asc(), Generation.updated_at.asc()],
+        "client_asc": [Generation.client_name.asc(), Generation.created_at.desc()],
+        "client_desc": [Generation.client_name.desc(), Generation.created_at.desc()],
+    }
+
+    return query.order_by(*ordenacoes[filtros["sort_by"]]).all()
 
 
 def buscar_geracao_por_id(db: Session, generation_id: int) -> Generation | None:

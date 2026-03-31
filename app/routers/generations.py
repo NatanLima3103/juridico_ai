@@ -1,6 +1,6 @@
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -9,7 +9,6 @@ from app.database import get_db
 from app.services.document_service import listar_documentos, listar_documentos_por_ids
 from app.services.generation_service import (
     TIPOS_DE_DOCUMENTO,
-    agora_brasil,
     atualizar_geracao,
     buscar_geracao_por_id,
     criar_geracao,
@@ -161,7 +160,13 @@ def _render_generation_form(
 @router.get("/")
 def generations_list(request: Request, db: Session = Depends(get_db)):
     search_term = str(request.query_params.get("search", "")).strip()
+    client_name = str(request.query_params.get("client_name", "")).strip()
+    case_subject = str(request.query_params.get("case_subject", "")).strip()
     document_type = str(request.query_params.get("document_type", "")).strip()
+    created_from = str(request.query_params.get("created_from", "")).strip()
+    created_to = str(request.query_params.get("created_to", "")).strip()
+    sort_by = str(request.query_params.get("sort_by", "updated_desc")).strip() or "updated_desc"
+
     writing_profile_id, sem_perfil, writing_profile_value = _parse_writing_profile_filter(
         request.query_params.get("writing_profile_id")
     )
@@ -169,9 +174,14 @@ def generations_list(request: Request, db: Session = Depends(get_db)):
     geracoes = listar_geracoes(
         db,
         search_term=search_term,
+        client_name=client_name,
+        case_subject=case_subject,
         document_type=document_type,
         writing_profile_id=writing_profile_id,
         sem_perfil=sem_perfil,
+        created_from=created_from,
+        created_to=created_to,
+        sort_by=sort_by,
     )
 
     geracoes_view = [_montar_item_lista_geracao(geracao) for geracao in geracoes]
@@ -179,19 +189,38 @@ def generations_list(request: Request, db: Session = Depends(get_db)):
 
     filtros = {
         "search": search_term,
+        "client_name": client_name,
+        "case_subject": case_subject,
         "document_type": document_type,
         "writing_profile_id": writing_profile_value,
+        "created_from": created_from,
+        "created_to": created_to,
+        "sort_by": sort_by,
     }
 
     total_filtros_ativos = sum(
         1
         for valor in [
             filtros["search"],
+            filtros["client_name"],
+            filtros["case_subject"],
             filtros["document_type"],
             filtros["writing_profile_id"],
+            filtros["created_from"],
+            filtros["created_to"],
+            filtros["sort_by"] if filtros["sort_by"] != "updated_desc" else "",
         ]
         if valor
     )
+
+    ordenacoes = {
+        "updated_desc": "Mais recentemente atualizadas",
+        "updated_asc": "Menos recentemente atualizadas",
+        "created_desc": "Mais recentes",
+        "created_asc": "Mais antigas",
+        "client_asc": "Cliente de A a Z",
+        "client_desc": "Cliente de Z a A",
+    }
 
     return templates.TemplateResponse(
         "generations_list.html",
@@ -202,6 +231,7 @@ def generations_list(request: Request, db: Session = Depends(get_db)):
             "perfis": perfis,
             "tipos_de_documento": TIPOS_DE_DOCUMENTO,
             "filtros": filtros,
+            "ordenacoes": ordenacoes,
             "total_resultados": len(geracoes_view),
             "total_filtros_ativos": total_filtros_ativos,
             "sucesso": request.query_params.get("sucesso"),
@@ -272,22 +302,8 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
 
     documentos_selecionados = listar_documentos_por_ids(db, selected_document_ids)
 
-    if not documentos_selecionados:
-        return _render_generation_form(
-            request,
-            documentos=documentos,
-            perfis=perfis,
-            tipos_de_documento=TIPOS_DE_DOCUMENTO,
-            error_message="Selecione pelo menos um documento base.",
-            form_data=form_data,
-            selected_document_ids=selected_document_ids,
-            selected_profile_id=selected_profile_id,
-            modo_edicao=False,
-            geracao=None,
-        )
-
     perfil_escrita = None
-    if selected_profile_id:
+    if selected_profile_id is not None:
         perfil_escrita = buscar_perfil_por_id(db, selected_profile_id)
 
     context_used = _montar_contexto_completo(perfil_escrita, documentos_selecionados)
@@ -304,7 +320,7 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
         documentos_selecionados=documentos_selecionados,
     )
 
-    geracao = criar_geracao(
+    nova_geracao = criar_geracao(
         db=db,
         client_name=dados_validados["client_name"],
         document_type=dados_validados["document_type"],
@@ -314,35 +330,31 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
         legal_basis=dados_validados["legal_basis"],
         context_used=context_used,
         generated_text=generated_text,
-        writing_profile_id=perfil_escrita.id if perfil_escrita else None,
+        writing_profile_id=selected_profile_id,
         source_document_ids=serializar_ids_documentos(selected_document_ids),
     )
 
     return RedirectResponse(
-        url=f"/generations/{geracao.id}?sucesso=Geração criada com sucesso.",
+        url=f"/generations/{nova_geracao.id}?sucesso={quote('Geração criada com sucesso.')}",
         status_code=303,
     )
 
 
 @router.get("/{generation_id}")
-def generation_detail(
-    generation_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-):
+def generation_detail(generation_id: int, request: Request, db: Session = Depends(get_db)):
     geracao = buscar_geracao_por_id(db, generation_id)
 
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
     document_ids = desserializar_ids_documentos(geracao.source_document_ids)
-    documentos_base = listar_documentos_por_ids(db, document_ids) if document_ids else []
+    documentos_base = listar_documentos_por_ids(db, document_ids)
 
     return templates.TemplateResponse(
         "generation_detail.html",
         {
             "request": request,
-            "title": "Detalhes da geração",
+            "title": f"Geração #{geracao.id}",
             "geracao": geracao,
             "documentos_base": documentos_base,
             "sucesso": request.query_params.get("sucesso"),
@@ -351,56 +363,20 @@ def generation_detail(
     )
 
 
-@router.post("/{generation_id}/save-text")
-async def save_generation_text(
-    generation_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-):
+@router.get("/{generation_id}/edit")
+def edit_generation_page(generation_id: int, request: Request, db: Session = Depends(get_db)):
     geracao = buscar_geracao_por_id(db, generation_id)
 
     if not geracao:
-        raise HTTPException(status_code=404, detail="Geração não encontrada.")
-
-    form = await request.form()
-    generated_text = str(form.get("generated_text", "")).strip()
-
-    if not generated_text:
         return RedirectResponse(
-            url=f"/generations/{generation_id}?erro=O texto jurídico não pode ficar vazio.",
+            url=f"/generations?erro={quote('Geração não encontrada para edição.')}",
             status_code=303,
         )
 
-    geracao.generated_text = generated_text
-    geracao.updated_at = agora_brasil()
-
-    db.add(geracao)
-    db.commit()
-    db.refresh(geracao)
-
-    return RedirectResponse(
-        url=f"/generations/{generation_id}?sucesso=Versão ajustada salva com sucesso.",
-        status_code=303,
-    )
-
-
-@router.get("/{generation_id}/edit")
-def edit_generation_page(
-    generation_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    geracao = buscar_geracao_por_id(db, generation_id)
-
-    if not geracao:
-        raise HTTPException(status_code=404, detail="Geração não encontrada.")
-
     documentos = listar_documentos(db)
     perfis = listar_perfis(db)
-
     form_data = _obter_form_data_da_geracao(geracao)
     selected_document_ids = desserializar_ids_documentos(geracao.source_document_ids)
-    selected_profile_id = geracao.writing_profile_id
 
     return _render_generation_form(
         request,
@@ -410,22 +386,21 @@ def edit_generation_page(
         error_message=None,
         form_data=form_data,
         selected_document_ids=selected_document_ids,
-        selected_profile_id=selected_profile_id,
+        selected_profile_id=geracao.writing_profile_id,
         modo_edicao=True,
         geracao=geracao,
     )
 
 
 @router.post("/{generation_id}/edit")
-async def edit_generation(
-    generation_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-):
+async def edit_generation(generation_id: int, request: Request, db: Session = Depends(get_db)):
     geracao = buscar_geracao_por_id(db, generation_id)
 
     if not geracao:
-        raise HTTPException(status_code=404, detail="Geração não encontrada.")
+        return RedirectResponse(
+            url=f"/generations?erro={quote('Geração não encontrada para edição.')}",
+            status_code=303,
+        )
 
     form = await request.form()
 
@@ -452,22 +427,8 @@ async def edit_generation(
 
     documentos_selecionados = listar_documentos_por_ids(db, selected_document_ids)
 
-    if not documentos_selecionados:
-        return _render_generation_form(
-            request,
-            documentos=documentos,
-            perfis=perfis,
-            tipos_de_documento=TIPOS_DE_DOCUMENTO,
-            error_message="Selecione pelo menos um documento base.",
-            form_data=form_data,
-            selected_document_ids=selected_document_ids,
-            selected_profile_id=selected_profile_id,
-            modo_edicao=True,
-            geracao=geracao,
-        )
-
     perfil_escrita = None
-    if selected_profile_id:
+    if selected_profile_id is not None:
         perfil_escrita = buscar_perfil_por_id(db, selected_profile_id)
 
     context_used = _montar_contexto_completo(perfil_escrita, documentos_selecionados)
@@ -495,84 +456,51 @@ async def edit_generation(
         legal_basis=dados_validados["legal_basis"],
         context_used=context_used,
         generated_text=generated_text,
-        writing_profile_id=perfil_escrita.id if perfil_escrita else None,
+        writing_profile_id=selected_profile_id,
         source_document_ids=serializar_ids_documentos(selected_document_ids),
     )
 
     return RedirectResponse(
-        url=f"/generations/{geracao.id}?sucesso=Geração atualizada com sucesso.",
+        url=f"/generations/{generation_id}?sucesso={quote('Geração atualizada com sucesso.')}",
         status_code=303,
-    )
-
-
-@router.get("/{generation_id}/download-txt")
-def download_generation_txt(
-    generation_id: int,
-    db: Session = Depends(get_db),
-):
-    geracao = buscar_geracao_por_id(db, generation_id)
-
-    if not geracao:
-        raise HTTPException(status_code=404, detail="Geração não encontrada.")
-
-    nome_cliente = (geracao.client_name or "cliente").strip().replace(" ", "_")
-    tipo_documento = (geracao.document_type or "documento").strip().replace(" ", "_")
-    nome_arquivo = f"juridico_ai_{tipo_documento}_{nome_cliente}_{geracao.id}.txt"
-    nome_arquivo_codificado = quote(nome_arquivo)
-
-    headers = {
-        "Content-Disposition": f"attachment; filename*=UTF-8''{nome_arquivo_codificado}"
-    }
-
-    return Response(
-        content=geracao.generated_text,
-        media_type="text/plain; charset=utf-8",
-        headers=headers,
-    )
-
-
-@router.get("/{generation_id}/download-docx")
-def download_generation_docx(
-    generation_id: int,
-    db: Session = Depends(get_db),
-):
-    geracao = buscar_geracao_por_id(db, generation_id)
-
-    if not geracao:
-        raise HTTPException(status_code=404, detail="Geração não encontrada.")
-
-    nome_cliente = (geracao.client_name or "cliente").strip().replace(" ", "_")
-    tipo_documento = (geracao.document_type or "documento").strip().replace(" ", "_")
-    nome_arquivo = f"juridico_ai_{tipo_documento}_{nome_cliente}_{geracao.id}.docx"
-    nome_arquivo_codificado = quote(nome_arquivo)
-
-    conteudo_docx = gerar_docx_da_geracao(geracao)
-
-    headers = {
-        "Content-Disposition": f"attachment; filename*=UTF-8''{nome_arquivo_codificado}"
-    }
-
-    return Response(
-        content=conteudo_docx,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers=headers,
     )
 
 
 @router.post("/{generation_id}/delete")
-def delete_generation(
-    generation_id: int,
-    db: Session = Depends(get_db),
-):
+def delete_generation(generation_id: int, db: Session = Depends(get_db)):
     sucesso = excluir_geracao(db, generation_id)
 
     if not sucesso:
         return RedirectResponse(
-            url="/generations/?erro=Geração não encontrada.",
+            url=f"/generations?erro={quote('Geração não encontrada para exclusão.')}",
             status_code=303,
         )
 
     return RedirectResponse(
-        url="/generations/?sucesso=Geração excluída com sucesso.",
+        url=f"/generations?sucesso={quote('Geração excluída com sucesso.')}",
         status_code=303,
+    )
+
+
+@router.get("/{generation_id}/download-docx")
+def download_generation_docx(generation_id: int, db: Session = Depends(get_db)):
+    geracao = buscar_geracao_por_id(db, generation_id)
+
+    if not geracao:
+        raise HTTPException(status_code=404, detail="Geração não encontrada.")
+
+    arquivo_bytes = gerar_docx_da_geracao(geracao)
+
+    nome_cliente = (geracao.client_name or "cliente").strip().replace(" ", "_")
+    nome_tipo = (geracao.document_type or "documento").strip().replace(" ", "_")
+    nome_arquivo = f"{nome_tipo}_{nome_cliente}_{geracao.id}.docx"
+
+    headers = {
+        "Content-Disposition": f'attachment; filename="{nome_arquivo}"'
+    }
+
+    return Response(
+        content=arquivo_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers=headers,
     )

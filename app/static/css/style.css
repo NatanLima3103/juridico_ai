@@ -717,6 +717,7 @@ input[type="number"] {
     font-size: 14px;
     font-weight: 600;
 }
+
 .lista-documentos-base {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -976,6 +977,7 @@ input[type="number"] {
 .mini-card form button {
     width: auto;
 }
+
 /* =========================
    Etapa 6.8 - UX e feedbacks visuais
    ========================= */
@@ -1231,6 +1233,7 @@ button.botao,
     background: #ffffff;
     box-shadow: 0 28px 70px rgba(15, 23, 42, 0.24);
 }
+
 .modal-confirmacao-icone {
     width: 52px;
     height: 52px;
@@ -1411,26 +1414,47 @@ button.botao,
         width: 100%;
     }
 }
+
 /* =========================
    Etapa 7.1 - Busca e filtros avançados em gerações
    ========================= */
 
 .bloco-filtros-avancados {
-    gap: 18px;
+    gap: 22px;
+    padding: 24px;
+    border: 1px solid #dbe4f0;
+    border-radius: 20px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
 }
 
 .bloco-informativo-topo-entre-linhas {
     align-items: flex-start;
+    margin-bottom: 4px;
+}
+
+.bloco-informativo-topo-entre-linhas h3 {
+    font-size: 24px;
+    margin-bottom: 6px;
+    color: #0f172a;
+}
+
+.bloco-informativo-topo-entre-linhas .texto-suave {
+    max-width: 760px;
+    font-size: 15px;
+    line-height: 1.6;
+    color: #64748b;
 }
 
 .formulario-filtros-avancados {
-    gap: 18px;
+    gap: 20px;
+    margin-top: 4px;
 }
 
 .grid-filtros-avancados {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 18px;
 }
 
 .grid-filtros-avancados > div {
@@ -1439,42 +1463,148 @@ button.botao,
     gap: 8px;
 }
 
+.grid-filtros-avancados label {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 2px;
+}
+
+.grid-filtros-avancados input[type="text"],
+.grid-filtros-avancados input[type="date"],
+.grid-filtros-avancados select {
+    height: 48px;
+    padding: 12px 14px;
+    border: 1px solid #cfd8e3;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.grid-filtros-avancados input[type="text"]:hover,
+.grid-filtros-avancados input[type="date"]:hover,
+.grid-filtros-avancados select:hover {
+    border-color: #b6c4d6;
+}
+
+.grid-filtros-avancados input[type="text"]:focus,
+.grid-filtros-avancados input[type="date"]:focus,
+.grid-filtros-avancados select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+    transform: translateY(-1px);
+}
+
+.acoes-formulario-geracao {
+    margin-top: 2px;
+}
+
 .filtros-ativos-wrap {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 14px 16px;
-    border-radius: 14px;
-    background: #f8fbff;
-    border: 1px solid #dbeafe;
+    gap: 12px;
+    padding: 16px 18px;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #f8fbff 0%, #f1f7ff 100%);
+    border: 1px solid #d7e7ff;
 }
 
 .chips-filtros-ativos {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
 }
 
 .chip-filtro {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 7px 12px;
+    padding: 8px 13px;
     border-radius: 999px;
     background: #eff6ff;
     border: 1px solid #bfdbfe;
     color: #1d4ed8;
     font-size: 13px;
     font-weight: 700;
+    box-shadow: 0 2px 8px rgba(29, 78, 216, 0.08);
 }
 
 .painel-resumo-sem-inline {
-    margin-top: 0;
+    margin-top: 2px;
     margin-bottom: 0;
+    gap: 16px;
+}
+
+.painel-resumo-sem-inline .info-box {
+    min-height: 104px;
+    padding: 18px;
+    border-radius: 16px;
+    background: #ffffff;
+    border: 1px solid #dbe4f0;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+}
+
+.painel-resumo-sem-inline .info-label {
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    color: #64748b;
+}
+
+.painel-resumo-sem-inline .info-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+}
+
+.painel-resumo-sem-inline .info-box-largo .info-value {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.bloco-filtros-avancados .badge-neutro {
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 800;
+    background: #e9eff8;
+    color: #334155;
+}
+
+.acoes-formulario-geracao .botao,
+.acoes-formulario-geracao .botao-secundario {
+    min-width: 160px;
+    min-height: 44px;
+    border-radius: 12px;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
 }
 
 @media (max-width: 768px) {
     .grid-filtros-avancados {
         grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .bloco-filtros-avancados {
+        padding: 18px;
+    }
+
+    .bloco-informativo-topo-entre-linhas h3 {
+        font-size: 22px;
+    }
+
+    .acoes-formulario-geracao .botao,
+    .acoes-formulario-geracao .botao-secundario {
+        width: 100%;
+        min-width: 100%;
+    }
+
+    .painel-resumo-sem-inline .info-value {
+        font-size: 24px;
+    }
+
+    .painel-resumo-sem-inline .info-box-largo .info-value {
+        font-size: 15px;
     }
 }
