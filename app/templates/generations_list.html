@@ -111,7 +111,7 @@
                         </option>
                         {% for perfil in perfis %}
                             <option value="{{ perfil.id }}" {% if filtros.writing_profile_id == perfil.id|string %}selected{% endif %}>
-                                {{ perfil.profile_name }}{% if perfil.is_active %} (ativo){% endif %}
+                                {{ perfil.profile_name }}
                             </option>
                         {% endfor %}
                     </select>
@@ -290,10 +290,18 @@
                                 Abrir
                             </a>
 
-                            <a class="botao botao-secundario" href="/generations/create?duplicate_from={{ geracao.id }}">
-                                <span class="icone-botao" aria-hidden="true">⧉</span>
-                                Duplicar base
-                            </a>
+                            <form
+                                action="/generations/{{ geracao.id }}/duplicate"
+                                method="post"
+                                data-loading-form
+                                data-loading-message="Duplicando geração..."
+                                data-loading-button-text="Duplicando..."
+                            >
+                                <button type="submit" class="botao botao-secundario">
+                                    <span class="icone-botao" aria-hidden="true">⧉</span>
+                                    Duplicar
+                                </button>
+                            </form>
 
                             <a class="botao" href="/generations/{{ geracao.id }}/edit">
                                 <span class="icone-botao" aria-hidden="true">✎</span>

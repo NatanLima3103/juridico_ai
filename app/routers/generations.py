@@ -12,6 +12,7 @@ from app.services.generation_service import (
     atualizar_geracao,
     buscar_geracao_por_id,
     criar_geracao,
+    duplicar_geracao,
     desserializar_ids_documentos,
     excluir_geracao,
     gerar_docx_da_geracao,
@@ -22,6 +23,7 @@ from app.services.generation_service import (
     resumir_texto,
     serializar_ids_documentos,
     validar_dados_geracao,
+    agora_brasil,
 )
 from app.services.writing_profile_service import (
     buscar_perfil_por_id,
@@ -218,7 +220,8 @@ def generations_list(request: Request, db: Session = Depends(get_db)):
         "created_desc": "Mais recentes primeiro",
         "created_asc": "Mais antigas primeiro",
         "client_name_asc": "Cliente (A-Z)",
-        "document_type_asc": "Tipo de documento (A-Z)",
+        "client_asc": "Cliente (A-Z)",
+        "client_desc": "Cliente (Z-A)",
     }
 
     return templates.TemplateResponse(
@@ -366,6 +369,7 @@ def generation_detail(generation_id: int, request: Request, db: Session = Depend
         {
             "request": request,
             "geracao": geracao_view,
+            "documentos_base": documentos,
             "sucesso": request.query_params.get("sucesso"),
             "erro": request.query_params.get("erro"),
         },
@@ -454,7 +458,7 @@ async def edit_generation(generation_id: int, request: Request, db: Session = De
 
     atualizar_geracao(
         db=db,
-        generation_id=generation_id,
+        geracao=geracao,
         client_name=dados_validados["client_name"],
         document_type=dados_validados["document_type"],
         case_subject=dados_validados["case_subject"],
@@ -469,6 +473,72 @@ async def edit_generation(generation_id: int, request: Request, db: Session = De
 
     return RedirectResponse(
         url=f"/generations/{generation_id}?sucesso={quote('Geração atualizada com sucesso.')}",
+        status_code=303,
+    )
+
+
+@router.post("/{generation_id}/save-text")
+async def save_generation_text(generation_id: int, request: Request, db: Session = Depends(get_db)):
+    geracao = buscar_geracao_por_id(db, generation_id)
+
+    if not geracao:
+        return RedirectResponse(
+            url=f"/generations?erro={quote('Geração não encontrada.')}",
+            status_code=303,
+        )
+
+    form = await request.form()
+    generated_text = str(form.get("generated_text", "")).strip()
+
+    if not generated_text:
+        return RedirectResponse(
+            url=f"/generations/{generation_id}?erro={quote('O texto jurídico não pode ficar vazio.')}",
+            status_code=303,
+        )
+
+    geracao.generated_text = generated_text
+    geracao.updated_at = agora_brasil()
+    db.add(geracao)
+    db.commit()
+    db.refresh(geracao)
+
+    return RedirectResponse(
+        url=f"/generations/{generation_id}?sucesso={quote('Versão ajustada salva com sucesso.')}",
+        status_code=303,
+    )
+
+
+@router.get("/{generation_id}/download-txt")
+def download_generation_txt(generation_id: int, db: Session = Depends(get_db)):
+    geracao = buscar_geracao_por_id(db, generation_id)
+
+    if not geracao:
+        raise HTTPException(status_code=404, detail="Geração não encontrada")
+
+    nome_arquivo = f"geracao_juridica_{geracao.id}.txt"
+    headers = {
+        "Content-Disposition": f'attachment; filename="{nome_arquivo}"'
+    }
+
+    return Response(
+        content=(geracao.generated_text or ""),
+        media_type="text/plain; charset=utf-8",
+        headers=headers,
+    )
+
+
+@router.post("/{generation_id}/duplicate")
+def duplicate_generation(generation_id: int, db: Session = Depends(get_db)):
+    nova_geracao = duplicar_geracao(db, generation_id)
+
+    if not nova_geracao:
+        return RedirectResponse(
+            url=f"/generations?erro={quote('Geração não encontrada para duplicação.')}",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        url=f"/generations/{nova_geracao.id}?sucesso={quote(f'Geração #{generation_id} duplicada com sucesso.')}",
         status_code=303,
     )
 

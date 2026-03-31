@@ -19,10 +19,18 @@
                 Voltar
             </a>
 
-            <a class="botao botao-secundario" href="/generations/create?duplicate_from={{ geracao.id }}">
-                <span class="icone-botao" aria-hidden="true">⧉</span>
-                Duplicar base
-            </a>
+            <form
+                action="/generations/{{ geracao.id }}/duplicate"
+                method="post"
+                data-loading-form
+                data-loading-message="Duplicando geração..."
+                data-loading-button-text="Duplicando..."
+            >
+                <button type="submit" class="botao botao-secundario">
+                    <span class="icone-botao" aria-hidden="true">⧉</span>
+                    Duplicar geração
+                </button>
+            </form>
 
             <a class="botao" href="/generations/{{ geracao.id }}/edit">
                 <span class="icone-botao" aria-hidden="true">✎</span>
@@ -65,7 +73,7 @@
         <div class="info-box">
             <span class="info-label">Perfil usado</span>
             <span class="info-value">
-                {{ geracao.writing_profile.profile_name if geracao.writing_profile else "Sem perfil" }}
+                {{ geracao.writing_profile_name }}
             </span>
         </div>
 

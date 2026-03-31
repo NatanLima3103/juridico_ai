@@ -316,6 +316,28 @@ def buscar_geracao_por_id(db: Session, generation_id: int) -> Generation | None:
     )
 
 
+
+
+def duplicar_geracao(db: Session, generation_id: int) -> Generation | None:
+    geracao_origem = buscar_geracao_por_id(db, generation_id)
+
+    if not geracao_origem:
+        return None
+
+    return criar_geracao(
+        db=db,
+        client_name=geracao_origem.client_name,
+        document_type=geracao_origem.document_type,
+        case_subject=geracao_origem.case_subject,
+        facts=geracao_origem.facts,
+        requests=geracao_origem.requests,
+        legal_basis=geracao_origem.legal_basis or "",
+        context_used=geracao_origem.context_used,
+        generated_text=geracao_origem.generated_text,
+        writing_profile_id=geracao_origem.writing_profile_id,
+        source_document_ids=geracao_origem.source_document_ids,
+    )
+
 def excluir_geracao(db: Session, generation_id: int) -> bool:
     geracao = buscar_geracao_por_id(db, generation_id)
 
