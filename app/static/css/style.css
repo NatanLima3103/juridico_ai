@@ -1608,3 +1608,42 @@ button.botao,
         font-size: 15px;
     }
 }
+/* =========================
+   Etapa 7.2 - Busca e filtros em perfis
+   ========================= */
+
+.perfil-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.perfil-titulo {
+    margin: 0;
+    font-size: 21px;
+    color: #0f172a;
+}
+
+.perfil-card p {
+    margin: 0;
+    color: #334155;
+    line-height: 1.55;
+    word-break: break-word;
+}
+
+.acoes-perfil {
+    align-items: stretch;
+    margin-top: 8px;
+}
+
+.acoes-perfil .badge {
+    align-self: center;
+    justify-content: center;
+    min-height: 42px;
+}
+
+@media (max-width: 768px) {
+    .perfil-titulo {
+        font-size: 19px;
+    }
+}

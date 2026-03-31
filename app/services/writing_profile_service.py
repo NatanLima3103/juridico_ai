@@ -1,3 +1,6 @@
+from datetime import datetime, time
+
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.generation import Generation
@@ -58,31 +61,7 @@ def buscar_perfil_por_id(db: Session, profile_id: int) -> WritingProfile | None:
     return db.query(WritingProfile).filter(WritingProfile.id == profile_id).first()
 
 
-def buscar_perfil_ativo(db: Session) -> WritingProfile | None:
-    return (
-        db.query(WritingProfile)
-        .filter(WritingProfile.is_active.is_(True))
-        .order_by(WritingProfile.created_at.desc())
-        .first()
-    )
-
-
-def desativar_todos_perfis(db: Session) -> None:
-    perfis_ativos = (
-        db.query(WritingProfile)
-        .filter(WritingProfile.is_active.is_(True))
-        .all()
-    )
-
-    for perfil in perfis_ativos:
-        perfil.is_active = False
-
-    db.commit()
-
-
 def criar_perfil(db: Session, profile_data) -> WritingProfile:
-    perfil_ativo = buscar_perfil_ativo(db)
-
     perfil = WritingProfile(
         profile_name=profile_data.profile_name,
         lawyer_name=profile_data.lawyer_name,
@@ -94,7 +73,6 @@ def criar_perfil(db: Session, profile_data) -> WritingProfile:
         request_intro=profile_data.request_intro,
         legal_style_notes=profile_data.legal_style_notes,
         recurring_expressions=profile_data.recurring_expressions,
-        is_active=False if perfil_ativo else True,
     )
 
     db.add(perfil)
@@ -125,19 +103,6 @@ def atualizar_perfil(db: Session, profile_id: int, profile_data) -> WritingProfi
     return perfil
 
 
-def ativar_perfil(db: Session, profile_id: int) -> WritingProfile | None:
-    perfil = buscar_perfil_por_id(db, profile_id)
-
-    if not perfil:
-        return None
-
-    desativar_todos_perfis(db)
-    perfil.is_active = True
-    db.commit()
-    db.refresh(perfil)
-    return perfil
-
-
 def perfil_possui_geracoes(db: Session, profile_id: int) -> bool:
     quantidade = (
         db.query(Generation)
@@ -159,26 +124,151 @@ def excluir_perfil(db: Session, profile_id: int) -> tuple[bool, str]:
             "Este perfil não pode ser excluído porque já está vinculado a uma ou mais gerações.",
         )
 
-    perfil_era_ativo = perfil.is_active
-
     db.delete(perfil)
     db.commit()
 
-    if perfil_era_ativo:
-        proximo_perfil = buscar_perfil_ativo(db)
-
-        if not proximo_perfil:
-            perfil_mais_recente = (
-                db.query(WritingProfile)
-                .order_by(WritingProfile.created_at.desc())
-                .first()
-            )
-
-            if perfil_mais_recente:
-                perfil_mais_recente.is_active = True
-                db.commit()
-
     return True, "Perfil excluído com sucesso."
+
+
+def obter_tons_disponiveis(db: Session) -> list[str]:
+    resultados = (
+        db.query(WritingProfile.tone)
+        .filter(WritingProfile.tone.isnot(None))
+        .filter(WritingProfile.tone != "")
+        .distinct()
+        .order_by(WritingProfile.tone.asc())
+        .all()
+    )
+
+    return [tone for (tone,) in resultados if tone]
+
+
+def obter_ordenacoes_perfis() -> dict[str, str]:
+    return {
+        "created_desc": "Mais recentes primeiro",
+        "created_asc": "Mais antigos primeiro",
+        "profile_name_asc": "Nome do perfil (A-Z)",
+        "profile_name_desc": "Nome do perfil (Z-A)",
+        "lawyer_name_asc": "Advogado (A-Z)",
+        "office_name_asc": "Escritório (A-Z)",
+        "tone_asc": "Tom da escrita (A-Z)",
+    }
+
+
+def normalizar_filtros_perfis(
+    search: str = "",
+    profile_name: str = "",
+    lawyer_name: str = "",
+    office_name: str = "",
+    tone: str = "",
+    created_from: str = "",
+    created_to: str = "",
+    sort_by: str = "created_desc",
+) -> dict:
+    filtros = {
+        "search": (search or "").strip(),
+        "profile_name": (profile_name or "").strip(),
+        "lawyer_name": (lawyer_name or "").strip(),
+        "office_name": (office_name or "").strip(),
+        "tone": (tone or "").strip(),
+        "created_from": (created_from or "").strip(),
+        "created_to": (created_to or "").strip(),
+        "sort_by": (sort_by or "created_desc").strip(),
+    }
+
+    ordenacoes_validas = obter_ordenacoes_perfis().keys()
+    if filtros["sort_by"] not in ordenacoes_validas:
+        filtros["sort_by"] = "created_desc"
+
+    return filtros
+
+
+def contar_filtros_ativos_perfis(filtros: dict) -> int:
+    total = 0
+
+    for chave in [
+        "search",
+        "profile_name",
+        "lawyer_name",
+        "office_name",
+        "tone",
+        "created_from",
+        "created_to",
+    ]:
+        if filtros.get(chave):
+            total += 1
+
+    if filtros.get("sort_by") and filtros["sort_by"] != "created_desc":
+        total += 1
+
+    return total
+
+
+def listar_perfis_filtrados(db: Session, filtros: dict) -> list[WritingProfile]:
+    query = db.query(WritingProfile)
+
+    if filtros["search"]:
+        termo = f"%{filtros['search']}%"
+        query = query.filter(
+            or_(
+                WritingProfile.profile_name.ilike(termo),
+                WritingProfile.lawyer_name.ilike(termo),
+                WritingProfile.office_name.ilike(termo),
+                WritingProfile.tone.ilike(termo),
+                WritingProfile.qualification_style.ilike(termo),
+                WritingProfile.opening_phrase.ilike(termo),
+                WritingProfile.request_intro.ilike(termo),
+                WritingProfile.closing_phrase.ilike(termo),
+                WritingProfile.legal_style_notes.ilike(termo),
+                WritingProfile.recurring_expressions.ilike(termo),
+            )
+        )
+
+    if filtros["profile_name"]:
+        query = query.filter(WritingProfile.profile_name.ilike(f"%{filtros['profile_name']}%"))
+
+    if filtros["lawyer_name"]:
+        query = query.filter(WritingProfile.lawyer_name.ilike(f"%{filtros['lawyer_name']}%"))
+
+    if filtros["office_name"]:
+        query = query.filter(WritingProfile.office_name.ilike(f"%{filtros['office_name']}%"))
+
+    if filtros["tone"]:
+        query = query.filter(WritingProfile.tone == filtros["tone"])
+
+    if filtros["created_from"]:
+        try:
+            data_inicial = datetime.strptime(filtros["created_from"], "%Y-%m-%d")
+            query = query.filter(WritingProfile.created_at >= data_inicial)
+        except ValueError:
+            pass
+
+    if filtros["created_to"]:
+        try:
+            data_final = datetime.strptime(filtros["created_to"], "%Y-%m-%d")
+            data_final = datetime.combine(data_final.date(), time(23, 59, 59))
+            query = query.filter(WritingProfile.created_at <= data_final)
+        except ValueError:
+            pass
+
+    sort_by = filtros["sort_by"]
+
+    if sort_by == "created_asc":
+        query = query.order_by(WritingProfile.created_at.asc())
+    elif sort_by == "profile_name_asc":
+        query = query.order_by(WritingProfile.profile_name.asc(), WritingProfile.created_at.desc())
+    elif sort_by == "profile_name_desc":
+        query = query.order_by(WritingProfile.profile_name.desc(), WritingProfile.created_at.desc())
+    elif sort_by == "lawyer_name_asc":
+        query = query.order_by(WritingProfile.lawyer_name.asc(), WritingProfile.profile_name.asc())
+    elif sort_by == "office_name_asc":
+        query = query.order_by(WritingProfile.office_name.asc(), WritingProfile.profile_name.asc())
+    elif sort_by == "tone_asc":
+        query = query.order_by(WritingProfile.tone.asc(), WritingProfile.profile_name.asc())
+    else:
+        query = query.order_by(WritingProfile.created_at.desc())
+
+    return query.all()
 
 
 def montar_resumo_perfil(perfil: WritingProfile) -> dict:
@@ -194,6 +284,5 @@ def montar_resumo_perfil(perfil: WritingProfile) -> dict:
         "closing_phrase": perfil.closing_phrase or "Não informada",
         "legal_style_notes": perfil.legal_style_notes or "Não informadas",
         "recurring_expressions": perfil.recurring_expressions or "Não informadas",
-        "is_active": perfil.is_active,
         "created_at": perfil.created_at,
     }

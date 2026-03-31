@@ -1,12 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}
-    {% if modo_edicao %}
-        Editar geração jurídica
-    {% else %}
-        Nova geração jurídica
-    {% endif %}
-{% endblock %}
+{% block title %}{{ title }}{% endblock %}
 
 {% block content %}
 <section class="card">
@@ -102,10 +96,10 @@
 
         <label for="writing_profile_id">Perfil de escrita</label>
         <select id="writing_profile_id" name="writing_profile_id">
-            <option value="">Usar padrão do sistema</option>
+            <option value="">Sem perfil específico (opcional)</option>
             {% for perfil in perfis %}
                 <option value="{{ perfil.id }}" {% if selected_profile_id == perfil.id %}selected{% endif %}>
-                    {{ perfil.profile_name }}{% if perfil.is_active %} (ativo){% endif %}
+                    {{ perfil.profile_name }}
                 </option>
             {% endfor %}
         </select>
@@ -135,96 +129,57 @@
             id="requests"
             name="requests"
             rows="5"
-            placeholder="Liste os pedidos desejados para a minuta."
+            placeholder="Liste os pedidos desejados para a peça."
             required
         >{{ form_data.requests if form_data else '' }}</textarea>
 
-        <label for="legal_basis">Fundamentação jurídica inicial (opcional)</label>
+        <label for="legal_basis">Fundamentação jurídica</label>
         <textarea
             id="legal_basis"
             name="legal_basis"
             rows="5"
-            placeholder="Inclua fundamentos legais, artigos, súmulas ou jurisprudência, se desejar."
+            placeholder="Informe leis, artigos, teses e fundamentos jurídicos relevantes."
         >{{ form_data.legal_basis if form_data else '' }}</textarea>
 
-        <section class="secao-documentos-base" data-document-selector>
-            <div class="documentos-base-cabecalho">
+        <div class="bloco-informativo">
+            <div class="bloco-informativo-topo">
                 <div>
                     <h3>Documentos base</h3>
                     <p class="texto-suave">
-                        Selecione os documentos que deverão compor a base da geração.
+                        Selecione um ou mais documentos para enriquecer o contexto da geração.
                     </p>
                 </div>
-
-                <div class="documentos-base-resumo">
-                    <span class="contador-documentos-base">
-                        <span data-selected-count>0</span>
-                        <span data-selected-count-label">selecionados</span>
-                    </span>
-
-                    <span class="contador-documentos-total">
-                        {{ documentos|length }} disponível(is)
-                    </span>
-                </div>
-            </div>
-
-            <div class="barra-status-documentos-base">
-                <span class="texto-status-documentos" data-selected-label>
-                    Nenhum documento selecionado no momento.
+                <span class="badge badge-neutro" data-document-counter>
+                    {{ selected_document_ids|length }} selecionado(s)
                 </span>
             </div>
 
             {% if documentos %}
-                <div class="lista-documentos-base">
+                <div class="grade-documentos-base">
                     {% for documento in documentos %}
-                        {% set checked = documento.id in selected_document_ids %}
-                        <label class="documento-base-item {% if checked %}selecionado{% endif %}" data-document-card>
-                            <div class="documento-base-topo">
-                                <div class="documento-base-check">
-                                    <input
-                                        type="checkbox"
-                                        name="document_ids"
-                                        value="{{ documento.id }}"
-                                        data-document-checkbox
-                                        {% if checked %}checked{% endif %}
-                                    >
+                        <label class="card-documento-base {% if documento.id in selected_document_ids %}selecionado{% endif %}" data-document-card>
+                            <input
+                                type="checkbox"
+                                name="document_ids"
+                                value="{{ documento.id }}"
+                                {% if documento.id in selected_document_ids %}checked{% endif %}
+                                data-document-checkbox
+                            >
+                            <div class="card-documento-base-conteudo">
+                                <div class="card-documento-base-topo">
+                                    <strong>{{ documento.original_filename }}</strong>
+                                    <span class="badge badge-neutro">ID #{{ documento.id }}</span>
                                 </div>
-
-                                <div class="documento-base-conteudo-principal">
-                                    <div class="documento-base-titulo-linha">
-                                        <span class="nome-documento">{{ documento.original_filename }}</span>
-                                        <span class="selo-selecionado {% if checked %}visivel{% endif %}" data-selected-badge>
-                                            Selecionado
-                                        </span>
-                                    </div>
-
-                                    <div class="documento-base-marcacao">
-                                        <span class="marcador-documento" data-marker>
-                                            {% if checked %}
-                                                ✓ Documento marcado para uso
-                                            {% else %}
-                                                Marcar este documento como base
-                                            {% endif %}
-                                        </span>
-                                    </div>
-
-                                    <div class="documento-base-info">
-                                        <p><strong>Tipo:</strong> {{ documento.file_type }}</p>
-                                        <p>
-                                            <strong>Enviado em:</strong>
-                                            {{ documento.created_at.strftime("%d/%m/%Y %H:%M") if documento.created_at else "-" }}
-                                        </p>
-                                    </div>
-                                </div>
+                                <p>{{ documento.summary if documento.summary else "Sem resumo disponível." }}</p>
                             </div>
                         </label>
                     {% endfor %}
                 </div>
             {% else %}
-                <div class="estado-vazio" style="margin-top: 16px;">
-                    <div class="estado-vazio-icone" aria-hidden="true">📁</div>
-                    <h3>Nenhum documento disponível</h3>
-                    <p>Antes de gerar, envie pelo menos um documento base para o sistema.</p>
+                <div class="estado-vazio estado-vazio-simples">
+                    <div class="estado-vazio-icone" aria-hidden="true">📄</div>
+                    <h3>Nenhum documento base disponível</h3>
+                    <p>Faça upload de documentos antes de gerar uma nova minuta jurídica.</p>
                     <div class="estado-vazio-acoes">
                         <a class="botao" href="/documents/upload">
                             <span class="icone-botao" aria-hidden="true">↑</span>
@@ -233,22 +188,17 @@
                     </div>
                 </div>
             {% endif %}
-        </section>
+        </div>
 
         <div class="acoes-formulario-geracao">
             <a class="botao botao-secundario" href="/generations">
-                <span class="icone-botao" aria-hidden="true">←</span>
+                <span class="icone-botao" aria-hidden="true">↩</span>
                 Cancelar
             </a>
 
-            <button class="botao" type="submit">
-                {% if modo_edicao %}
-                    <span class="icone-botao" aria-hidden="true">💾</span>
-                    Atualizar geração
-                {% else %}
-                    <span class="icone-botao" aria-hidden="true">⚡</span>
-                    Gerar minuta
-                {% endif %}
+            <button type="submit" class="botao">
+                <span class="icone-botao" aria-hidden="true">{% if modo_edicao %}💾{% else %}⚖{% endif %}</span>
+                {% if modo_edicao %}Salvar alterações{% else %}Gerar minuta{% endif %}
             </button>
         </div>
     </form>

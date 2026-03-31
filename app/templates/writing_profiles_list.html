@@ -9,7 +9,7 @@
             <span class="etiqueta-secao">Perfis de escrita</span>
             <h2>Perfis de escrita</h2>
             <p class="texto-suave">
-                Cadastre estilos jurídicos diferentes e escolha qual deles ficará ativo para as próximas gerações.
+                Cadastre estilos jurídicos diferentes, pesquise, filtre e encontre rapidamente o perfil ideal para as próximas gerações.
             </p>
         </div>
         <div class="acoes-topo">
@@ -40,19 +40,178 @@
         </div>
     {% endif %}
 
-    {% if perfil_ativo %}
-        <div class="alerta alerta-sucesso" data-alerta>
-            <div class="alerta-conteudo">
-                <span class="alerta-titulo">Perfil ativo no momento</span>
-                <p>
-                    <strong>{{ perfil_ativo.profile_name }}</strong>
-                    {% if perfil_ativo.lawyer_name %} — Advogado: {{ perfil_ativo.lawyer_name }}{% endif %}
-                    {% if perfil_ativo.office_name %} — Escritório: {{ perfil_ativo.office_name }}{% endif %}
+    <section class="bloco-informativo bloco-filtros-avancados">
+        <div class="bloco-informativo-topo bloco-informativo-topo-entre-linhas">
+            <div>
+                <h3>Busca e filtros</h3>
+                <p class="texto-suave">
+                    Faça busca geral, aplique filtros específicos, selecione período de criação e ordene a listagem dos perfis.
                 </p>
             </div>
-            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+
+            <span class="badge badge-neutro">
+                {{ total_resultados }} resultado(s)
+            </span>
         </div>
-    {% endif %}
+
+        <form method="get" action="/writing-profiles" class="formulario-geracao formulario-filtros-avancados">
+            <div class="grid-filtros-avancados">
+                <div>
+                    <label for="search">Busca geral</label>
+                    <input
+                        type="text"
+                        id="search"
+                        name="search"
+                        value="{{ filtros.search }}"
+                        placeholder="Pesquisar em nome, advogado, escritório, tom ou conteúdo"
+                    >
+                </div>
+
+                <div>
+                    <label for="profile_name">Nome do perfil</label>
+                    <input
+                        type="text"
+                        id="profile_name"
+                        name="profile_name"
+                        value="{{ filtros.profile_name }}"
+                        placeholder="Filtrar pelo nome do perfil"
+                    >
+                </div>
+
+                <div>
+                    <label for="lawyer_name">Advogado</label>
+                    <input
+                        type="text"
+                        id="lawyer_name"
+                        name="lawyer_name"
+                        value="{{ filtros.lawyer_name }}"
+                        placeholder="Filtrar pelo nome do advogado"
+                    >
+                </div>
+
+                <div>
+                    <label for="office_name">Escritório</label>
+                    <input
+                        type="text"
+                        id="office_name"
+                        name="office_name"
+                        value="{{ filtros.office_name }}"
+                        placeholder="Filtrar pelo nome do escritório"
+                    >
+                </div>
+
+                <div>
+                    <label for="tone">Tom da escrita</label>
+                    <select id="tone" name="tone">
+                        <option value="">Todos</option>
+                        {% for item in tons_disponiveis %}
+                            <option value="{{ item }}" {% if filtros.tone == item %}selected{% endif %}>
+                                {{ item }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="created_from">Criado a partir de</label>
+                    <input
+                        type="date"
+                        id="created_from"
+                        name="created_from"
+                        value="{{ filtros.created_from }}"
+                    >
+                </div>
+
+                <div>
+                    <label for="created_to">Criado até</label>
+                    <input
+                        type="date"
+                        id="created_to"
+                        name="created_to"
+                        value="{{ filtros.created_to }}"
+                    >
+                </div>
+
+                <div>
+                    <label for="sort_by">Ordenação</label>
+                    <select id="sort_by" name="sort_by">
+                        {% for chave, descricao in ordenacoes.items() %}
+                            <option value="{{ chave }}" {% if filtros.sort_by == chave %}selected{% endif %}>
+                                {{ descricao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="acoes-formulario-geracao">
+                <a class="botao botao-secundario" href="/writing-profiles">
+                    <span class="icone-botao" aria-hidden="true">↺</span>
+                    Limpar
+                </a>
+
+                <button type="submit" class="botao">
+                    <span class="icone-botao" aria-hidden="true">🔎</span>
+                    Aplicar filtros
+                </button>
+            </div>
+        </form>
+
+        {% if total_filtros_ativos > 0 %}
+            <div class="filtros-ativos-wrap">
+                <span class="info-label">Filtros ativos</span>
+                <div class="chips-filtros-ativos">
+                    {% if filtros.search %}
+                        <span class="chip-filtro">Busca: {{ filtros.search }}</span>
+                    {% endif %}
+                    {% if filtros.profile_name %}
+                        <span class="chip-filtro">Perfil: {{ filtros.profile_name }}</span>
+                    {% endif %}
+                    {% if filtros.lawyer_name %}
+                        <span class="chip-filtro">Advogado: {{ filtros.lawyer_name }}</span>
+                    {% endif %}
+                    {% if filtros.office_name %}
+                        <span class="chip-filtro">Escritório: {{ filtros.office_name }}</span>
+                    {% endif %}
+                    {% if filtros.tone %}
+                        <span class="chip-filtro">Tom: {{ filtros.tone }}</span>
+                    {% endif %}
+                    {% if filtros.created_from %}
+                        <span class="chip-filtro">De: {{ filtros.created_from }}</span>
+                    {% endif %}
+                    {% if filtros.created_to %}
+                        <span class="chip-filtro">Até: {{ filtros.created_to }}</span>
+                    {% endif %}
+                    {% if filtros.sort_by != "created_desc" %}
+                        <span class="chip-filtro">Ordem: {{ ordenacoes[filtros.sort_by] }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="painel-resumo-geracao painel-resumo-sem-inline">
+            <div class="info-box">
+                <span class="info-label">Resultados</span>
+                <span class="info-value">{{ total_resultados }}</span>
+            </div>
+
+            <div class="info-box">
+                <span class="info-label">Filtros ativos</span>
+                <span class="info-value">{{ total_filtros_ativos }}</span>
+            </div>
+
+            <div class="info-box info-box-largo">
+                <span class="info-label">Estado da listagem</span>
+                <span class="info-value">
+                    {% if total_filtros_ativos > 0 %}
+                        A listagem está refinada conforme os critérios selecionados.
+                    {% else %}
+                        Exibindo todos os perfis cadastrados.
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </section>
 
     {% if perfis %}
         <div class="lista-cards">
@@ -62,14 +221,6 @@
                         <div>
                             <h3 class="perfil-titulo">{{ perfil.profile_name }}</h3>
                             <p class="texto-pequeno">ID #{{ perfil.id }}</p>
-                        </div>
-
-                        <div>
-                            {% if perfil.is_active %}
-                                <span class="badge badge-sucesso">Ativo</span>
-                            {% else %}
-                                <span class="badge badge-neutro">Inativo</span>
-                            {% endif %}
                         </div>
                     </div>
 
@@ -92,23 +243,6 @@
                             <span class="icone-botao" aria-hidden="true">✎</span>
                             Editar
                         </a>
-
-                        {% if not perfil.is_active %}
-                            <form
-                                action="/writing-profiles/{{ perfil.id }}/activate"
-                                method="post"
-                                data-loading-form
-                                data-loading-message="Ativando perfil..."
-                                data-loading-button-text="Ativando..."
-                            >
-                                <button class="botao" type="submit">
-                                    <span class="icone-botao" aria-hidden="true">✓</span>
-                                    Ativar perfil
-                                </button>
-                            </form>
-                        {% else %}
-                            <span class="badge badge-sucesso">Perfil em uso</span>
-                        {% endif %}
 
                         <form
                             action="/writing-profiles/{{ perfil.id }}/delete"
@@ -133,15 +267,26 @@
         </div>
     {% else %}
         <div class="estado-vazio">
-            <div class="estado-vazio-icone" aria-hidden="true">✍</div>
-            <h3>Nenhum perfil de escrita foi cadastrado ainda</h3>
-            <p>Crie o primeiro perfil para personalizar o estilo das próximas minutas.</p>
-            <div class="estado-vazio-acoes">
-                <a class="botao" href="/writing-profiles/create">
-                    <span class="icone-botao" aria-hidden="true">＋</span>
-                    Criar primeiro perfil
-                </a>
-            </div>
+            <div class="estado-vazio-icone" aria-hidden="true">🔎</div>
+            {% if total_filtros_ativos > 0 %}
+                <h3>Nenhum perfil encontrado com os filtros aplicados</h3>
+                <p>Revise os critérios selecionados ou clique em limpar para exibir todos os perfis novamente.</p>
+                <div class="estado-vazio-acoes">
+                    <a class="botao botao-secundario" href="/writing-profiles">
+                        <span class="icone-botao" aria-hidden="true">↺</span>
+                        Limpar filtros
+                    </a>
+                </div>
+            {% else %}
+                <h3>Nenhum perfil de escrita foi cadastrado ainda</h3>
+                <p>Crie o primeiro perfil para personalizar o estilo das próximas minutas.</p>
+                <div class="estado-vazio-acoes">
+                    <a class="botao" href="/writing-profiles/create">
+                        <span class="icone-botao" aria-hidden="true">＋</span>
+                        Criar primeiro perfil
+                    </a>
+                </div>
+            {% endif %}
         </div>
     {% endif %}
 </section>

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Form, Request, status
+from fastapi import APIRouter, Depends, Form, Query, Request, status
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -7,13 +7,15 @@ from app.database import get_db
 from app.schemas.writing_profile import WritingProfileCreate
 from app.services.generation_service import resumir_texto
 from app.services.writing_profile_service import (
-    ativar_perfil,
-    buscar_perfil_ativo,
     buscar_perfil_por_id,
+    contar_filtros_ativos_perfis,
     criar_perfil,
     excluir_perfil,
-    listar_perfis,
+    listar_perfis_filtrados,
     montar_resumo_perfil,
+    normalizar_filtros_perfis,
+    obter_ordenacoes_perfis,
+    obter_tons_disponiveis,
     atualizar_perfil,
     validar_dados_perfil,
 )
@@ -23,9 +25,33 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get("")
-def listar_perfis_page(request: Request, db: Session = Depends(get_db)):
-    perfis = listar_perfis(db)
-    perfil_ativo = buscar_perfil_ativo(db)
+def listar_perfis_page(
+    request: Request,
+    search: str = Query(""),
+    profile_name: str = Query(""),
+    lawyer_name: str = Query(""),
+    office_name: str = Query(""),
+    tone: str = Query(""),
+    created_from: str = Query(""),
+    created_to: str = Query(""),
+    sort_by: str = Query("created_desc"),
+    db: Session = Depends(get_db),
+):
+    filtros = normalizar_filtros_perfis(
+        search=search,
+        profile_name=profile_name,
+        lawyer_name=lawyer_name,
+        office_name=office_name,
+        tone=tone,
+        created_from=created_from,
+        created_to=created_to,
+        sort_by=sort_by,
+    )
+
+    perfis = listar_perfis_filtrados(db, filtros)
+    tons_disponiveis = obter_tons_disponiveis(db)
+    ordenacoes = obter_ordenacoes_perfis()
+    total_filtros_ativos = contar_filtros_ativos_perfis(filtros)
 
     perfis_resumo = []
     for perfil in perfis:
@@ -43,9 +69,13 @@ def listar_perfis_page(request: Request, db: Session = Depends(get_db)):
         {
             "request": request,
             "perfis": perfis_resumo,
-            "perfil_ativo": perfil_ativo,
             "sucesso": request.query_params.get("sucesso"),
             "erro": request.query_params.get("erro"),
+            "filtros": filtros,
+            "tons_disponiveis": tons_disponiveis,
+            "ordenacoes": ordenacoes,
+            "total_resultados": len(perfis_resumo),
+            "total_filtros_ativos": total_filtros_ativos,
         },
     )
 
@@ -232,22 +262,6 @@ def editar_perfil_page(
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
-
-
-@router.post("/{profile_id}/activate")
-def ativar_perfil_page(profile_id: int, db: Session = Depends(get_db)):
-    perfil = ativar_perfil(db, profile_id)
-
-    if not perfil:
-        return RedirectResponse(
-            url="/writing-profiles?erro=Perfil não encontrado.",
-            status_code=status.HTTP_303_SEE_OTHER,
-        )
-
-    return RedirectResponse(
-        url="/writing-profiles?sucesso=Perfil ativado com sucesso.",
-        status_code=status.HTTP_303_SEE_OTHER,
-    )
 
 
 @router.post("/{profile_id}/delete")
