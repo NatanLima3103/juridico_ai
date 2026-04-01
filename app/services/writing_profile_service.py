@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, time
 
 from sqlalchemy import or_
@@ -128,6 +129,70 @@ def excluir_perfil(db: Session, profile_id: int) -> tuple[bool, str]:
     db.commit()
 
     return True, "Perfil excluído com sucesso."
+
+
+def _remover_sufixo_copia(nome: str) -> str:
+    nome = (nome or "").strip()
+    padrao = r"\s*\(Cópia(?:\s+\d+)?\)\s*$"
+
+    while re.search(padrao, nome, flags=re.IGNORECASE):
+        nome = re.sub(padrao, "", nome, flags=re.IGNORECASE).strip()
+
+    return nome
+
+
+def _gerar_nome_copia_perfil(db: Session, nome_base: str) -> str:
+    nome_base = _remover_sufixo_copia(nome_base)
+
+    if not nome_base:
+        nome_base = "Perfil sem nome"
+
+    nome_copia = f"{nome_base} (Cópia)"
+
+    nome_existente = (
+        db.query(WritingProfile.id)
+        .filter(WritingProfile.profile_name == nome_copia)
+        .first()
+    )
+    if not nome_existente:
+        return nome_copia
+
+    contador = 2
+    while True:
+        nome_candidato = f"{nome_base} (Cópia {contador})"
+        nome_existente = (
+            db.query(WritingProfile.id)
+            .filter(WritingProfile.profile_name == nome_candidato)
+            .first()
+        )
+        if not nome_existente:
+            return nome_candidato
+        contador += 1
+
+
+def duplicar_perfil(db: Session, profile_id: int) -> WritingProfile | None:
+    perfil_origem = buscar_perfil_por_id(db, profile_id)
+
+    if not perfil_origem:
+        return None
+
+    novo_perfil = WritingProfile(
+        profile_name=_gerar_nome_copia_perfil(db, perfil_origem.profile_name),
+        lawyer_name=perfil_origem.lawyer_name,
+        office_name=perfil_origem.office_name,
+        tone=perfil_origem.tone,
+        qualification_style=perfil_origem.qualification_style,
+        opening_phrase=perfil_origem.opening_phrase,
+        closing_phrase=perfil_origem.closing_phrase,
+        request_intro=perfil_origem.request_intro,
+        legal_style_notes=perfil_origem.legal_style_notes,
+        recurring_expressions=perfil_origem.recurring_expressions,
+    )
+
+    db.add(novo_perfil)
+    db.commit()
+    db.refresh(novo_perfil)
+    return novo_perfil
 
 
 def obter_tons_disponiveis(db: Session) -> list[str]:

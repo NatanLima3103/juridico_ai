@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends, Form, Query, Request, status
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -7,16 +9,17 @@ from app.database import get_db
 from app.schemas.writing_profile import WritingProfileCreate
 from app.services.generation_service import resumir_texto
 from app.services.writing_profile_service import (
+    atualizar_perfil,
     buscar_perfil_por_id,
     contar_filtros_ativos_perfis,
     criar_perfil,
+    duplicar_perfil,
     excluir_perfil,
     listar_perfis_filtrados,
     montar_resumo_perfil,
     normalizar_filtros_perfis,
     obter_ordenacoes_perfis,
     obter_tons_disponiveis,
-    atualizar_perfil,
     validar_dados_perfil,
 )
 
@@ -262,6 +265,22 @@ def editar_perfil_page(
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
+
+
+@router.post("/{profile_id}/duplicate")
+def duplicar_perfil_page(profile_id: int, db: Session = Depends(get_db)):
+    novo_perfil = duplicar_perfil(db, profile_id)
+
+    if not novo_perfil:
+        return RedirectResponse(
+            url=f"/writing-profiles?erro={quote('Perfil não encontrado para duplicação.')}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    return RedirectResponse(
+        url=f"/writing-profiles/{novo_perfil.id}/edit?sucesso={quote(f'Perfil #{profile_id} duplicado com sucesso.')}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
 
 
 @router.post("/{profile_id}/delete")

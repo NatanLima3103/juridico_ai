@@ -245,6 +245,19 @@
                         </a>
 
                         <form
+                            action="/writing-profiles/{{ perfil.id }}/duplicate"
+                            method="post"
+                            data-loading-form
+                            data-loading-message="Duplicando perfil de escrita..."
+                            data-loading-button-text="Duplicando..."
+                        >
+                            <button class="botao botao-secundario" type="submit">
+                                <span class="icone-botao" aria-hidden="true">⧉</span>
+                                Duplicar
+                            </button>
+                        </form>
+
+                        <form
                             action="/writing-profiles/{{ perfil.id }}/delete"
                             method="post"
                             data-confirm-action

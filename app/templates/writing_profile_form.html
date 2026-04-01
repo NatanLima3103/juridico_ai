@@ -31,8 +31,35 @@
                 <span class="icone-botao" aria-hidden="true">←</span>
                 Voltar para perfis
             </a>
+
+            {% if modo_edicao and perfil_id %}
+                <form
+                    action="/writing-profiles/{{ perfil_id }}/duplicate"
+                    method="post"
+                    data-loading-form
+                    data-loading-message="Duplicando perfil de escrita..."
+                    data-loading-button-text="Duplicando..."
+                >
+                    <button type="submit" class="botao botao-secundario">
+                        <span class="icone-botao" aria-hidden="true">⧉</span>
+                        Duplicar perfil
+                    </button>
+                </form>
+            {% endif %}
         </div>
     </div>
+
+    {% set sucesso = request.query_params.get('sucesso') %}
+
+    {% if sucesso %}
+        <div class="alerta alerta-sucesso" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Operação realizada com sucesso</span>
+                <p>{{ sucesso }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
+    {% endif %}
 
     {% if erro %}
         <div class="alerta alerta-erro" data-alerta>
