@@ -3,16 +3,246 @@
 {% block title %}Início - Jurídico AI{% endblock %}
 
 {% block content %}
-<section class="card">
-    <h2>Bem-vindo ao Jurídico AI</h2>
-    <p>
-        Este MVP permite enviar documentos jurídicos, extrair o texto, cadastrar perfis de escrita
-        e gerar minutas iniciais com base nos documentos selecionados.
-    </p>
+<section class="home-dashboard">
+    <section class="home-hero-refinado home-hero-refinado-premium home-hero-refinado-final">
+        <div class="home-hero-bloco-principal">
+            <span class="etiqueta-secao">Dashboard inicial</span>
+            <h2 class="home-hero-titulo">Painel central do Jurídico AI</h2>
+            <p class="home-hero-descricao">
+                Acompanhe documentos base, perfis de escrita e gerações jurídicas em
+                uma visão mais limpa, organizada e profissional para o seu fluxo diário.
+            </p>
 
-    <a class="botao" href="/documents/upload">Enviar documento</a>
-    <a class="botao" href="/documents">Ver documentos</a>
-    <a class="botao" href="/generations/create">Nova geração</a>
-    <a class="botao" href="/writing-profiles">Perfis de escrita</a>
+            <div class="home-hero-acoes">
+                <a class="botao" href="/generations/create">Nova geração</a>
+                <a class="botao botao-secundario" href="/documents/upload">Enviar documento</a>
+                <a class="botao botao-secundario" href="/writing-profiles/create">Novo perfil</a>
+            </div>
+        </div>
+
+        <div class="home-hero-resumo home-hero-resumo-premium home-hero-resumo-final">
+            <div class="home-resumo-card home-resumo-card-premium home-resumo-card-final">
+                <span class="info-label">Última geração</span>
+                <span class="home-resumo-valor">
+                    {% if latest_generation %}
+                        #{{ latest_generation.id }} - {{ latest_generation.client_name }}
+                    {% else %}
+                        Nenhuma geração ainda
+                    {% endif %}
+                </span>
+                <p>
+                    {% if latest_generation %}
+                        {{ latest_generation.document_type }} • {{ latest_generation.case_subject }}
+                    {% else %}
+                        Assim que você gerar a primeira minuta, ela aparecerá aqui.
+                    {% endif %}
+                </p>
+            </div>
+
+            <div class="home-resumo-card home-resumo-card-premium home-resumo-card-final">
+                <span class="info-label">Último documento</span>
+                <span class="home-resumo-valor">
+                    {% if latest_document %}
+                        {{ latest_document.original_filename }}
+                    {% else %}
+                        Nenhum documento enviado
+                    {% endif %}
+                </span>
+                <p>
+                    {% if latest_document %}
+                        Tipo {{ latest_document.file_type | upper }} cadastrado na base documental.
+                    {% else %}
+                        Faça upload dos seus modelos e referências jurídicas.
+                    {% endif %}
+                </p>
+            </div>
+
+            <div class="home-resumo-card home-resumo-card-premium home-resumo-card-final">
+                <span class="info-label">Último perfil</span>
+                <span class="home-resumo-valor">
+                    {% if latest_profile %}
+                        {{ latest_profile.profile_name }}
+                    {% else %}
+                        Nenhum perfil cadastrado
+                    {% endif %}
+                </span>
+                <p>
+                    {% if latest_profile %}
+                        Tom {{ latest_profile.tone }}{% if latest_profile.lawyer_name %} • {{ latest_profile.lawyer_name }}{% endif %}
+                    {% else %}
+                        Cadastre perfis para personalizar o estilo das minutas.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="home-metricas-refinadas home-metricas-refinadas-premium home-metricas-final">
+        <article class="home-metrica-refinada home-metrica-refinada-premium home-metrica-final">
+            <span class="info-label">Documentos base</span>
+            <span class="home-metrica-numero">{{ total_documents }}</span>
+            <p>Arquivos disponíveis para compor o contexto das gerações.</p>
+        </article>
+
+        <article class="home-metrica-refinada home-metrica-refinada-premium home-metrica-final">
+            <span class="info-label">Perfis de escrita</span>
+            <span class="home-metrica-numero">{{ total_profiles }}</span>
+            <p>Perfis configurados para ajustar linguagem, tom e estrutura.</p>
+        </article>
+
+        <article class="home-metrica-refinada home-metrica-refinada-premium home-metrica-final">
+            <span class="info-label">Gerações jurídicas</span>
+            <span class="home-metrica-numero">{{ total_generations }}</span>
+            <p>Minutas já produzidas e disponíveis para revisão e exportação.</p>
+        </article>
+    </section>
+
+    <section class="home-grid-principal home-grid-principal-premium home-grid-principal-final">
+        <div class="home-coluna-principal-premium home-coluna-principal-final">
+            <section class="card home-card-refinado home-card-premium home-card-final">
+                <div class="cabecalho-pagina cabecalho-home-premium cabecalho-home-final">
+                    <div>
+                        <span class="etiqueta-secao">Gerações</span>
+                        <h2>Gerações recentes</h2>
+                        <p class="texto-suave">Acesse rapidamente as últimas minutas criadas no sistema.</p>
+                    </div>
+                    <div class="acoes-topo">
+                        <a class="botao botao-secundario botao-topo-discreto" href="/generations">Ver todas</a>
+                    </div>
+                </div>
+
+                {% if recent_generations %}
+                    <div class="home-lista-refinada home-lista-refinada-premium home-lista-final">
+                        {% for generation in recent_generations %}
+                            <a class="home-lista-item-refinado home-lista-item-premium home-lista-item-final" href="/generations/{{ generation.id }}">
+                                <div class="home-lista-texto">
+                                    <strong>#{{ generation.id }} - {{ generation.client_name }}</strong>
+                                    <p>{{ generation.document_type }} • {{ generation.case_subject }}</p>
+                                </div>
+                                <span class="home-lista-tag home-lista-tag-premium home-lista-tag-final">Abrir</span>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state empty-state-home">
+                        <p>Nenhuma geração cadastrada até o momento.</p>
+                    </div>
+                {% endif %}
+            </section>
+
+            <section class="card home-card-refinado home-card-premium home-card-final">
+                <div class="cabecalho-pagina cabecalho-home-premium cabecalho-home-final">
+                    <div>
+                        <span class="etiqueta-secao">Visão rápida</span>
+                        <h2>Tipos de documento mais usados</h2>
+                        <p class="texto-suave">Resumo simples dos tipos mais recorrentes nas gerações já realizadas.</p>
+                    </div>
+                </div>
+
+                {% if generation_type_summary %}
+                    <div class="home-tipos-lista home-tipos-lista-premium home-tipos-lista-final">
+                        {% for item in generation_type_summary %}
+                            <span class="home-tipo-chip home-tipo-chip-premium home-tipo-chip-final">
+                                {{ item.label }} <strong>{{ item.count }}</strong>
+                            </span>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state empty-state-home">
+                        <p>Os tipos de documento aparecerão aqui após as primeiras gerações.</p>
+                    </div>
+                {% endif %}
+            </section>
+        </div>
+
+        <div class="home-coluna-secundaria home-coluna-secundaria-premium home-coluna-secundaria-final">
+            <section class="card home-card-refinado home-card-premium home-card-final">
+                <div class="cabecalho-pagina cabecalho-home-premium cabecalho-home-final">
+                    <div>
+                        <span class="etiqueta-secao">Documentos</span>
+                        <h2>Documentos recentes</h2>
+                        <p class="texto-suave">Últimos arquivos enviados para a base documental.</p>
+                    </div>
+                    <div class="acoes-topo">
+                        <a class="botao botao-secundario botao-topo-discreto" href="/documents">Ver todos</a>
+                    </div>
+                </div>
+
+                {% if recent_documents %}
+                    <div class="home-lista-refinada home-lista-refinada-premium home-lista-final">
+                        {% for document in recent_documents %}
+                            <a class="home-lista-item-refinado home-lista-item-premium home-lista-item-final" href="/documents/{{ document.id }}">
+                                <div class="home-lista-texto">
+                                    <strong>{{ document.original_filename }}</strong>
+                                    <p>ID #{{ document.id }} • {{ document.file_type | upper }}</p>
+                                </div>
+                                <span class="home-lista-tag home-lista-tag-premium home-lista-tag-final">Abrir</span>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state empty-state-home">
+                        <p>Nenhum documento cadastrado ainda.</p>
+                    </div>
+                {% endif %}
+            </section>
+
+            <section class="card home-card-refinado home-card-premium home-card-final">
+                <div class="cabecalho-pagina cabecalho-home-premium cabecalho-home-final">
+                    <div>
+                        <span class="etiqueta-secao">Perfis</span>
+                        <h2>Perfis recentes</h2>
+                        <p class="texto-suave">Perfis de escrita mais recentes para reutilização rápida.</p>
+                    </div>
+                    <div class="acoes-topo">
+                        <a class="botao botao-secundario botao-topo-discreto" href="/writing-profiles">Ver todos</a>
+                    </div>
+                </div>
+
+                {% if recent_profiles %}
+                    <div class="home-lista-refinada home-lista-refinada-premium home-lista-final">
+                        {% for profile in recent_profiles %}
+                            <a class="home-lista-item-refinado home-lista-item-premium home-lista-item-final" href="/writing-profiles/{{ profile.id }}/edit">
+                                <div class="home-lista-texto">
+                                    <strong>{{ profile.profile_name }}</strong>
+                                    <p>{{ profile.tone }}{% if profile.lawyer_name %} • {{ profile.lawyer_name }}{% endif %}</p>
+                                </div>
+                                <span class="home-lista-tag home-lista-tag-premium home-lista-tag-final">Abrir</span>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state empty-state-home">
+                        <p>Nenhum perfil cadastrado ainda.</p>
+                    </div>
+                {% endif %}
+            </section>
+
+            <section class="card home-card-refinado home-card-premium home-card-final">
+                <div class="cabecalho-pagina cabecalho-home-premium cabecalho-home-final">
+                    <div>
+                        <span class="etiqueta-secao">Atalhos</span>
+                        <h2>Ações rápidas</h2>
+                        <p class="texto-suave">Acesse os fluxos principais sem poluir a home.</p>
+                    </div>
+                </div>
+
+                <div class="home-acoes-compactas home-acoes-compactas-premium home-acoes-compactas-final">
+                    <a class="home-atalho-refinado home-atalho-refinado-premium home-atalho-final" href="/generations/create">
+                        <span>Criar nova geração</span>
+                        <span>→</span>
+                    </a>
+                    <a class="home-atalho-refinado home-atalho-refinado-premium home-atalho-final" href="/documents/upload">
+                        <span>Enviar documento base</span>
+                        <span>→</span>
+                    </a>
+                    <a class="home-atalho-refinado home-atalho-refinado-premium home-atalho-final" href="/writing-profiles/create">
+                        <span>Cadastrar perfil de escrita</span>
+                        <span>→</span>
+                    </a>
+                </div>
+            </section>
+        </div>
+    </section>
 </section>
 {% endblock %}
