@@ -19,6 +19,7 @@ from app.services.writing_profile_service import (
     montar_resumo_perfil,
     normalizar_filtros_perfis,
     obter_ordenacoes_perfis,
+    toggle_fixacao_perfil,
     obter_tons_disponiveis,
     validar_dados_perfil,
 )
@@ -80,6 +81,28 @@ def listar_perfis_page(
             "total_resultados": len(perfis_resumo),
             "total_filtros_ativos": total_filtros_ativos,
         },
+    )
+
+
+
+
+@router.post("/{profile_id}/toggle-pin")
+def toggle_pin_profile(profile_id: int, request: Request, db: Session = Depends(get_db)):
+    perfil = toggle_fixacao_perfil(db, profile_id)
+
+    if not perfil:
+        return RedirectResponse(
+            url=f"/writing-profiles?erro={quote('Perfil não encontrado.')}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    mensagem = "Perfil fixado com sucesso." if perfil.is_pinned else "Perfil desfixado com sucesso."
+    destino = request.headers.get("referer") or "/writing-profiles"
+    separador = "&" if "?" in destino else "?"
+
+    return RedirectResponse(
+        url=f"{destino}{separador}sucesso={quote(mensagem)}",
+        status_code=status.HTTP_303_SEE_OTHER,
     )
 
 

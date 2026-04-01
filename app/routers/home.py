@@ -30,14 +30,14 @@ def home_page(request: Request, db: Session = Depends(get_db)):
 
     recent_profiles = (
         db.query(WritingProfile)
-        .order_by(WritingProfile.created_at.desc(), WritingProfile.id.desc())
+        .order_by(WritingProfile.is_pinned.desc(), WritingProfile.created_at.desc(), WritingProfile.id.desc())
         .limit(4)
         .all()
     )
 
     recent_generations = (
         db.query(Generation)
-        .order_by(Generation.updated_at.desc(), Generation.id.desc())
+        .order_by(Generation.is_pinned.desc(), Generation.updated_at.desc(), Generation.id.desc())
         .limit(5)
         .all()
     )

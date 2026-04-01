@@ -24,6 +24,7 @@ from app.services.generation_service import (
     serializar_ids_documentos,
     validar_dados_geracao,
     agora_brasil,
+    toggle_fixacao_geracao,
 )
 from app.services.writing_profile_service import (
     buscar_perfil_por_id,
@@ -121,6 +122,7 @@ def _montar_item_lista_geracao(geracao) -> dict:
         "updated_at": geracao.updated_at,
         "writing_profile_name": perfil.profile_name if perfil else "Sem perfil",
         "document_count": len(document_ids),
+        "is_pinned": bool(geracao.is_pinned),
     }
 
 
@@ -237,6 +239,28 @@ def generations_list(request: Request, db: Session = Depends(get_db)):
             "sucesso": request.query_params.get("sucesso"),
             "erro": request.query_params.get("erro"),
         },
+    )
+
+
+
+
+@router.post("/{generation_id}/toggle-pin")
+def toggle_pin_generation(generation_id: int, request: Request, db: Session = Depends(get_db)):
+    geracao = toggle_fixacao_geracao(db, generation_id)
+
+    if not geracao:
+        return RedirectResponse(
+            url=f"/generations?erro={quote('Geração não encontrada.')}",
+            status_code=303,
+        )
+
+    mensagem = "Geração fixada com sucesso." if geracao.is_pinned else "Geração desfixada com sucesso."
+    destino = request.headers.get("referer") or "/generations"
+    separador = "&" if "?" in destino else "?"
+
+    return RedirectResponse(
+        url=f"{destino}{separador}sucesso={quote(mensagem)}",
+        status_code=303,
     )
 
 
@@ -362,6 +386,7 @@ def generation_detail(generation_id: int, request: Request, db: Session = Depend
         "writing_profile_name": geracao.writing_profile.profile_name if geracao.writing_profile else "Sem perfil",
         "documentos": documentos,
         "document_count": len(document_ids),
+        "is_pinned": bool(geracao.is_pinned),
     }
 
     return templates.TemplateResponse(

@@ -116,7 +116,7 @@
                         {% for generation in recent_generations %}
                             <a class="home-lista-item-refinado home-lista-item-premium home-lista-item-final" href="/generations/{{ generation.id }}">
                                 <div class="home-lista-texto">
-                                    <strong>#{{ generation.id }} - {{ generation.client_name }}</strong>
+                                    <strong>{% if generation.is_pinned %}📌 {% endif %}#{{ generation.id }} - {{ generation.client_name }}</strong>
                                     <p>{{ generation.document_type }} • {{ generation.case_subject }}</p>
                                 </div>
                                 <span class="home-lista-tag home-lista-tag-premium home-lista-tag-final">Abrir</span>
@@ -204,7 +204,7 @@
                         {% for profile in recent_profiles %}
                             <a class="home-lista-item-refinado home-lista-item-premium home-lista-item-final" href="/writing-profiles/{{ profile.id }}/edit">
                                 <div class="home-lista-texto">
-                                    <strong>{{ profile.profile_name }}</strong>
+                                    <strong>{% if profile.is_pinned %}📌 {% endif %}{{ profile.profile_name }}</strong>
                                     <p>{{ profile.tone }}{% if profile.lawyer_name %} • {{ profile.lawyer_name }}{% endif %}</p>
                                 </div>
                                 <span class="home-lista-tag home-lista-tag-premium home-lista-tag-final">Abrir</span>

@@ -1,7 +1,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -31,6 +31,8 @@ class Generation(Base):
         ForeignKey("writing_profiles.id"),
         nullable=True,
     )
+
+    is_pinned = Column(Boolean, default=False, nullable=False)
 
     created_at = Column(
         DateTime,

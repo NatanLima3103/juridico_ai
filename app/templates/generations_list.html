@@ -232,6 +232,7 @@
                         <div class="geracao-identificacao">
                             <div class="geracao-titulo-linha">
                                 <span class="badge badge-neutro">#{{ geracao.id }}</span>
+                                {% if geracao.is_pinned %}<span class="badge badge-fixado">📌 Fixada</span>{% endif %}
                                 <h3>{{ geracao.document_type }}</h3>
                             </div>
 
@@ -289,6 +290,19 @@
                                 <span class="icone-botao" aria-hidden="true">👁</span>
                                 Abrir
                             </a>
+
+                            <form
+                                action="/generations/{{ geracao.id }}/toggle-pin"
+                                method="post"
+                                data-loading-form
+                                data-loading-message="Atualizando fixação da geração..."
+                                data-loading-button-text="Salvando..."
+                            >
+                                <button type="submit" class="botao botao-fixar">
+                                    <span class="icone-botao" aria-hidden="true">📌</span>
+                                    {% if geracao.is_pinned %}Desfixar{% else %}Fixar{% endif %}
+                                </button>
+                            </form>
 
                             <form
                                 action="/generations/{{ geracao.id }}/duplicate"

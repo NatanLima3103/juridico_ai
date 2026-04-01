@@ -55,11 +55,24 @@ def validar_dados_perfil(
 
 
 def listar_perfis(db: Session) -> list[WritingProfile]:
-    return db.query(WritingProfile).order_by(WritingProfile.created_at.desc()).all()
+    return db.query(WritingProfile).order_by(WritingProfile.is_pinned.desc(), WritingProfile.created_at.desc()).all()
 
 
 def buscar_perfil_por_id(db: Session, profile_id: int) -> WritingProfile | None:
     return db.query(WritingProfile).filter(WritingProfile.id == profile_id).first()
+
+
+def toggle_fixacao_perfil(db: Session, profile_id: int) -> WritingProfile | None:
+    perfil = buscar_perfil_por_id(db, profile_id)
+
+    if not perfil:
+        return None
+
+    perfil.is_pinned = not bool(perfil.is_pinned)
+    db.add(perfil)
+    db.commit()
+    db.refresh(perfil)
+    return perfil
 
 
 def criar_perfil(db: Session, profile_data) -> WritingProfile:
@@ -187,6 +200,8 @@ def duplicar_perfil(db: Session, profile_id: int) -> WritingProfile | None:
         request_intro=perfil_origem.request_intro,
         legal_style_notes=perfil_origem.legal_style_notes,
         recurring_expressions=perfil_origem.recurring_expressions,
+        is_active=False,
+        is_pinned=False,
     )
 
     db.add(novo_perfil)
@@ -318,22 +333,20 @@ def listar_perfis_filtrados(db: Session, filtros: dict) -> list[WritingProfile]:
 
     sort_by = filtros["sort_by"]
 
-    if sort_by == "created_asc":
-        query = query.order_by(WritingProfile.created_at.asc())
-    elif sort_by == "profile_name_asc":
-        query = query.order_by(WritingProfile.profile_name.asc(), WritingProfile.created_at.desc())
-    elif sort_by == "profile_name_desc":
-        query = query.order_by(WritingProfile.profile_name.desc(), WritingProfile.created_at.desc())
-    elif sort_by == "lawyer_name_asc":
-        query = query.order_by(WritingProfile.lawyer_name.asc(), WritingProfile.profile_name.asc())
-    elif sort_by == "office_name_asc":
-        query = query.order_by(WritingProfile.office_name.asc(), WritingProfile.profile_name.asc())
-    elif sort_by == "tone_asc":
-        query = query.order_by(WritingProfile.tone.asc(), WritingProfile.profile_name.asc())
-    else:
-        query = query.order_by(WritingProfile.created_at.desc())
+    ordenacoes = {
+        "created_asc": [WritingProfile.created_at.asc()],
+        "profile_name_asc": [WritingProfile.profile_name.asc(), WritingProfile.created_at.desc()],
+        "profile_name_desc": [WritingProfile.profile_name.desc(), WritingProfile.created_at.desc()],
+        "lawyer_name_asc": [WritingProfile.lawyer_name.asc(), WritingProfile.profile_name.asc()],
+        "office_name_asc": [WritingProfile.office_name.asc(), WritingProfile.profile_name.asc()],
+        "tone_asc": [WritingProfile.tone.asc(), WritingProfile.profile_name.asc()],
+        "created_desc": [WritingProfile.created_at.desc()],
+    }
 
-    return query.all()
+    return query.order_by(
+        WritingProfile.is_pinned.desc(),
+        *ordenacoes.get(sort_by, ordenacoes["created_desc"])
+    ).all()
 
 
 def montar_resumo_perfil(perfil: WritingProfile) -> dict:
@@ -350,4 +363,5 @@ def montar_resumo_perfil(perfil: WritingProfile) -> dict:
         "legal_style_notes": perfil.legal_style_notes or "Não informadas",
         "recurring_expressions": perfil.recurring_expressions or "Não informadas",
         "created_at": perfil.created_at,
+        "is_pinned": bool(perfil.is_pinned),
     }

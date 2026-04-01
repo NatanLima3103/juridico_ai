@@ -2072,3 +2072,32 @@ button.botao,
         min-width: auto;
     }
 }
+
+.badge-fixado {
+    background: #fff7ed;
+    color: #9a3412;
+    border: 1px solid #fdba74;
+}
+
+.botao-fixar {
+    background: #f59e0b;
+    color: #ffffff;
+}
+
+.botao-fixar:hover {
+    background: #d97706;
+}
+
+.perfil-card-topo {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.perfil-card-topo > div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}

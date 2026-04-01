@@ -304,7 +304,22 @@ def listar_geracoes(
         "client_desc": [Generation.client_name.desc(), Generation.created_at.desc()],
     }
 
-    return query.order_by(*ordenacoes[filtros["sort_by"]]).all()
+    return query.order_by(Generation.is_pinned.desc(), *ordenacoes[filtros["sort_by"]]).all()
+
+
+def toggle_fixacao_geracao(db: Session, generation_id: int) -> Generation | None:
+    geracao = buscar_geracao_por_id(db, generation_id)
+
+    if not geracao:
+        return None
+
+    geracao.is_pinned = not bool(geracao.is_pinned)
+    geracao.updated_at = agora_brasil()
+
+    db.add(geracao)
+    db.commit()
+    db.refresh(geracao)
+    return geracao
 
 
 def buscar_geracao_por_id(db: Session, generation_id: int) -> Generation | None:

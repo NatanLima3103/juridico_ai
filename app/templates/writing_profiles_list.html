@@ -219,6 +219,7 @@
                 <div class="mini-card perfil-card">
                     <div class="perfil-card-topo">
                         <div>
+                            {% if perfil.is_pinned %}<span class="badge badge-fixado">📌 Fixado</span>{% endif %}
                             <h3 class="perfil-titulo">{{ perfil.profile_name }}</h3>
                             <p class="texto-pequeno">ID #{{ perfil.id }}</p>
                         </div>
@@ -254,6 +255,19 @@
                             <button class="botao botao-secundario" type="submit">
                                 <span class="icone-botao" aria-hidden="true">⧉</span>
                                 Duplicar
+                            </button>
+                        </form>
+
+                        <form
+                            action="/writing-profiles/{{ perfil.id }}/toggle-pin"
+                            method="post"
+                            data-loading-form
+                            data-loading-message="Atualizando fixação do perfil..."
+                            data-loading-button-text="Salvando..."
+                        >
+                            <button class="botao botao-fixar" type="submit">
+                                <span class="icone-botao" aria-hidden="true">📌</span>
+                                {% if perfil.is_pinned %}Desfixar{% else %}Fixar{% endif %}
                             </button>
                         </form>
 
