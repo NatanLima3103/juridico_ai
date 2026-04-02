@@ -71,8 +71,8 @@
         method="post"
         class="formulario-geracao"
         data-loading-form
-        data-loading-message="{% if modo_edicao %}Atualizando geração jurídica...{% else %}Gerando minuta jurídica...{% endif %}"
-        data-loading-button-text="{% if modo_edicao %}Atualizando...{% else %}Gerando...{% endif %}"
+        data-loading-message="{% if modo_edicao %}Atualizando geração jurídica.{% else %}Gerando minuta jurídica.{% endif %}"
+        data-loading-button-text="{% if modo_edicao %}Atualizando.{% else %}Gerando.{% endif %}"
     >
         <label for="client_name">Nome do cliente</label>
         <input
@@ -85,7 +85,7 @@
         >
 
         <label for="document_type">Tipo de documento</label>
-        <select id="document_type" name="document_type" required>
+        <select id="document_type" name="document_type" required data-template-document-type>
             <option value="">Selecione</option>
             {% for tipo in tipos_de_documento %}
                 <option value="{{ tipo }}" {% if form_data.document_type == tipo %}selected{% endif %}>
@@ -93,6 +93,43 @@
                 </option>
             {% endfor %}
         </select>
+
+        <div class="bloco-template-juridico" data-template-panel>
+            <div class="bloco-template-juridico-topo">
+                <div>
+                    <span class="etiqueta-secao">Template pronto</span>
+                    <h3 data-template-title>Selecione um tipo para visualizar o modelo base</h3>
+                    <p class="texto-suave" data-template-description>
+                        Ao escolher um tipo de documento, você poderá aplicar um preenchimento inicial pronto e depois ajustar livremente.
+                    </p>
+                </div>
+                <button type="button" class="botao botao-secundario" data-template-apply disabled>
+                    <span class="icone-botao" aria-hidden="true">⚡</span>
+                    Aplicar template
+                </button>
+            </div>
+
+            <div class="template-juridico-preview">
+                <div class="template-juridico-item">
+                    <span class="template-juridico-label">Assunto sugerido</span>
+                    <strong data-template-case-subject>—</strong>
+                </div>
+                <div class="template-juridico-item template-juridico-item-texto">
+                    <span class="template-juridico-label">Estrutura dos fatos</span>
+                    <p data-template-facts>Selecione um tipo acima para visualizar um exemplo inicial.</p>
+                </div>
+                <div class="template-juridico-grid">
+                    <div class="template-juridico-item template-juridico-item-texto">
+                        <span class="template-juridico-label">Pedidos sugeridos</span>
+                        <p data-template-requests>—</p>
+                    </div>
+                    <div class="template-juridico-item template-juridico-item-texto">
+                        <span class="template-juridico-label">Fundamentação sugerida</span>
+                        <p data-template-legal-basis>—</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <label for="writing_profile_id">Perfil de escrita</label>
         <select id="writing_profile_id" name="writing_profile_id">
@@ -203,4 +240,9 @@
         </div>
     </form>
 </section>
+{% endblock %}
+
+{% block extra_scripts %}
+    {{ super() }}
+    <script id="templates-juridicos-data" type="application/json">{{ templates_juridicos | tojson }}</script>
 {% endblock %}

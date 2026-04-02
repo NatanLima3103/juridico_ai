@@ -29,6 +29,161 @@ TIPOS_DE_DOCUMENTO = [
 ]
 
 
+TEMPLATES_JURIDICOS_PRONTOS = {'Petição inicial': {'titulo': 'Modelo base para ajuizamento da ação',
+                     'descricao': 'Estrutura pronta para iniciar uma ação com fatos, pedidos e fundamentos essenciais.',
+                     'case_subject': 'Ação de obrigação de fazer c/c indenização por danos morais',
+                     'facts': 'A parte autora relata que manteve relação contratual com a parte ré e, apesar das '
+                              'tentativas administrativas de solução, o problema persistiu. Houve falha na prestação '
+                              'do serviço, prejuízos concretos ao cliente e ausência de resposta eficaz no prazo '
+                              'razoável. Os documentos anexos demonstram a linha do tempo dos fatos, os protocolos '
+                              'realizados e os impactos suportados.',
+                     'requests': 'Concessão da tutela provisória, se cabível.\n'
+                                 'Citação da parte ré para apresentar resposta.\n'
+                                 'Procedência dos pedidos com a condenação da parte ré à obrigação de fazer ou não '
+                                 'fazer pertinente ao caso.\n'
+                                 'Condenação ao pagamento de indenização pelos prejuízos materiais e/ou morais, quando '
+                                 'aplicável.\n'
+                                 'Condenação ao pagamento das custas processuais e honorários advocatícios.',
+                     'legal_basis': 'Aplicação do Código Civil e/ou do Código de Defesa do Consumidor, conforme a '
+                                    'natureza da relação jurídica. Observância dos princípios da boa-fé objetiva, '
+                                    'reparação integral do dano, responsabilidade civil e efetividade da tutela '
+                                    'jurisdicional. Considerar, ainda, a jurisprudência dominante sobre falha na '
+                                    'prestação do serviço e dever de indenizar.'},
+ 'Contestação': {'titulo': 'Modelo base de defesa',
+                 'descricao': 'Estrutura pronta para impugnar fatos, fundamentos e pedidos formulados pela parte '
+                              'autora.',
+                 'case_subject': 'Ação indenizatória por suposta falha contratual',
+                 'facts': 'A parte ré sustenta que os fatos narrados na petição inicial não ocorreram da forma '
+                          'descrita pela parte autora. Houve cumprimento das obrigações assumidas, inexistindo conduta '
+                          'ilícita, defeito no serviço ou nexo causal apto a justificar a responsabilização '
+                          'pretendida. Os documentos juntados demonstram a regularidade da atuação da parte ré e a '
+                          'improcedência da narrativa inicial.',
+                 'requests': 'Recebimento da presente contestação.\n'
+                             'Rejeição do pedido de tutela provisória, se houver.\n'
+                             'Total improcedência dos pedidos formulados na inicial.\n'
+                             'Produção de todas as provas admitidas em direito.\n'
+                             'Condenação da parte autora ao pagamento de custas e honorários advocatícios.',
+                 'legal_basis': 'Aplicação do contraditório e da ampla defesa. Ausência dos pressupostos da '
+                                'responsabilidade civil, sobretudo ato ilícito, dano comprovado e nexo causal. '
+                                'Possibilidade de impugnação específica dos fatos e documentos, bem como incidência '
+                                'das regras processuais atinentes ao ônus da prova e à improcedência dos pedidos.'},
+ 'Réplica': {'titulo': 'Modelo base para impugnação da contestação',
+             'descricao': 'Estrutura pronta para rebater preliminares, argumentos defensivos e documentos da parte '
+                          'contrária.',
+             'case_subject': 'Impugnação aos argumentos apresentados em contestação',
+             'facts': 'A contestação apresentada pela parte ré não afasta os fatos narrados na petição inicial. Os '
+                      'argumentos defensivos são genéricos, não impugnam de forma específica os elementos centrais da '
+                      'demanda e não descaracterizam os prejuízos suportados pela parte autora. Os documentos já '
+                      'acostados aos autos permanecem suficientes para demonstrar a plausibilidade da pretensão '
+                      'deduzida.',
+             'requests': 'Rejeição das preliminares suscitadas na contestação, se existentes.\n'
+                         'Acolhimento da impugnação aos argumentos defensivos.\n'
+                         'Prosseguimento regular do feito.\n'
+                         'Ao final, total procedência dos pedidos iniciais.',
+             'legal_basis': 'Aplicação do princípio da dialeticidade processual, da impugnação específica e das regras '
+                            'do ônus da prova. Reforço dos fundamentos já apresentados na inicial, com destaque para a '
+                            'insuficiência da defesa, manutenção da coerência narrativa e prevalência do conjunto '
+                            'probatório já produzido.'},
+ 'Manifestação': {'titulo': 'Modelo base de manifestação processual',
+                  'descricao': 'Estrutura pronta para petições intermediárias, esclarecimentos e pedidos incidentais.',
+                  'case_subject': 'Manifestação sobre documento, decisão ou andamento processual',
+                  'facts': 'No curso do processo, sobreveio fato processual relevante que exige pronunciamento da '
+                           'parte. Trata-se de questão que demanda esclarecimento objetivo, com indicação do contexto, '
+                           'do ocorrido e da providência que se busca perante o juízo. A presente manifestação '
+                           'delimita o ponto controvertido e apresenta a posição processual da parte interessada.',
+                  'requests': 'Recebimento da presente manifestação.\n'
+                              'Análise do ponto específico submetido ao juízo.\n'
+                              'Adoção da providência processual cabível conforme o caso concreto.\n'
+                              'Regular prosseguimento do feito.',
+                  'legal_basis': 'Aplicação das normas processuais pertinentes ao ato praticado, observando-se '
+                                 'contraditório, cooperação processual, boa-fé e efetividade. Indicar artigos do CPC '
+                                 'compatíveis com a providência pretendida, bem como eventuais precedentes ou '
+                                 'entendimentos aplicáveis ao tema.'},
+ 'Parecer jurídico': {'titulo': 'Modelo base de parecer',
+                      'descricao': 'Estrutura pronta para análise técnica consultiva de questão jurídica.',
+                      'case_subject': 'Análise de viabilidade jurídica da medida pretendida',
+                      'facts': 'Foi apresentada consulta jurídica para exame da viabilidade de determinada medida, à '
+                               'luz dos fatos narrados e da documentação disponibilizada. O objetivo é avaliar riscos, '
+                               'fundamentos jurídicos, alternativas possíveis e providências recomendáveis, '
+                               'considerando o cenário fático e normativo aplicável.',
+                      'requests': 'Esclarecimento da controvérsia jurídica apresentada.\n'
+                                  'Indicação dos fundamentos normativos aplicáveis.\n'
+                                  'Avaliação dos riscos e das possíveis estratégias.\n'
+                                  'Conclusão objetiva sobre a viabilidade da medida analisada.',
+                      'legal_basis': 'Análise sistemática da legislação incidente, da jurisprudência pertinente e dos '
+                                     'princípios aplicáveis ao caso. Considerar interpretação literal, teleológica e '
+                                     'prática das normas, bem como eventuais entendimentos administrativos ou '
+                                     'judiciais relevantes para a conclusão do parecer.'},
+ 'Contrato': {'titulo': 'Modelo base de minuta contratual',
+              'descricao': 'Estrutura pronta para iniciar uma minuta com objeto, obrigações e cláusulas essenciais.',
+              'case_subject': 'Prestação de serviços profissionais',
+              'facts': 'As partes pretendem formalizar relação contratual para disciplinar prestação de serviços, '
+                       'obrigações recíprocas, forma de pagamento, prazo de vigência, hipóteses de rescisão e '
+                       'responsabilidades. A minuta deverá refletir com clareza o objeto do ajuste, os limites de '
+                       'atuação de cada parte e mecanismos de segurança jurídica para a execução contratual.',
+              'requests': 'Definição clara do objeto contratual.\n'
+                          'Previsão das obrigações e responsabilidades de cada parte.\n'
+                          'Estabelecimento de prazo, remuneração e forma de pagamento.\n'
+                          'Definição de cláusulas de rescisão, penalidades e foro.\n'
+                          'Adequação da minuta à legislação aplicável.',
+              'legal_basis': 'Aplicação dos princípios contratuais, autonomia privada, boa-fé objetiva, função social '
+                             'do contrato e força obrigatória das convenções. Observar as regras do Código Civil '
+                             'pertinentes ao tipo contratual, além de cláusulas essenciais para segurança, equilíbrio '
+                             'e executabilidade do ajuste.'},
+ 'Notificação extrajudicial': {'titulo': 'Modelo base de notificação',
+                               'descricao': 'Estrutura pronta para comunicação formal, constituição em mora e '
+                                            'exigência de providência.',
+                               'case_subject': 'Constituição em mora por descumprimento contratual',
+                               'facts': 'A parte notificante relata inadimplemento ou descumprimento de obrigação '
+                                        'assumida pela parte notificada, apesar das tentativas prévias de solução '
+                                        'amigável. Diante da persistência do problema, faz-se necessária comunicação '
+                                        'formal para ciência inequívoca da irregularidade e fixação de prazo para '
+                                        'regularização da conduta.',
+                               'requests': 'Ciência formal da irregularidade apontada.\n'
+                                           'Regularização da obrigação no prazo assinalado.\n'
+                                           'Abstenção de nova conduta lesiva, se aplicável.\n'
+                                           'Advertência acerca das medidas judiciais e extrajudiciais cabíveis em caso '
+                                           'de inércia.',
+                               'legal_basis': 'Aplicação das disposições contratuais pertinentes, dos princípios da '
+                                              'boa-fé objetiva e das regras legais sobre mora, inadimplemento e '
+                                              'responsabilidade civil. A notificação serve como instrumento formal de '
+                                              'constituição em mora e preservação de prova da comunicação realizada.'},
+ 'Recurso': {'titulo': 'Modelo base recursal',
+             'descricao': 'Estrutura pronta para atacar decisão judicial com síntese dos fatos e fundamentos '
+                          'recursais.',
+             'case_subject': 'Insurgência contra decisão interlocutória ou sentença',
+             'facts': 'Foi proferida decisão judicial que causou prejuízo à parte recorrente, exigindo reavaliação '
+                      'pelo órgão competente. A decisão impugnada contém equívoco na apreciação dos fatos, na '
+                      'interpretação do direito aplicável ou na valoração do conjunto probatório, circunstâncias que '
+                      'justificam a interposição do recurso cabível.',
+             'requests': 'Recebimento e processamento do recurso.\n'
+                         'Reforma ou anulação da decisão recorrida.\n'
+                         'Atribuição de efeito suspensivo, se cabível.\n'
+                         'Intimação da parte contrária para apresentação de contrarrazões.\n'
+                         'Ao final, provimento do recurso.',
+             'legal_basis': 'Indicar os pressupostos de admissibilidade recursal, a tempestividade, o cabimento e os '
+                            'fundamentos jurídicos para reforma da decisão. Explorar violação legal, error in '
+                            'procedendo, error in judicando, descompasso probatório e jurisprudência aplicável ao '
+                            'tema.'},
+ 'Outro': {'titulo': 'Modelo genérico de minuta jurídica',
+           'descricao': 'Estrutura flexível para peças não contempladas nas categorias principais.',
+           'case_subject': 'Providência jurídica específica do caso concreto',
+           'facts': 'Descreva, neste campo, o contexto fático principal, indicando quem são as partes envolvidas, qual '
+                    'a controvérsia existente, quais eventos relevantes ocorreram e quais documentos dão suporte à '
+                    'narrativa. Organize os fatos em ordem lógica e objetiva para facilitar a redação da minuta.',
+           'requests': 'Recebimento da peça apresentada.\n'
+                       'Adoção da providência jurídica pretendida.\n'
+                       'Produção das provas cabíveis.\n'
+                       'Demais requerimentos compatíveis com a natureza da medida.',
+           'legal_basis': 'Indique os dispositivos legais, princípios, entendimentos jurisprudenciais e teses '
+                          'jurídicas mais relevantes para sustentar a peça. Ajuste o conteúdo conforme o procedimento '
+                          'aplicável, a estratégia processual e a natureza do direito discutido.'}}
+
+
+def listar_templates_juridicos_prontos() -> dict:
+    return TEMPLATES_JURIDICOS_PRONTOS
+
+
 def agora_brasil():
     if ZoneInfo is not None:
         try:

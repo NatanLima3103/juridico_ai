@@ -38,7 +38,7 @@
         <div class="loading-card" role="status" aria-live="polite">
             <div class="spinner-loading"></div>
             <h3>Processando sua solicitação</h3>
-            <p id="loading-texto">Aguarde um instante...</p>
+            <p id="loading-texto">Aguarde um instante.</p>
         </div>
     </div>
 
@@ -65,6 +65,7 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', path='js/main.js') }}?v=1.8"></script>
+    <script src="{{ url_for('static', path='js/main.js') }}?v=1.9"></script>
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html>

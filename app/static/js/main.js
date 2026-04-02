@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", function () {
     inicializarAlertas();
     inicializarLoading();
     inicializarConfirmacoes();
+    inicializarTemplatesJuridicos();
 });
 
 function inicializarSeletorDocumentos() {
@@ -116,9 +117,9 @@ function exibirLoading(form) {
         return;
     }
 
-    const mensagem = form.dataset.loadingMessage || "Aguarde um instante...";
+    const mensagem = form.dataset.loadingMessage || "Aguarde um instante.";
     const botao = form.querySelector('[type="submit"]');
-    const botaoTextoLoading = form.dataset.loadingButtonText || "Processando...";
+    const botaoTextoLoading = form.dataset.loadingButtonText || "Processando.";
 
     overlay.classList.add("ativo");
     overlay.setAttribute("aria-hidden", "false");
@@ -140,7 +141,7 @@ function esconderLoading() {
 
     overlay.classList.remove("ativo");
     overlay.setAttribute("aria-hidden", "true");
-    texto.textContent = "Aguarde um instante...";
+    texto.textContent = "Aguarde um instante.";
 }
 
 function inicializarLoading() {
@@ -236,4 +237,115 @@ function inicializarConfirmacoes() {
             esconderLoading();
         }
     });
+}
+
+function inicializarTemplatesJuridicos() {
+    const painel = document.querySelector("[data-template-panel]");
+    const seletorTipo = document.querySelector("[data-template-document-type]");
+    const botaoAplicar = document.querySelector("[data-template-apply]");
+    const scriptTemplates = document.getElementById("templates-juridicos-data");
+
+    if (!painel || !seletorTipo || !botaoAplicar || !scriptTemplates) {
+        return;
+    }
+
+    let templates = {};
+
+    try {
+        templates = JSON.parse(scriptTemplates.textContent || "{}");
+    } catch (error) {
+        console.error("Não foi possível carregar os templates jurídicos.", error);
+        return;
+    }
+
+    const campoAssunto = document.getElementById("case_subject");
+    const campoFatos = document.getElementById("facts");
+    const campoPedidos = document.getElementById("requests");
+    const campoFundamentacao = document.getElementById("legal_basis");
+
+    const titulo = painel.querySelector("[data-template-title]");
+    const descricao = painel.querySelector("[data-template-description]");
+    const assuntoPreview = painel.querySelector("[data-template-case-subject]");
+    const fatosPreview = painel.querySelector("[data-template-facts]");
+    const pedidosPreview = painel.querySelector("[data-template-requests]");
+    const fundamentacaoPreview = painel.querySelector("[data-template-legal-basis]");
+
+    function resumirTexto(texto, limite) {
+        const textoLimpo = String(texto || "").trim();
+
+        if (!textoLimpo) {
+            return "—";
+        }
+
+        if (textoLimpo.length <= limite) {
+            return textoLimpo;
+        }
+
+        return `${textoLimpo.slice(0, limite).trimEnd()}...`;
+    }
+
+    function atualizarPreview() {
+        const tipoSelecionado = seletorTipo.value;
+        const template = templates[tipoSelecionado];
+
+        if (!template) {
+            titulo.textContent = "Selecione um tipo para visualizar o modelo base";
+            descricao.textContent = "Ao escolher um tipo de documento, você poderá aplicar um preenchimento inicial pronto e depois ajustar livremente.";
+            assuntoPreview.textContent = "—";
+            fatosPreview.textContent = "Selecione um tipo acima para visualizar um exemplo inicial.";
+            pedidosPreview.textContent = "—";
+            fundamentacaoPreview.textContent = "—";
+            botaoAplicar.disabled = true;
+            return;
+        }
+
+        titulo.textContent = template.titulo || "Template pronto";
+        descricao.textContent = template.descricao || "";
+        assuntoPreview.textContent = template.case_subject || "—";
+        fatosPreview.textContent = resumirTexto(template.facts, 280);
+        pedidosPreview.textContent = resumirTexto(template.requests, 240);
+        fundamentacaoPreview.textContent = resumirTexto(template.legal_basis, 240);
+        botaoAplicar.disabled = false;
+    }
+
+    function formularioTemConteudo() {
+        return [campoAssunto, campoFatos, campoPedidos, campoFundamentacao].some(function (campo) {
+            return campo && String(campo.value || "").trim() !== "";
+        });
+    }
+
+    botaoAplicar.addEventListener("click", function () {
+        const tipoSelecionado = seletorTipo.value;
+        const template = templates[tipoSelecionado];
+
+        if (!template) {
+            return;
+        }
+
+        if (formularioTemConteudo()) {
+            const confirmar = window.confirm("Os campos de assunto, fatos, pedidos e fundamentação serão substituídos pelo template selecionado. Deseja continuar?");
+            if (!confirmar) {
+                return;
+            }
+        }
+
+        if (campoAssunto) {
+            campoAssunto.value = template.case_subject || "";
+        }
+
+        if (campoFatos) {
+            campoFatos.value = template.facts || "";
+        }
+
+        if (campoPedidos) {
+            campoPedidos.value = template.requests || "";
+        }
+
+        if (campoFundamentacao) {
+            campoFundamentacao.value = template.legal_basis || "";
+        }
+    });
+
+    seletorTipo.addEventListener("change", atualizarPreview);
+    atualizarPreview();
 }

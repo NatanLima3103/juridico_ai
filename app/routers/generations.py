@@ -25,6 +25,7 @@ from app.services.generation_service import (
     validar_dados_geracao,
     agora_brasil,
     toggle_fixacao_geracao,
+    listar_templates_juridicos_prontos,
 )
 from app.services.writing_profile_service import (
     buscar_perfil_por_id,
@@ -156,6 +157,7 @@ def _render_generation_form(
             "erro": request.query_params.get("erro"),
             "modo_edicao": modo_edicao,
             "geracao": geracao,
+            "templates_juridicos": listar_templates_juridicos_prontos(),
         },
     )
 
