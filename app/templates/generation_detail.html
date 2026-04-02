@@ -19,18 +19,14 @@
                 Voltar
             </a>
 
-            <form
-                action="/generations/{{ geracao.id }}/duplicate"
-                method="post"
-                data-loading-form
-                data-loading-message="Duplicando geração..."
-                data-loading-button-text="Duplicando..."
+            <a
+                class="botao botao-secundario"
+                href="/generations/{{ geracao.id }}/duplicate"
+                data-loading-link
             >
-                <button type="submit" class="botao botao-secundario">
-                    <span class="icone-botao" aria-hidden="true">⧉</span>
-                    Duplicar geração
-                </button>
-            </form>
+                <span class="icone-botao" aria-hidden="true">⧉</span>
+                Duplicar e regenerar
+            </a>
 
             <a class="botao" href="/generations/{{ geracao.id }}/edit">
                 <span class="icone-botao" aria-hidden="true">✎</span>

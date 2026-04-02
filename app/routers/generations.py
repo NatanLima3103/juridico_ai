@@ -12,7 +12,6 @@ from app.services.generation_service import (
     atualizar_geracao,
     buscar_geracao_por_id,
     criar_geracao,
-    duplicar_geracao,
     desserializar_ids_documentos,
     excluir_geracao,
     gerar_docx_da_geracao,
@@ -140,6 +139,8 @@ def _render_generation_form(
     modo_edicao: bool,
     geracao=None,
     success_message: str | None = None,
+    duplicate_mode: bool = False,
+    duplicate_source_id: int | None = None,
 ):
     return templates.TemplateResponse(
         "generation_create.html",
@@ -158,6 +159,8 @@ def _render_generation_form(
             "modo_edicao": modo_edicao,
             "geracao": geracao,
             "templates_juridicos": listar_templates_juridicos_prontos(),
+            "duplicate_mode": duplicate_mode,
+            "duplicate_source_id": duplicate_source_id,
         },
     )
 
@@ -244,8 +247,6 @@ def generations_list(request: Request, db: Session = Depends(get_db)):
     )
 
 
-
-
 @router.post("/{generation_id}/toggle-pin")
 def toggle_pin_generation(generation_id: int, request: Request, db: Session = Depends(get_db)):
     geracao = toggle_fixacao_geracao(db, generation_id)
@@ -275,6 +276,8 @@ def create_generation_page(request: Request, db: Session = Depends(get_db)):
     form_data = {}
     selected_document_ids = []
     success_message = None
+    duplicate_mode = False
+    duplicate_source_id = None
 
     duplicate_from = str(request.query_params.get("duplicate_from", "")).strip()
     if duplicate_from.isdigit():
@@ -283,7 +286,12 @@ def create_generation_page(request: Request, db: Session = Depends(get_db)):
             form_data = _obter_form_data_da_geracao(geracao_origem)
             selected_document_ids = desserializar_ids_documentos(geracao_origem.source_document_ids)
             selected_profile_id = geracao_origem.writing_profile_id
-            success_message = f"Base da geração #{geracao_origem.id} carregada para duplicação."
+            success_message = (
+                f"Base da geração #{geracao_origem.id} carregada. "
+                f"Revise os dados e clique em 'Duplicar e regenerar'."
+            )
+            duplicate_mode = True
+            duplicate_source_id = geracao_origem.id
 
     return _render_generation_form(
         request,
@@ -297,6 +305,8 @@ def create_generation_page(request: Request, db: Session = Depends(get_db)):
         modo_edicao=False,
         geracao=None,
         success_message=success_message,
+        duplicate_mode=duplicate_mode,
+        duplicate_source_id=duplicate_source_id,
     )
 
 
@@ -308,6 +318,10 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
 
     documentos = listar_documentos(db)
     perfis = listar_perfis(db)
+
+    duplicate_source_id_raw = str(form.get("duplicate_source_id", "")).strip()
+    duplicate_source_id = int(duplicate_source_id_raw) if duplicate_source_id_raw.isdigit() else None
+    duplicate_mode = duplicate_source_id is not None
 
     try:
         dados_validados = validar_dados_geracao(**form_data)
@@ -323,6 +337,8 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
             selected_profile_id=selected_profile_id,
             modo_edicao=False,
             geracao=None,
+            duplicate_mode=duplicate_mode,
+            duplicate_source_id=duplicate_source_id,
         )
 
     documentos_selecionados = listar_documentos_por_ids(db, selected_document_ids)
@@ -357,8 +373,13 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
         source_document_ids=serializar_ids_documentos(selected_document_ids),
     )
 
+    if duplicate_mode and duplicate_source_id is not None:
+        mensagem_sucesso = f"Geração #{duplicate_source_id} duplicada e regenerada com sucesso."
+    else:
+        mensagem_sucesso = "Geração criada com sucesso."
+
     return RedirectResponse(
-        url=f"/generations/{nova_geracao.id}?sucesso={quote('Geração criada com sucesso.')}",
+        url=f"/generations/{nova_geracao.id}?sucesso={quote(mensagem_sucesso)}",
         status_code=303,
     )
 
@@ -535,37 +556,18 @@ async def save_generation_text(generation_id: int, request: Request, db: Session
     )
 
 
-@router.get("/{generation_id}/download-txt")
-def download_generation_txt(generation_id: int, db: Session = Depends(get_db)):
+@router.get("/{generation_id}/duplicate")
+def duplicate_generation_flow(generation_id: int, db: Session = Depends(get_db)):
     geracao = buscar_geracao_por_id(db, generation_id)
 
     if not geracao:
-        raise HTTPException(status_code=404, detail="Geração não encontrada")
-
-    nome_arquivo = f"geracao_juridica_{geracao.id}.txt"
-    headers = {
-        "Content-Disposition": f'attachment; filename="{nome_arquivo}"'
-    }
-
-    return Response(
-        content=(geracao.generated_text or ""),
-        media_type="text/plain; charset=utf-8",
-        headers=headers,
-    )
-
-
-@router.post("/{generation_id}/duplicate")
-def duplicate_generation(generation_id: int, db: Session = Depends(get_db)):
-    nova_geracao = duplicar_geracao(db, generation_id)
-
-    if not nova_geracao:
         return RedirectResponse(
             url=f"/generations?erro={quote('Geração não encontrada para duplicação.')}",
             status_code=303,
         )
 
     return RedirectResponse(
-        url=f"/generations/{nova_geracao.id}?sucesso={quote(f'Geração #{generation_id} duplicada com sucesso.')}",
+        url=f"/generations/create?duplicate_from={generation_id}",
         status_code=303,
     )
 

@@ -12,6 +12,12 @@
                 <p class="texto-suave">
                     Atualize os dados da geração e regenere o texto jurídico mantendo o mesmo ID.
                 </p>
+            {% elif duplicate_mode %}
+                <span class="etiqueta-secao">Duplicar e regenerar</span>
+                <h2>Duplicar e regenerar geração jurídica</h2>
+                <p class="texto-suave">
+                    Revise os dados carregados da geração original, ajuste o que desejar e gere uma nova versão com novo ID.
+                </p>
             {% else %}
                 <span class="etiqueta-secao">Nova geração</span>
                 <h2>Nova geração jurídica</h2>
@@ -71,9 +77,13 @@
         method="post"
         class="formulario-geracao"
         data-loading-form
-        data-loading-message="{% if modo_edicao %}Atualizando geração jurídica.{% else %}Gerando minuta jurídica.{% endif %}"
-        data-loading-button-text="{% if modo_edicao %}Atualizando.{% else %}Gerando.{% endif %}"
+        data-loading-message="{% if modo_edicao %}Atualizando geração jurídica.{% elif duplicate_mode %}Duplicando e regenerando geração jurídica.{% else %}Gerando minuta jurídica.{% endif %}"
+        data-loading-button-text="{% if modo_edicao %}Atualizando.{% elif duplicate_mode %}Duplicando e regenerando.{% else %}Gerando.{% endif %}"
     >
+        {% if duplicate_mode and duplicate_source_id %}
+            <input type="hidden" name="duplicate_source_id" value="{{ duplicate_source_id }}">
+        {% endif %}
+
         <label for="client_name">Nome do cliente</label>
         <input
             type="text"
@@ -234,8 +244,16 @@
             </a>
 
             <button type="submit" class="botao">
-                <span class="icone-botao" aria-hidden="true">{% if modo_edicao %}💾{% else %}⚖{% endif %}</span>
-                {% if modo_edicao %}Salvar alterações{% else %}Gerar minuta{% endif %}
+                <span class="icone-botao" aria-hidden="true">
+                    {% if modo_edicao %}💾{% elif duplicate_mode %}⧉{% else %}⚖{% endif %}
+                </span>
+                {% if modo_edicao %}
+                    Salvar alterações
+                {% elif duplicate_mode %}
+                    Duplicar e regenerar
+                {% else %}
+                    Gerar minuta
+                {% endif %}
             </button>
         </div>
     </form>
