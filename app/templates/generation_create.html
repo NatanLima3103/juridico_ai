@@ -13,16 +13,16 @@
                     Atualize os dados da geração e regenere o texto jurídico mantendo o mesmo ID.
                 </p>
             {% elif duplicate_mode %}
-                <span class="etiqueta-secao">Duplicar e regenerar</span>
-                <h2>Duplicar e regenerar geração jurídica</h2>
+                <span class="etiqueta-secao">Duplicação inteligente</span>
+                <h2>Duplicar e regenerar</h2>
                 <p class="texto-suave">
-                    Revise os dados carregados da geração original, ajuste o que desejar e gere uma nova versão com novo ID.
+                    Revise os dados abaixo e crie uma nova geração com base na geração #{{ duplicate_source_id }}.
                 </p>
             {% else %}
                 <span class="etiqueta-secao">Nova geração</span>
-                <h2>Nova geração jurídica</h2>
+                <h2>Gerar minuta jurídica</h2>
                 <p class="texto-suave">
-                    Preencha os dados do caso, selecione o perfil de escrita e escolha os documentos base.
+                    Preencha os dados do caso, selecione documentos base e, se quiser, aplique um perfil de escrita.
                 </p>
             {% endif %}
         </div>
@@ -30,42 +30,15 @@
         <div class="acoes-topo">
             <a class="botao botao-secundario" href="/generations">
                 <span class="icone-botao" aria-hidden="true">←</span>
-                Ver histórico
+                Voltar
             </a>
-
-            {% if modo_edicao %}
-                <a class="botao" href="/generations/{{ geracao.id }}">
-                    <span class="icone-botao" aria-hidden="true">👁</span>
-                    Abrir geração
-                </a>
-            {% endif %}
         </div>
     </div>
-
-    {% if sucesso %}
-        <div class="alerta alerta-sucesso" data-alerta>
-            <div class="alerta-conteudo">
-                <span class="alerta-titulo">Tudo certo</span>
-                <p>{{ sucesso }}</p>
-            </div>
-            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
-        </div>
-    {% endif %}
-
-    {% if erro %}
-        <div class="alerta alerta-erro" data-alerta>
-            <div class="alerta-conteudo">
-                <span class="alerta-titulo">Ocorreu um problema</span>
-                <p>{{ erro }}</p>
-            </div>
-            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
-        </div>
-    {% endif %}
 
     {% if error_message %}
         <div class="alerta alerta-erro" data-alerta>
             <div class="alerta-conteudo">
-                <span class="alerta-titulo">Verifique os dados informados</span>
+                <span class="alerta-titulo">Ocorreu um problema</span>
                 <p>{{ error_message }}</p>
             </div>
             <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
@@ -73,122 +46,156 @@
     {% endif %}
 
     <form
-        action="{% if modo_edicao %}/generations/{{ geracao.id }}/edit{% else %}/generations/create{% endif %}"
         method="post"
+        action="{{ action_url }}"
         class="formulario-geracao"
         data-loading-form
-        data-loading-message="{% if modo_edicao %}Atualizando geração jurídica.{% elif duplicate_mode %}Duplicando e regenerando geração jurídica.{% else %}Gerando minuta jurídica.{% endif %}"
-        data-loading-button-text="{% if modo_edicao %}Atualizando.{% elif duplicate_mode %}Duplicando e regenerando.{% else %}Gerando.{% endif %}"
+        data-loading-message="{{ submit_loading_text }}"
+        data-loading-button-text="{{ submit_loading_text }}"
     >
-        {% if duplicate_mode and duplicate_source_id %}
+        {% if duplicate_mode %}
+            <input type="hidden" name="duplicate_mode" value="true">
             <input type="hidden" name="duplicate_source_id" value="{{ duplicate_source_id }}">
         {% endif %}
 
-        <label for="client_name">Nome do cliente</label>
-        <input
-            type="text"
-            id="client_name"
-            name="client_name"
-            value="{{ form_data.client_name if form_data else '' }}"
-            placeholder="Ex.: Maria de Souza"
-            required
-        >
-
-        <label for="document_type">Tipo de documento</label>
-        <select id="document_type" name="document_type" required data-template-document-type>
-            <option value="">Selecione</option>
-            {% for tipo in tipos_de_documento %}
-                <option value="{{ tipo }}" {% if form_data.document_type == tipo %}selected{% endif %}>
-                    {{ tipo }}
-                </option>
-            {% endfor %}
-        </select>
-
-        <div class="bloco-template-juridico" data-template-panel>
-            <div class="bloco-template-juridico-topo">
+        <section class="bloco-informativo">
+            <div class="bloco-informativo-topo">
                 <div>
-                    <span class="etiqueta-secao">Template pronto</span>
-                    <h3 data-template-title>Selecione um tipo para visualizar o modelo base</h3>
-                    <p class="texto-suave" data-template-description>
-                        Ao escolher um tipo de documento, você poderá aplicar um preenchimento inicial pronto e depois ajustar livremente.
+                    <h3>Modelo rápido por tipo de peça</h3>
+                    <p class="texto-suave">
+                        Se desejar, aplique um template pronto para preencher automaticamente assunto, fatos, pedidos e fundamentação.
                     </p>
                 </div>
-                <button type="button" class="botao botao-secundario" data-template-apply disabled>
-                    <span class="icone-botao" aria-hidden="true">⚡</span>
-                    Aplicar template
-                </button>
             </div>
 
-            <div class="template-juridico-preview">
-                <div class="template-juridico-item">
-                    <span class="template-juridico-label">Assunto sugerido</span>
-                    <strong data-template-case-subject>—</strong>
-                </div>
-                <div class="template-juridico-item template-juridico-item-texto">
-                    <span class="template-juridico-label">Estrutura dos fatos</span>
-                    <p data-template-facts>Selecione um tipo acima para visualizar um exemplo inicial.</p>
-                </div>
-                <div class="template-juridico-grid">
-                    <div class="template-juridico-item template-juridico-item-texto">
-                        <span class="template-juridico-label">Pedidos sugeridos</span>
-                        <p data-template-requests>—</p>
+            <div class="acoes-formulario-geracao">
+                <form method="post" action="/generations/apply-template">
+                    <input type="hidden" name="client_name" value="{{ form_data.client_name or '' }}">
+                    <input type="hidden" name="writing_profile_id" value="{{ selected_profile_id or '' }}">
+                    {% if duplicate_mode %}
+                        <input type="hidden" name="duplicate_mode" value="true">
+                        <input type="hidden" name="duplicate_source_id" value="{{ duplicate_source_id }}">
+                    {% endif %}
+                    {% for document_id in selected_document_ids %}
+                        <input type="hidden" name="document_ids" value="{{ document_id }}">
+                    {% endfor %}
+
+                    <div class="campo-formulario">
+                        <label for="document_type_template">Tipo de documento</label>
+                        <select id="document_type_template" name="document_type" required>
+                            <option value="">Selecione</option>
+                            {% for tipo in tipos_de_documento %}
+                                <option value="{{ tipo }}" {% if form_data.document_type == tipo %}selected{% endif %}>
+                                    {{ tipo }}
+                                </option>
+                            {% endfor %}
+                        </select>
                     </div>
-                    <div class="template-juridico-item template-juridico-item-texto">
-                        <span class="template-juridico-label">Fundamentação sugerida</span>
-                        <p data-template-legal-basis>—</p>
+
+                    <div class="acoes-formulario-geracao" style="margin-top: 14px;">
+                        <button type="submit" class="botao botao-secundario">
+                            <span class="icone-botao" aria-hidden="true">⚡</span>
+                            Aplicar template pronto
+                        </button>
                     </div>
-                </div>
+                </form>
+            </div>
+        </section>
+
+        <div class="grid-formulario-geracao">
+            <div class="campo-formulario">
+                <label for="client_name">Nome do cliente</label>
+                <input
+                    type="text"
+                    id="client_name"
+                    name="client_name"
+                    value="{{ form_data.client_name or '' }}"
+                    placeholder="Ex.: João da Silva"
+                    required
+                >
+            </div>
+
+            <div class="campo-formulario">
+                <label for="document_type">Tipo de documento</label>
+                <select id="document_type" name="document_type" required>
+                    <option value="">Selecione</option>
+                    {% for tipo in tipos_de_documento %}
+                        <option value="{{ tipo }}" {% if form_data.document_type == tipo %}selected{% endif %}>
+                            {{ tipo }}
+                        </option>
+                    {% endfor %}
+                </select>
             </div>
         </div>
 
-        <label for="writing_profile_id">Perfil de escrita</label>
-        <select id="writing_profile_id" name="writing_profile_id">
-            <option value="">Sem perfil específico (opcional)</option>
-            {% for perfil in perfis %}
-                <option value="{{ perfil.id }}" {% if selected_profile_id == perfil.id %}selected{% endif %}>
-                    {{ perfil.profile_name }}
-                </option>
-            {% endfor %}
-        </select>
+        <div class="campo-formulario">
+            <label for="case_subject">Assunto do caso</label>
+            <input
+                type="text"
+                id="case_subject"
+                name="case_subject"
+                value="{{ form_data.case_subject or '' }}"
+                placeholder="Ex.: Ação de obrigação de fazer c/c indenização"
+                required
+            >
+        </div>
 
-        <label for="case_subject">Assunto do caso</label>
-        <input
-            type="text"
-            id="case_subject"
-            name="case_subject"
-            placeholder="Ex.: Revisão contratual bancária"
-            value="{{ form_data.case_subject if form_data else '' }}"
-            required
-        >
-        <p class="texto-pequeno">Descreva o assunto com clareza.</p>
+        <div class="campo-formulario">
+            <label for="facts">Fatos</label>
+            <textarea
+                id="facts"
+                name="facts"
+                rows="8"
+                placeholder="Descreva os fatos do caso..."
+                required
+            >{{ form_data.facts or '' }}</textarea>
+        </div>
 
-        <label for="facts">Fatos</label>
-        <textarea
-            id="facts"
-            name="facts"
-            rows="6"
-            placeholder="Descreva os fatos principais do caso com o máximo de clareza possível."
-            required
-        >{{ form_data.facts if form_data else '' }}</textarea>
+        <div class="campo-formulario">
+            <label for="requests">Pedidos</label>
+            <textarea
+                id="requests"
+                name="requests"
+                rows="7"
+                placeholder="Descreva os pedidos..."
+                required
+            >{{ form_data.requests or '' }}</textarea>
+        </div>
 
-        <label for="requests">Pedidos</label>
-        <textarea
-            id="requests"
-            name="requests"
-            rows="5"
-            placeholder="Liste os pedidos desejados para a peça."
-            required
-        >{{ form_data.requests if form_data else '' }}</textarea>
+        <div class="campo-formulario">
+            <label for="legal_basis">Fundamentação jurídica inicial</label>
+            <textarea
+                id="legal_basis"
+                name="legal_basis"
+                rows="6"
+                placeholder="Informe a base jurídica inicial, se desejar..."
+            >{{ form_data.legal_basis or '' }}</textarea>
+        </div>
 
-        <label for="legal_basis">Fundamentação jurídica</label>
-        <textarea
-            id="legal_basis"
-            name="legal_basis"
-            rows="5"
-            placeholder="Informe leis, artigos, teses e fundamentos jurídicos relevantes."
-        >{{ form_data.legal_basis if form_data else '' }}</textarea>
+        <section class="bloco-informativo">
+            <div class="bloco-informativo-topo">
+                <div>
+                    <h3>Perfil de escrita</h3>
+                    <p class="texto-suave">
+                        Escolha um perfil para orientar o estilo da minuta.
+                    </p>
+                </div>
+            </div>
 
-        <div class="bloco-informativo">
+            <div class="campo-formulario">
+                <label for="writing_profile_id">Perfil</label>
+                <select id="writing_profile_id" name="writing_profile_id">
+                    <option value="">Sem perfil</option>
+                    {% for perfil in perfis %}
+                        <option value="{{ perfil.id }}" {% if selected_profile_id == perfil.id %}selected{% endif %}>
+                            {{ perfil.profile_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </section>
+
+        <section class="bloco-informativo">
             <div class="bloco-informativo-topo">
                 <div>
                     <h3>Documentos base</h3>
@@ -218,49 +225,51 @@
                                     <span class="badge badge-neutro">ID #{{ documento.id }}</span>
                                 </div>
                                 <p>{{ documento.summary if documento.summary else "Sem resumo disponível." }}</p>
+                                <span class="texto-suave">{{ documento.file_type|upper }}</span>
                             </div>
                         </label>
                     {% endfor %}
                 </div>
             {% else %}
-                <div class="estado-vazio estado-vazio-simples">
-                    <div class="estado-vazio-icone" aria-hidden="true">📄</div>
-                    <h3>Nenhum documento base disponível</h3>
-                    <p>Faça upload de documentos antes de gerar uma nova minuta jurídica.</p>
-                    <div class="estado-vazio-acoes">
-                        <a class="botao" href="/documents/upload">
-                            <span class="icone-botao" aria-hidden="true">↑</span>
-                            Fazer upload
-                        </a>
-                    </div>
+                <div class="estado-vazio">
+                    <p>Nenhum documento disponível para seleção.</p>
                 </div>
             {% endif %}
-        </div>
+        </section>
+
+        <section class="bloco-informativo">
+            <div class="bloco-informativo-topo">
+                <div>
+                    <h3>Preparação para IA real</h3>
+                    <p class="texto-suave">
+                        Esta etapa já organiza melhor o contexto, prioriza trechos relevantes e prepara o prompt para futura integração com IA.
+                    </p>
+                </div>
+                <span class="badge badge-neutro">7.10</span>
+            </div>
+
+            <div class="lista-documentos-utilizados">
+                <div class="documento-utilizado-item">
+                    <strong>Contexto mais inteligente</strong>
+                    <span>Resumo do caso + perfil de escrita + trechos priorizados dos documentos base.</span>
+                </div>
+                <div class="documento-utilizado-item">
+                    <strong>Prompt mais avançado</strong>
+                    <span>Estrutura pronta para ser enviada a um provedor real de IA futuramente.</span>
+                </div>
+                <div class="documento-utilizado-item">
+                    <strong>Fallback preservado</strong>
+                    <span>A geração local continua funcionando normalmente até a integração real.</span>
+                </div>
+            </div>
+        </section>
 
         <div class="acoes-formulario-geracao">
-            <a class="botao botao-secundario" href="/generations">
-                <span class="icone-botao" aria-hidden="true">↩</span>
-                Cancelar
-            </a>
-
             <button type="submit" class="botao">
-                <span class="icone-botao" aria-hidden="true">
-                    {% if modo_edicao %}💾{% elif duplicate_mode %}⧉{% else %}⚖{% endif %}
-                </span>
-                {% if modo_edicao %}
-                    Salvar alterações
-                {% elif duplicate_mode %}
-                    Duplicar e regenerar
-                {% else %}
-                    Gerar minuta
-                {% endif %}
+                <span class="icone-botao" aria-hidden="true">⚖</span>
+                {{ submit_label }}
             </button>
         </div>
     </form>
 </section>
-{% endblock %}
-
-{% block extra_scripts %}
-    {{ super() }}
-    <script id="templates-juridicos-data" type="application/json">{{ templates_juridicos | tojson }}</script>
 {% endblock %}

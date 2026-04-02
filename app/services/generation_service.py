@@ -14,6 +14,8 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.generation import Generation
+from app.services.llm_service import gerar_texto_juridico_com_fallback
+from app.services.prompt_service import build_advanced_prompt, build_smart_context
 
 
 TIPOS_DE_DOCUMENTO = [
@@ -258,33 +260,28 @@ def validar_dados_geracao(
 
     if not client_name:
         raise ValueError("Informe o nome do cliente.")
-
     if len(client_name) < 3:
         raise ValueError("O nome do cliente deve ter pelo menos 3 caracteres.")
 
     if not document_type:
         raise ValueError("Selecione o tipo de documento.")
-
     if document_type not in TIPOS_DE_DOCUMENTO:
-        raise ValueError("Selecione um tipo de documento válido.")
+        raise ValueError("Tipo de documento inválido.")
 
     if not case_subject:
         raise ValueError("Informe o assunto do caso.")
-
-    if len(case_subject) < 8:
-        raise ValueError("Descreva melhor o assunto do caso.")
+    if len(case_subject) < 5:
+        raise ValueError("O assunto do caso deve ter pelo menos 5 caracteres.")
 
     if not facts:
         raise ValueError("Informe os fatos do caso.")
-
-    if len(facts) < 30:
-        raise ValueError("Descreva melhor os fatos do caso, com mais detalhes.")
+    if len(facts) < 20:
+        raise ValueError("Os fatos do caso devem ter pelo menos 20 caracteres.")
 
     if not requests:
         raise ValueError("Informe os pedidos.")
-
-    if len(requests) < 15:
-        raise ValueError("Detalhe melhor os pedidos que deseja incluir na minuta.")
+    if len(requests) < 10:
+        raise ValueError("Os pedidos devem ter pelo menos 10 caracteres.")
 
     return {
         "client_name": client_name,
@@ -296,27 +293,24 @@ def validar_dados_geracao(
     }
 
 
-def serializar_ids_documentos(document_ids: list[int]) -> str:
-    ids_validos = []
-
-    for item in document_ids or []:
-        if isinstance(item, int) and item > 0:
-            ids_validos.append(str(item))
-
-    return ",".join(ids_validos)
+def serializar_ids_documentos(document_ids: list[int] | None) -> str | None:
+    ids = [str(document_id) for document_id in (document_ids or []) if isinstance(document_id, int)]
+    return ",".join(ids) if ids else None
 
 
 def desserializar_ids_documentos(source_document_ids: str | None) -> list[int]:
     if not source_document_ids:
         return []
 
-    ids = []
-
-    for item in source_document_ids.split(","):
-        item_limpo = item.strip()
-        if item_limpo.isdigit():
-            ids.append(int(item_limpo))
-
+    ids: list[int] = []
+    for parte in source_document_ids.split(","):
+        valor = parte.strip()
+        if not valor:
+            continue
+        try:
+            ids.append(int(valor))
+        except ValueError:
+            continue
     return ids
 
 
@@ -333,9 +327,7 @@ def criar_geracao(
     writing_profile_id: int | None = None,
     source_document_ids: str | None = None,
 ) -> Generation:
-    agora = agora_brasil()
-
-    geracao = Generation(
+    nova_geracao = Generation(
         client_name=client_name,
         document_type=document_type,
         case_subject=case_subject,
@@ -346,13 +338,13 @@ def criar_geracao(
         generated_text=generated_text,
         writing_profile_id=writing_profile_id,
         source_document_ids=source_document_ids,
-        created_at=agora,
-        updated_at=agora,
+        updated_at=agora_brasil(),
     )
-    db.add(geracao)
+
+    db.add(nova_geracao)
     db.commit()
-    db.refresh(geracao)
-    return geracao
+    db.refresh(nova_geracao)
+    return nova_geracao
 
 
 def atualizar_geracao(
@@ -387,96 +379,6 @@ def atualizar_geracao(
     return geracao
 
 
-def listar_geracoes(
-    db: Session,
-    *,
-    search_term: str = "",
-    document_type: str = "",
-    writing_profile_id: int | None = None,
-    sem_perfil: bool = False,
-    client_name: str = "",
-    case_subject: str = "",
-    created_from: str = "",
-    created_to: str = "",
-    sort_by: str = "updated_desc",
-) -> list[Generation]:
-    filtros = normalizar_filtros_listagem(
-        search_term=search_term,
-        document_type=document_type,
-        writing_profile_id=writing_profile_id,
-        sem_perfil=sem_perfil,
-        client_name=client_name,
-        case_subject=case_subject,
-        created_from=created_from,
-        created_to=created_to,
-        sort_by=sort_by,
-    )
-
-    query = db.query(Generation).options(joinedload(Generation.writing_profile))
-
-    if filtros["search_term"]:
-        termo = f"%{filtros['search_term']}%"
-        query = query.filter(
-            or_(
-                Generation.client_name.ilike(termo),
-                Generation.document_type.ilike(termo),
-                Generation.case_subject.ilike(termo),
-                Generation.facts.ilike(termo),
-                Generation.requests.ilike(termo),
-                Generation.generated_text.ilike(termo),
-            )
-        )
-
-    if filtros["client_name"]:
-        query = query.filter(Generation.client_name.ilike(f"%{filtros['client_name']}%"))
-
-    if filtros["case_subject"]:
-        query = query.filter(Generation.case_subject.ilike(f"%{filtros['case_subject']}%"))
-
-    if filtros["document_type"]:
-        query = query.filter(Generation.document_type == filtros["document_type"])
-
-    if filtros["sem_perfil"]:
-        query = query.filter(Generation.writing_profile_id.is_(None))
-    elif filtros["writing_profile_id"] is not None:
-        query = query.filter(Generation.writing_profile_id == filtros["writing_profile_id"])
-
-    if filtros["created_from"] is not None:
-        data_inicio = datetime.combine(filtros["created_from"], time.min)
-        query = query.filter(Generation.created_at >= data_inicio)
-
-    if filtros["created_to"] is not None:
-        proximo_dia = filtros["created_to"] + timedelta(days=1)
-        data_limite = datetime.combine(proximo_dia, time.min)
-        query = query.filter(Generation.created_at < data_limite)
-
-    ordenacoes = {
-        "updated_desc": [Generation.updated_at.desc(), Generation.created_at.desc()],
-        "updated_asc": [Generation.updated_at.asc(), Generation.created_at.asc()],
-        "created_desc": [Generation.created_at.desc(), Generation.updated_at.desc()],
-        "created_asc": [Generation.created_at.asc(), Generation.updated_at.asc()],
-        "client_asc": [Generation.client_name.asc(), Generation.created_at.desc()],
-        "client_desc": [Generation.client_name.desc(), Generation.created_at.desc()],
-    }
-
-    return query.order_by(Generation.is_pinned.desc(), *ordenacoes[filtros["sort_by"]]).all()
-
-
-def toggle_fixacao_geracao(db: Session, generation_id: int) -> Generation | None:
-    geracao = buscar_geracao_por_id(db, generation_id)
-
-    if not geracao:
-        return None
-
-    geracao.is_pinned = not bool(geracao.is_pinned)
-    geracao.updated_at = agora_brasil()
-
-    db.add(geracao)
-    db.commit()
-    db.refresh(geracao)
-    return geracao
-
-
 def buscar_geracao_por_id(db: Session, generation_id: int) -> Generation | None:
     return (
         db.query(Generation)
@@ -486,73 +388,175 @@ def buscar_geracao_por_id(db: Session, generation_id: int) -> Generation | None:
     )
 
 
+def listar_geracoes(
+    db: Session,
+    filtros: dict | None = None,
+):
+    filtros = filtros or {}
+
+    query = db.query(Generation).options(joinedload(Generation.writing_profile))
+
+    search_term = filtros.get("search_term")
+    if search_term:
+        like_term = f"%{search_term}%"
+        query = query.filter(
+            or_(
+                Generation.client_name.ilike(like_term),
+                Generation.document_type.ilike(like_term),
+                Generation.case_subject.ilike(like_term),
+                Generation.facts.ilike(like_term),
+                Generation.requests.ilike(like_term),
+                Generation.legal_basis.ilike(like_term),
+                Generation.generated_text.ilike(like_term),
+            )
+        )
+
+    document_type = filtros.get("document_type")
+    if document_type:
+        query = query.filter(Generation.document_type == document_type)
+
+    writing_profile_id = filtros.get("writing_profile_id")
+    if writing_profile_id:
+        query = query.filter(Generation.writing_profile_id == writing_profile_id)
+
+    if filtros.get("sem_perfil"):
+        query = query.filter(Generation.writing_profile_id.is_(None))
+
+    client_name = filtros.get("client_name")
+    if client_name:
+        query = query.filter(Generation.client_name.ilike(f"%{client_name}%"))
+
+    case_subject = filtros.get("case_subject")
+    if case_subject:
+        query = query.filter(Generation.case_subject.ilike(f"%{case_subject}%"))
+
+    created_from: date | None = filtros.get("created_from")
+    if created_from:
+        query = query.filter(Generation.created_at >= datetime.combine(created_from, time.min))
+
+    created_to: date | None = filtros.get("created_to")
+    if created_to:
+        query = query.filter(Generation.created_at <= datetime.combine(created_to, time.max))
+
+    sort_by = filtros.get("sort_by", "updated_desc")
+    if sort_by == "updated_asc":
+        query = query.order_by(Generation.updated_at.asc(), Generation.id.asc())
+    elif sort_by == "created_desc":
+        query = query.order_by(Generation.created_at.desc(), Generation.id.desc())
+    elif sort_by == "created_asc":
+        query = query.order_by(Generation.created_at.asc(), Generation.id.asc())
+    elif sort_by == "client_asc":
+        query = query.order_by(Generation.client_name.asc(), Generation.id.asc())
+    elif sort_by == "client_desc":
+        query = query.order_by(Generation.client_name.desc(), Generation.id.desc())
+    else:
+        query = query.order_by(Generation.updated_at.desc(), Generation.id.desc())
+
+    return query.all()
 
 
-def duplicar_geracao(db: Session, generation_id: int) -> Generation | None:
-    geracao_origem = buscar_geracao_por_id(db, generation_id)
+def excluir_geracao(db: Session, geracao: Generation) -> None:
+    db.delete(geracao)
+    db.commit()
 
-    if not geracao_origem:
-        return None
 
-    return criar_geracao(
-        db=db,
+def alternar_fixacao_geracao(db: Session, geracao: Generation) -> Generation:
+    geracao.is_pinned = not bool(geracao.is_pinned)
+    geracao.updated_at = agora_brasil()
+    db.add(geracao)
+    db.commit()
+    db.refresh(geracao)
+    return geracao
+
+
+def duplicar_geracao(
+    db: Session,
+    geracao_origem: Generation,
+) -> Generation:
+    nova_geracao = Generation(
         client_name=geracao_origem.client_name,
         document_type=geracao_origem.document_type,
         case_subject=geracao_origem.case_subject,
         facts=geracao_origem.facts,
         requests=geracao_origem.requests,
-        legal_basis=geracao_origem.legal_basis or "",
+        legal_basis=geracao_origem.legal_basis,
         context_used=geracao_origem.context_used,
         generated_text=geracao_origem.generated_text,
         writing_profile_id=geracao_origem.writing_profile_id,
         source_document_ids=geracao_origem.source_document_ids,
+        is_pinned=False,
+        updated_at=agora_brasil(),
     )
 
-def excluir_geracao(db: Session, generation_id: int) -> bool:
-    geracao = buscar_geracao_por_id(db, generation_id)
-
-    if not geracao:
-        return False
-
-    db.delete(geracao)
+    db.add(nova_geracao)
     db.commit()
-    return True
+    db.refresh(nova_geracao)
+    return nova_geracao
 
 
-def resumir_texto(texto: str, limite: int = 220) -> str:
-    texto_limpo = " ".join((texto or "").split())
+def aplicar_template_juridico_pronto(document_type: str) -> dict:
+    tipo = (document_type or "").strip()
 
-    if not texto_limpo:
-        return "Sem conteúdo."
+    if not tipo:
+        raise ValueError("Informe o tipo de documento para aplicar um template.")
 
-    if len(texto_limpo) <= limite:
-        return texto_limpo
+    template = TEMPLATES_JURIDICOS_PRONTOS.get(tipo)
+    if not template:
+        raise ValueError("Não existe template pronto para este tipo de documento.")
 
-    return texto_limpo[:limite].rstrip() + "..."
+    return {
+        "document_type": tipo,
+        "case_subject": template["case_subject"],
+        "facts": template["facts"],
+        "requests": template["requests"],
+        "legal_basis": template["legal_basis"],
+        "template_title": template["titulo"],
+        "template_description": template["descricao"],
+    }
 
 
-def montar_contexto_documental(documentos: list) -> str:
-    if not documentos:
+def montar_contexto_documentos(documentos_selecionados: list) -> str:
+    if not documentos_selecionados:
         return "Nenhum documento base selecionado."
 
     blocos = []
+    for documento in documentos_selecionados:
+        resumo = (documento.summary or "").strip()
+        texto_extraido = (documento.extracted_text or "").strip()
 
-    for indice, documento in enumerate(documentos, start=1):
-        texto = " ".join((documento.extracted_text or "").split())
+        conteudo = resumo or texto_extraido or "Documento sem conteúdo textual extraído."
+        if len(conteudo) > 600:
+            conteudo = conteudo[:600].rstrip() + "..."
 
-        if len(texto) > 1200:
-            texto = texto[:1200].rstrip() + "..."
-
-        bloco = (
-            f"Documento {indice}\n"
-            f"ID: {documento.id}\n"
-            f"Nome original: {documento.original_filename}\n"
-            f"Tipo: {documento.file_type}\n"
-            f"Trecho extraído:\n{texto}\n"
+        blocos.append(
+            f"Documento #{documento.id} - {documento.original_filename} ({documento.file_type})\n"
+            f"{conteudo}"
         )
-        blocos.append(bloco)
 
     return "\n" + ("\n" + ("-" * 60) + "\n").join(blocos)
+
+
+def montar_contexto_inteligente(
+    *,
+    client_name: str,
+    document_type: str,
+    case_subject: str,
+    facts: str,
+    requests: str,
+    legal_basis: str,
+    writing_profile=None,
+    documentos_selecionados: list | None = None,
+) -> str:
+    return build_smart_context(
+        client_name=client_name,
+        document_type=document_type,
+        case_subject=case_subject,
+        facts=facts,
+        requests=requests,
+        legal_basis=legal_basis,
+        writing_profile=writing_profile,
+        documentos_selecionados=documentos_selecionados or [],
+    )
 
 
 def montar_contexto_perfil_escrita(profile) -> str:
@@ -621,333 +625,284 @@ def _bulletizar_texto(texto: str) -> str:
 
     bullets = []
     for linha in linhas:
-        bullets.append(f"- {_limpar_pontuacao_final(linha)};")
-
-    if bullets:
-        bullets[-1] = bullets[-1].rstrip(";") + "."
+        linha_sem_prefixo = linha.lstrip("-•* ").strip()
+        if linha_sem_prefixo:
+            bullets.append(f"- {linha_sem_prefixo}")
 
     return "\n".join(bullets)
 
 
-def _titulo_documento(document_type: str) -> str:
-    tipo = _tipo_normalizado(document_type)
+def _coletar_trechos_documentais(documentos_selecionados: list | None, limite: int = 3) -> list[str]:
+    if not documentos_selecionados:
+        return []
 
-    if tipo == "petição inicial":
-        return "PETIÇÃO INICIAL"
-    if tipo == "contestação":
-        return "CONTESTAÇÃO"
-    if tipo == "réplica":
-        return "RÉPLICA"
-    if tipo == "manifestação":
-        return "MANIFESTAÇÃO"
-    if tipo == "parecer jurídico":
-        return "PARECER JURÍDICO"
-    if tipo == "contrato":
-        return "MINUTA CONTRATUAL"
-    if tipo == "notificação extrajudicial":
-        return "NOTIFICAÇÃO EXTRAJUDICIAL"
-    if tipo == "recurso":
-        return "RECURSO"
-    return "MINUTA JURÍDICA"
+    trechos = []
+    for documento in documentos_selecionados[:limite]:
+        resumo = (documento.summary or "").strip()
+        texto_extraido = (documento.extracted_text or "").strip()
+
+        base = resumo or texto_extraido
+        if not base:
+            continue
+
+        frase = _primeira_frase(base, 220)
+        if frase:
+            trechos.append(f"- {documento.original_filename}: {frase}")
+
+    return trechos
 
 
-def _qualificacao_base_por_tipo(document_type: str, client_name: str) -> str:
-    tipo = _tipo_normalizado(document_type)
-    cliente = (client_name or "").strip()
+def _montar_qualificacao(profile, client_name: str) -> str:
+    if profile and (profile.qualification_style or "").strip():
+        estilo = profile.qualification_style.strip()
+        return estilo.replace("{cliente}", client_name)
 
-    if tipo == "contrato":
-        return f"As partes interessadas, dentre elas {cliente}, de comum acordo,"
-    if tipo == "parecer jurídico":
-        return f"Em atenção à consulta formulada por {cliente},"
-    if tipo == "notificação extrajudicial":
-        return f"{cliente}, na qualidade de parte notificante,"
-    return f"{cliente}, já devidamente qualificado(a),"
+    return f"{client_name}, já devidamente qualificado(a), vem, respeitosamente, à presença de Vossa Excelência, propor a presente, nos termos a seguir expostos:"
 
 
-def _abertura_base_por_tipo(document_type: str) -> str:
-    tipo = _tipo_normalizado(document_type)
-
-    if tipo == "petição inicial":
-        return "vem, respeitosamente, à presença de Vossa Excelência, propor a presente"
-    if tipo == "contestação":
-        return "vem, respeitosamente, à presença de Vossa Excelência, apresentar"
-    if tipo == "réplica":
-        return "vem, respeitosamente, à presença de Vossa Excelência, apresentar"
-    if tipo == "manifestação":
-        return "vem, respeitosamente, à presença de Vossa Excelência, apresentar a presente"
-    if tipo == "parecer jurídico":
-        return "apresentar o presente parecer jurídico"
-    if tipo == "contrato":
-        return "resolvem firmar a presente minuta contratual"
-    if tipo == "notificação extrajudicial":
-        return "vem, por meio da presente, promover a presente notificação extrajudicial"
-    if tipo == "recurso":
-        return "vem, respeitosamente, à presença de Vossa Excelência, interpor o presente"
-    return "vem, respeitosamente, apresentar a presente minuta"
-
-
-def _texto_parece_placeholder(texto: str) -> bool:
-    texto_limpo = (texto or "").strip().lower()
-
-    if not texto_limpo:
-        return True
-
-    marcadores_ruins = [
-        "...",
-        "já qualificado nos autos",
-        "a presença de vossa",
-        "diante do exposto, requer-se",
-        "termos, em que",
-        "peço, por gentileza",
-        "peço, com a devida gentileza",
-        "artigos, teses",
-        "principais fatos do caso",
-        "os principais fatos do caso são",
-    ]
-
-    return any(marcador in texto_limpo for marcador in marcadores_ruins)
-
-
-def _texto_curto_demais(texto: str, minimo: int = 12) -> bool:
-    return len((texto or "").strip()) < minimo
-
-
-def _usar_texto_do_perfil(texto: str, minimo: int = 12) -> bool:
-    if not texto:
-        return False
-    if _texto_curto_demais(texto, minimo=minimo):
-        return False
-    if _texto_parece_placeholder(texto):
-        return False
-    return True
-
-
-def _introducao_especifica_por_tipo(document_type: str, case_subject: str, facts: str) -> str:
-    tipo = _tipo_normalizado(document_type)
+def _montar_fundamentacao(
+    document_type: str,
+    case_subject: str,
+    legal_basis: str,
+    documentos_selecionados: list | None = None,
+) -> str:
+    base_juridica = (legal_basis or "").strip()
     assunto = _limpar_pontuacao_final(case_subject)
 
-    if tipo == "petição inicial":
-        return (
-            f"A presente demanda decorre de {assunto.lower()}, "
-            "conforme fatos e fundamentos a seguir expostos."
-        )
+    trechos_documentais = _coletar_trechos_documentais(documentos_selecionados)
 
-    if tipo == "contestação":
-        return (
-            f"A presente defesa refere-se à controvérsia envolvendo {assunto.lower()}, "
-            "passando-se à exposição das razões defensivas pertinentes."
-        )
+    if _tipo_normalizado(document_type) == "contrato":
+        partes = [
+            "A presente minuta contratual observa os princípios da autonomia privada, da boa-fé objetiva, da função social do contrato e da força obrigatória das convenções.",
+        ]
 
-    if tipo == "réplica":
-        return (
-            f"Em atenção à controvérsia relativa a {assunto.lower()}, "
-            "apresenta-se a presente réplica para impugnação dos argumentos defensivos."
-        )
+        if base_juridica:
+            partes.append(
+                f"Considera-se, ainda, como base jurídica inicial, em tese, o seguinte: {base_juridica}"
+            )
+        else:
+            partes.append(
+                "Devem ser observadas as normas do Código Civil aplicáveis ao objeto contratado, bem como cláusulas essenciais de equilíbrio, segurança jurídica e executabilidade."
+            )
 
-    if tipo == "manifestação":
-        return (
-            f"No contexto da matéria relativa a {assunto.lower()}, "
-            "apresenta-se a presente manifestação para apreciação do ponto controvertido."
-        )
+        if assunto:
+            partes.append(
+                f"As cláusulas contratuais devem refletir com precisão o objeto relacionado a {assunto}, delimitando obrigações, responsabilidades, prazos, forma de pagamento e hipóteses de rescisão."
+            )
 
-    if tipo == "parecer jurídico":
-        return (
-            f"Submete-se à análise a questão jurídica relacionada a {assunto.lower()}, "
-            "passando-se ao exame técnico da matéria."
-        )
+        if trechos_documentais:
+            partes.append("Os documentos base reforçam os seguintes pontos relevantes:")
+            partes.extend(trechos_documentais)
 
-    if tipo == "contrato":
-        return (
-            f"A presente minuta tem por objeto disciplinar a relação jurídica referente a {assunto.lower()}, "
-            "mediante a definição das cláusulas e condições essenciais do ajuste."
-        )
+        return "\n\n".join(partes)
 
-    if tipo == "notificação extrajudicial":
-        return (
-            f"A presente notificação extrajudicial refere-se a {assunto.lower()}, "
-            "para ciência formal da parte notificada e adoção das providências cabíveis."
-        )
+    partes = []
 
-    if tipo == "recurso":
-        return (
-            f"O presente recurso decorre da controvérsia relativa a {assunto.lower()}, "
-            "passando-se à exposição das razões recursais cabíveis."
-        )
-
-    return (
-        f"A presente minuta refere-se à questão envolvendo {assunto.lower()}, "
-        "conforme os elementos apresentados a seguir."
-    )
-
-
-def _titulo_secao_fatos_por_tipo(document_type: str) -> str:
-    tipo = _tipo_normalizado(document_type)
-
-    if tipo == "parecer jurídico":
-        return "I - DO RELATÓRIO"
-    if tipo == "contrato":
-        return "I - DO CONTEXTO CONTRATUAL"
-    return "I - DOS FATOS"
-
-
-def _conteudo_secao_fatos_por_tipo(document_type: str, facts: str) -> str:
-    tipo = _tipo_normalizado(document_type)
-
-    if tipo == "contrato":
-        return (
-            "Considerando o ajuste pretendido entre as partes, tem-se o seguinte contexto:\n\n"
-            f"{facts}"
-        )
-
-    if tipo == "parecer jurídico":
-        return (
-            "Os fatos submetidos à análise podem ser assim resumidos:\n\n"
-            f"{facts}"
-        )
-
-    if tipo == "notificação extrajudicial":
-        return (
-            "Os fatos que motivam a presente notificação podem ser descritos da seguinte forma:\n\n"
-            f"{facts}"
-        )
-
-    return facts
-
-
-def _titulo_secao_fundamentacao_por_tipo(document_type: str) -> str:
-    tipo = _tipo_normalizado(document_type)
-
-    if tipo == "parecer jurídico":
-        return "II - DA ANÁLISE JURÍDICA"
-    if tipo == "contrato":
-        return "II - DOS FUNDAMENTOS JURÍDICOS"
-    return "II - DA FUNDAMENTAÇÃO JURÍDICA"
-
-
-def _secao_fundamentacao_por_tipo(document_type: str, base_legal: str) -> str:
-    tipo = _tipo_normalizado(document_type)
-
-    if tipo == "contestação":
-        return (
-            "A defesa poderá ser sustentada pelos fundamentos jurídicos a seguir indicados:\n\n"
-            f"{base_legal}"
-        )
-
-    if tipo == "réplica":
-        return (
-            "A parte autora poderá rebater os argumentos defensivos com apoio nos seguintes fundamentos:\n\n"
-            f"{base_legal}"
-        )
-
-    if tipo == "manifestação":
-        return (
-            "A presente manifestação poderá ser amparada pelos seguintes fundamentos jurídicos e processuais:\n\n"
-            f"{base_legal}"
-        )
-
-    if tipo == "parecer jurídico":
-        return (
-            "A análise da matéria pode ser desenvolvida a partir das seguintes premissas jurídicas:\n\n"
-            f"{base_legal}"
-        )
-
-    if tipo == "contrato":
-        return (
-            "A elaboração da minuta deve observar os seguintes fundamentos e premissas jurídicas:\n\n"
-            f"{base_legal}"
-        )
-
-    if tipo == "notificação extrajudicial":
-        return (
-            "A presente notificação encontra respaldo, em tese, nos seguintes fundamentos:\n\n"
-            f"{base_legal}"
-        )
-
-    if tipo == "recurso":
-        return (
-            "A pretensão recursal poderá ser sustentada pelos seguintes fundamentos jurídicos:\n\n"
-            f"{base_legal}"
-        )
-
-    if tipo == "petição inicial":
-        return (
+    if base_juridica:
+        partes.append(
             "A pretensão deduzida encontra amparo, em tese, nos seguintes fundamentos jurídicos:\n\n"
-            f"{base_legal}"
+            f"{base_juridica}"
+        )
+    else:
+        partes.append(
+            "A pretensão deduzida encontra amparo, em tese, na legislação aplicável ao caso concreto, "
+            "nos princípios da boa-fé, da razoabilidade, da efetividade da tutela jurisdicional e nas "
+            "demais normas pertinentes à controvérsia apresentada."
         )
 
-    return base_legal
+    if assunto:
+        partes.append(
+            f"Em especial, o enquadramento jurídico deve considerar a controvérsia relacionada a {assunto}, "
+            "com análise da responsabilidade aplicável, da adequação da medida pretendida e da coerência entre fatos, fundamentos e pedidos."
+        )
+
+    if trechos_documentais:
+        partes.append("Os documentos base selecionados reforçam, em síntese, os seguintes elementos contextuais:")
+        partes.extend(trechos_documentais)
+
+    return "\n\n".join(partes)
 
 
-def _titulo_secao_final_por_tipo(document_type: str) -> str:
+def _montar_pedidos(document_type: str, requests: str, profile=None) -> str:
+    pedidos_formatados = _bulletizar_texto(requests)
+    introducao = ""
+
+    if profile and (profile.request_intro or "").strip():
+        introducao = profile.request_intro.strip()
+    else:
+        tipo = _tipo_normalizado(document_type)
+        if tipo == "contestação":
+            introducao = "Diante do exposto, requer:"
+        elif tipo == "réplica":
+            introducao = "Diante do exposto, requer:"
+        elif tipo == "manifestação":
+            introducao = "Diante do exposto, requer:"
+        elif tipo == "parecer jurídico":
+            introducao = "Com base na análise realizada, conclui-se e recomenda-se:"
+        elif tipo == "contrato":
+            introducao = "Ficam estabelecidas as seguintes disposições essenciais:"
+        elif tipo == "notificação extrajudicial":
+            introducao = "Diante do exposto, fica a parte notificada cientificada e intimada para:"
+        elif tipo == "recurso":
+            introducao = "Diante do exposto, requer:"
+        else:
+            introducao = "Diante do exposto, requer:"
+
+    if not pedidos_formatados:
+        return introducao
+
+    return f"{introducao}\n\n{pedidos_formatados}"
+
+
+def _montar_fechamento(document_type: str, profile=None) -> str:
+    if profile and (profile.closing_phrase or "").strip():
+        return profile.closing_phrase.strip()
+
     tipo = _tipo_normalizado(document_type)
-
-    if tipo == "contrato":
-        return "III - DAS CLÁUSULAS ESSENCIAIS"
-    if tipo == "parecer jurídico":
-        return "III - DA CONCLUSÃO"
-    if tipo == "notificação extrajudicial":
-        return "III - DA PROVIDÊNCIA EXIGIDA"
-    return "III - DOS PEDIDOS"
-
-
-def _introducao_secao_final_por_tipo(document_type: str, request_intro: str) -> str:
-    tipo = _tipo_normalizado(document_type)
-
-    if tipo == "parecer jurídico":
-        return "Diante do exposto, conclui-se que:"
-    if tipo == "contrato":
-        return "As cláusulas essenciais da presente minuta poderão contemplar:"
-    if tipo == "notificação extrajudicial":
-        return "Diante do exposto, fica a parte notificada instada a:"
-    return request_intro
-
-
-def _conteudo_secao_final_por_tipo(document_type: str, requests: str) -> str:
-    return _bulletizar_texto(requests)
-
-
-def _fechamento_por_tipo(document_type: str, fechamento_padrao: str) -> str:
-    tipo = _tipo_normalizado(document_type)
-
     if tipo == "parecer jurídico":
         return "É o parecer, s.m.j."
     if tipo == "contrato":
-        return "E, por estarem assim ajustadas, as partes poderão firmar o instrumento correspondente."
+        return "Por estarem justas e contratadas, as partes firmam a presente minuta para os devidos fins."
     if tipo == "notificação extrajudicial":
-        return "Sem mais para o momento, firma-se a presente para os devidos fins de direito."
-    if tipo == "recurso":
-        return "Nesses termos, requer-se o regular processamento do recurso."
-    return fechamento_padrao
+        return "Sem mais para o momento, aguarda-se o cumprimento da providência ora exigida."
+    return "Termos em que,\nPede deferimento."
 
 
-def _cabecalho_contextual_por_tipo(
+def _montar_assinatura(profile) -> str:
+    if not profile:
+        return ""
+
+    partes = []
+    if (profile.lawyer_name or "").strip():
+        partes.append(profile.lawyer_name.strip())
+    if (profile.office_name or "").strip():
+        partes.append(profile.office_name.strip())
+
+    return "\n".join(partes).strip()
+
+
+def _gerar_rascunho_local(
+    *,
+    client_name: str,
     document_type: str,
     case_subject: str,
-    qualificacao: str,
-    abertura: str,
+    facts: str,
+    requests: str,
+    legal_basis: str,
+    context_used: str,
+    writing_profile=None,
+    documentos_selecionados: list | None = None,
 ) -> str:
-    tipo = _tipo_normalizado(document_type)
-    assunto = _limpar_pontuacao_final(case_subject)
+    tipo_normalizado = _tipo_normalizado(document_type)
 
-    if tipo == "parecer jurídico":
-        return (
-            f"Assunto: {assunto}\n\n"
-            f"{qualificacao}, passa a {abertura}, nos seguintes termos:"
-        )
+    titulo = document_type.upper().strip()
+    qualificacao = _montar_qualificacao(writing_profile, client_name)
+    fundamentacao = _montar_fundamentacao(
+        document_type=document_type,
+        case_subject=case_subject,
+        legal_basis=legal_basis,
+        documentos_selecionados=documentos_selecionados,
+    )
+    pedidos = _montar_pedidos(document_type, requests, writing_profile)
+    fechamento = _montar_fechamento(document_type, writing_profile)
+    assinatura = _montar_assinatura(writing_profile)
 
-    if tipo == "contrato":
-        return (
-            f"{qualificacao}, tendo por objeto {assunto.lower()}, "
-            f"{abertura}, mediante as cláusulas e condições a seguir:"
-        )
+    assunto_limpo = _limpar_pontuacao_final(case_subject)
+    fatos_iniciais = (facts or "").strip()
 
-    if tipo == "notificação extrajudicial":
-        return (
-            f"{qualificacao}, em razão de {assunto.lower()}, "
-            f"{abertura}, nos seguintes termos:"
-        )
+    if tipo_normalizado == "contrato":
+        texto = f"""
+{titulo}
 
-    return f"{qualificacao} {abertura}, nos termos a seguir expostos:"
+As partes interessadas resolvem celebrar a presente minuta contratual, observadas as disposições a seguir:
+
+I - DO OBJETO
+
+A presente minuta tem por objeto disciplinar, em linhas gerais, a relação jurídica relacionada a {assunto_limpo or 'objeto a ser especificado pelas partes'}, conforme contexto apresentado.
+
+II - DO CONTEXTO CONTRATUAL
+
+{fatos_iniciais}
+
+III - DAS BASES JURÍDICAS E DIRETRIZES
+
+{fundamentacao}
+
+IV - DAS CLÁUSULAS ESSENCIAIS
+
+{pedidos}
+
+V - DAS DISPOSIÇÕES FINAIS
+
+{fechamento}
+""".strip()
+
+        if assinatura:
+            texto += f"\n\n{assinatura}"
+
+        return texto
+
+    titulo_fatos = "I - DOS FATOS"
+    titulo_fundamentacao = "II - DA FUNDAMENTAÇÃO JURÍDICA"
+    titulo_final = "III - DOS PEDIDOS"
+
+    introducao_final = pedidos
+    conteudo_final = ""
+    fechamento_final = fechamento
+
+    if tipo_normalizado == "contestação":
+        titulo_fatos = "I - SÍNTESE DA DEMANDA"
+        titulo_fundamentacao = "II - DOS FUNDAMENTOS DE DEFESA"
+        titulo_final = "III - DOS REQUERIMENTOS FINAIS"
+    elif tipo_normalizado == "réplica":
+        titulo_fatos = "I - DA SÍNTESE DA CONTESTAÇÃO"
+        titulo_fundamentacao = "II - DA IMPUGNAÇÃO AOS ARGUMENTOS DEFENSIVOS"
+        titulo_final = "III - DOS REQUERIMENTOS"
+    elif tipo_normalizado == "manifestação":
+        titulo_fatos = "I - DO CONTEXTO PROCESSUAL"
+        titulo_fundamentacao = "II - DAS CONSIDERAÇÕES JURÍDICAS"
+        titulo_final = "III - DO REQUERIMENTO"
+    elif tipo_normalizado == "parecer jurídico":
+        titulo_fatos = "I - DO RELATÓRIO"
+        titulo_fundamentacao = "II - DA ANÁLISE JURÍDICA"
+        titulo_final = "III - DA CONCLUSÃO"
+    elif tipo_normalizado == "notificação extrajudicial":
+        titulo_fatos = "I - DOS FATOS"
+        titulo_fundamentacao = "II - DOS FUNDAMENTOS"
+        titulo_final = "III - DA NOTIFICAÇÃO E PROVIDÊNCIAS EXIGIDAS"
+    elif tipo_normalizado == "recurso":
+        titulo_fatos = "I - DA SÍNTESE DA DECISÃO RECORRIDA"
+        titulo_fundamentacao = "II - DAS RAZÕES RECURSAIS"
+        titulo_final = "III - DOS PEDIDOS RECURSAIS"
+
+    texto = f"""
+{titulo}
+
+{qualificacao}
+
+A presente demanda decorre de {assunto_limpo or 'questão jurídica submetida à análise'}, conforme fatos e fundamentos a seguir expostos.
+
+{titulo_fatos}
+
+{fatos_iniciais}
+
+{titulo_fundamentacao}
+
+{fundamentacao}
+
+{titulo_final}
+
+{introducao_final}
+
+{conteudo_final}
+
+{fechamento_final}
+""".strip()
+
+    if assinatura:
+        texto += f"\n\n{assinatura}"
+
+    return texto
 
 
 def gerar_rascunho_juridico(
@@ -961,98 +916,32 @@ def gerar_rascunho_juridico(
     writing_profile=None,
     documentos_selecionados: list | None = None,
 ) -> str:
-    base_legal = (
-        legal_basis.strip()
-        if legal_basis
-        else "A fundamentação jurídica específica deverá ser aprofundada conforme a legislação aplicável, a jurisprudência pertinente e a estratégia adotada para o caso concreto."
-    )
-
-    titulo_documento = _titulo_documento(document_type)
-    introducao_especifica = _introducao_especifica_por_tipo(document_type, case_subject, facts)
-
-    qualificacao = _qualificacao_base_por_tipo(document_type, client_name)
-    abertura = _abertura_base_por_tipo(document_type)
-    introducao_pedidos = "Diante do exposto, requer:"
-    fechamento = "Termos em que,\nPede deferimento."
-
-    advogado = ""
-    escritorio = ""
-
-    if writing_profile:
-        texto_qualificacao = (writing_profile.qualification_style or "").strip()
-        texto_abertura = (writing_profile.opening_phrase or "").strip()
-        texto_pedidos = (writing_profile.request_intro or "").strip()
-        texto_fechamento = (writing_profile.closing_phrase or "").strip()
-
-        if _usar_texto_do_perfil(texto_qualificacao, minimo=18):
-            qualificacao = f"{client_name}, {texto_qualificacao.rstrip(',')}"
-
-        if _usar_texto_do_perfil(texto_abertura, minimo=20):
-            abertura = texto_abertura.rstrip(" .,:;")
-
-        if _usar_texto_do_perfil(texto_pedidos, minimo=12):
-            introducao_pedidos = texto_pedidos.rstrip(" .,:;") + ":"
-
-        if _usar_texto_do_perfil(texto_fechamento, minimo=12):
-            fechamento = texto_fechamento
-
-        advogado = (writing_profile.lawyer_name or "").strip()
-        escritorio = (writing_profile.office_name or "").strip()
-
-    titulo_fatos = _titulo_secao_fatos_por_tipo(document_type)
-    conteudo_fatos = _conteudo_secao_fatos_por_tipo(document_type, facts)
-
-    titulo_fundamentacao = _titulo_secao_fundamentacao_por_tipo(document_type)
-    conteudo_fundamentacao = _secao_fundamentacao_por_tipo(document_type, base_legal)
-
-    titulo_final = _titulo_secao_final_por_tipo(document_type)
-    introducao_final = _introducao_secao_final_por_tipo(document_type, introducao_pedidos)
-    conteudo_final = _conteudo_secao_final_por_tipo(document_type, requests)
-
-    fechamento_final = _fechamento_por_tipo(document_type, fechamento)
-    cabecalho_contextual = _cabecalho_contextual_por_tipo(
+    prompt_payload = build_advanced_prompt(
+        client_name=client_name,
         document_type=document_type,
         case_subject=case_subject,
-        qualificacao=qualificacao,
-        abertura=abertura,
+        facts=facts,
+        requests=requests,
+        legal_basis=legal_basis,
+        smart_context=context_used,
+        writing_profile=writing_profile,
+        documentos_selecionados=documentos_selecionados or [],
     )
 
-    assinatura_bloco = []
-    if advogado:
-        assinatura_bloco.append(advogado)
-    if escritorio:
-        assinatura_bloco.append(escritorio)
-
-    assinatura_final = "\n".join(assinatura_bloco)
-
-    texto = f"""
-{titulo_documento}
-
-{cabecalho_contextual}
-
-{introducao_especifica}
-
-{titulo_fatos}
-
-{conteudo_fatos}
-
-{titulo_fundamentacao}
-
-{conteudo_fundamentacao}
-
-{titulo_final}
-
-{introducao_final}
-
-{conteudo_final}
-
-{fechamento_final}
-""".strip()
-
-    if assinatura_final:
-        texto += f"\n\n{assinatura_final}"
-
-    return texto
+    return gerar_texto_juridico_com_fallback(
+        prompt_payload=prompt_payload,
+        fallback_generator=lambda: _gerar_rascunho_local(
+            client_name=client_name,
+            document_type=document_type,
+            case_subject=case_subject,
+            facts=facts,
+            requests=requests,
+            legal_basis=legal_basis,
+            context_used=context_used,
+            writing_profile=writing_profile,
+            documentos_selecionados=documentos_selecionados or [],
+        ),
+    )
 
 
 def gerar_docx_da_geracao(geracao: Generation) -> bytes:
@@ -1064,32 +953,99 @@ def gerar_docx_da_geracao(geracao: Generation) -> bytes:
 
     titulo = documento.add_paragraph()
     titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_titulo = titulo.add_run(geracao.document_type or "Minuta Jurídica")
+    run_titulo = titulo.add_run((geracao.document_type or "MINUTA JURÍDICA").upper())
     run_titulo.bold = True
-    run_titulo.font.name = "Times New Roman"
-    run_titulo.font.size = Pt(14)
-
-    subtitulo = documento.add_paragraph()
-    subtitulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_subtitulo = subtitulo.add_run(f"Cliente: {geracao.client_name}")
-    run_subtitulo.italic = True
-    run_subtitulo.font.name = "Times New Roman"
-    run_subtitulo.font.size = Pt(11)
 
     documento.add_paragraph("")
 
-    blocos = [bloco.strip() for bloco in (geracao.generated_text or "").split("\n\n") if bloco.strip()]
+    for bloco in (geracao.generated_text or "").split("\n\n"):
+        bloco_limpo = bloco.strip()
+        if not bloco_limpo:
+            continue
 
-    for bloco in blocos:
         paragrafo = documento.add_paragraph()
         paragrafo.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        run = paragrafo.add_run(bloco)
-        run.font.name = "Times New Roman"
-        run.font.size = Pt(12)
-        paragrafo.paragraph_format.space_after = Pt(10)
-        paragrafo.paragraph_format.first_line_indent = Pt(24)
+        paragrafo.add_run(bloco_limpo)
 
     buffer = BytesIO()
     documento.save(buffer)
-    buffer.seek(0)
     return buffer.getvalue()
+
+
+def gerar_txt_da_geracao(geracao: Generation) -> bytes:
+    return (geracao.generated_text or "").encode("utf-8")
+
+
+def obter_datas_dashboard(db: Session) -> dict:
+    hoje = agora_brasil().date()
+    inicio_hoje = datetime.combine(hoje, time.min)
+    fim_hoje = datetime.combine(hoje, time.max)
+
+    inicio_7_dias = datetime.combine(hoje - timedelta(days=6), time.min)
+    inicio_30_dias = datetime.combine(hoje - timedelta(days=29), time.min)
+    inicio_mes = datetime.combine(hoje.replace(day=1), time.min)
+
+    return {
+        "hoje": hoje,
+        "inicio_hoje": inicio_hoje,
+        "fim_hoje": fim_hoje,
+        "inicio_7_dias": inicio_7_dias,
+        "inicio_30_dias": inicio_30_dias,
+        "inicio_mes": inicio_mes,
+    }
+
+
+def obter_resumo_dashboard_geracoes(db: Session) -> dict:
+    datas = obter_datas_dashboard(db)
+
+    total = db.query(Generation).count()
+
+    total_hoje = (
+        db.query(Generation)
+        .filter(Generation.created_at >= datas["inicio_hoje"])
+        .filter(Generation.created_at <= datas["fim_hoje"])
+        .count()
+    )
+
+    total_7_dias = (
+        db.query(Generation)
+        .filter(Generation.created_at >= datas["inicio_7_dias"])
+        .count()
+    )
+
+    total_30_dias = (
+        db.query(Generation)
+        .filter(Generation.created_at >= datas["inicio_30_dias"])
+        .count()
+    )
+
+    total_mes = (
+        db.query(Generation)
+        .filter(Generation.created_at >= datas["inicio_mes"])
+        .count()
+    )
+
+    total_fixadas = (
+        db.query(Generation)
+        .filter(Generation.is_pinned.is_(True))
+        .count()
+    )
+
+    return {
+        "total": total,
+        "total_hoje": total_hoje,
+        "total_7_dias": total_7_dias,
+        "total_30_dias": total_30_dias,
+        "total_mes": total_mes,
+        "total_fixadas": total_fixadas,
+    }
+
+
+def obter_ultimas_geracoes(db: Session, limite: int = 5) -> list[Generation]:
+    return (
+        db.query(Generation)
+        .options(joinedload(Generation.writing_profile))
+        .order_by(Generation.updated_at.desc(), Generation.id.desc())
+        .limit(limite)
+        .all()
+    )

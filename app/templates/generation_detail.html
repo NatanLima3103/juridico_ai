@@ -187,15 +187,20 @@
         </section>
     {% endif %}
 
-    <details class="detalhes-contexto">
-        <summary>Ver contexto técnico utilizado</summary>
-        <div class="contexto-ajuda">
-            Esta área é técnica e serve apenas para conferência interna do material utilizado na geração.
+    <section class="bloco-informativo">
+        <div class="bloco-informativo-topo">
+            <h3>Contexto inteligente utilizado</h3>
+            <span class="badge badge-neutro">IA ready</span>
         </div>
+
+        <div class="contexto-ajuda">
+            Aqui fica salvo o contexto estruturado que foi utilizado para orientar a geração da minuta.
+        </div>
+
         <div class="resultado-texto">
             <pre>{{ geracao.context_used }}</pre>
         </div>
-    </details>
+    </section>
 
     <div class="acoes-formulario-geracao" style="margin-top: 24px;">
         <form
@@ -217,40 +222,4 @@
         </form>
     </div>
 </section>
-
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const botaoCopiar = document.getElementById("botao-copiar-texto");
-    const texto = document.getElementById("texto-juridico");
-    const mensagem = document.getElementById("mensagem-copia");
-
-    if (!botaoCopiar || !texto || !mensagem) {
-        return;
-    }
-
-    botaoCopiar.addEventListener("click", async function () {
-        const conteudo = texto.value.trim();
-
-        if (!conteudo) {
-            mensagem.textContent = "Não há texto jurídico para copiar.";
-            mensagem.className = "mensagem-copia visivel erro-copia";
-            return;
-        }
-
-        try {
-            await navigator.clipboard.writeText(conteudo);
-            mensagem.textContent = "Texto jurídico copiado com sucesso.";
-            mensagem.className = "mensagem-copia visivel sucesso-copia";
-        } catch (erro) {
-            mensagem.textContent = "Não foi possível copiar automaticamente.";
-            mensagem.className = "mensagem-copia visivel erro-copia";
-        }
-
-        window.setTimeout(function () {
-            mensagem.className = "mensagem-copia";
-            mensagem.textContent = "";
-        }, 2500);
-    });
-});
-</script>
 {% endblock %}

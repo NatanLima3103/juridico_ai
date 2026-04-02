@@ -13,64 +13,334 @@ from app.services.generation_service import (
     buscar_geracao_por_id,
     criar_geracao,
     desserializar_ids_documentos,
+    duplicar_geracao,
     excluir_geracao,
     gerar_docx_da_geracao,
     gerar_rascunho_juridico,
+    gerar_txt_da_geracao,
     listar_geracoes,
-    montar_contexto_documental,
-    montar_contexto_perfil_escrita,
-    resumir_texto,
+    listar_templates_juridicos_prontos,
+    montar_contexto_inteligente,
+    normalizar_filtros_listagem,
     serializar_ids_documentos,
     validar_dados_geracao,
-    agora_brasil,
-    toggle_fixacao_geracao,
-    listar_templates_juridicos_prontos,
+    alternar_fixacao_geracao,
+    aplicar_template_juridico_pronto,
 )
 from app.services.writing_profile_service import (
     buscar_perfil_por_id,
-    listar_perfis,
+    listar_perfis_escrita,
 )
 
-router = APIRouter(prefix="/generations", tags=["generations"])
+router = APIRouter(prefix="/generations", tags=["Generations"])
 templates = Jinja2Templates(directory="app/templates")
 
 
-def _parse_selected_document_ids(form) -> list[int]:
-    raw_document_ids = form.getlist("document_ids")
-    selected_document_ids = []
-
-    for item in raw_document_ids:
-        item_str = str(item).strip()
-        if item_str.isdigit():
-            selected_document_ids.append(int(item_str))
-
-    return selected_document_ids
-
-
-def _parse_writing_profile_filter(raw_value: str | None) -> tuple[int | None, bool, str]:
-    valor = str(raw_value or "").strip()
-
-    if valor == "none":
-        return None, True, "none"
-
-    if valor.isdigit():
-        return int(valor), False, valor
-
-    return None, False, ""
+def _to_int_list(values: list[str] | None) -> list[int]:
+    ids: list[int] = []
+    for value in values or []:
+        try:
+            numero = int(value)
+        except (TypeError, ValueError):
+            continue
+        if numero not in ids:
+            ids.append(numero)
+    return ids
 
 
-def _extrair_dados_formulario(form) -> tuple[dict, int | None, list[int]]:
-    client_name = str(form.get("client_name", "")).strip()
-    document_type = str(form.get("document_type", "")).strip()
-    case_subject = str(form.get("case_subject", "")).strip()
-    facts = str(form.get("facts", "")).strip()
-    requests = str(form.get("requests", "")).strip()
-    legal_basis = str(form.get("legal_basis", "")).strip()
+def _generation_to_dict(geracao):
+    perfil = geracao.writing_profile
 
-    raw_profile_id = str(form.get("writing_profile_id", "")).strip()
-    selected_profile_id = int(raw_profile_id) if raw_profile_id.isdigit() else None
+    return {
+        "id": geracao.id,
+        "client_name": geracao.client_name,
+        "document_type": geracao.document_type,
+        "case_subject": geracao.case_subject,
+        "facts": geracao.facts,
+        "requests": geracao.requests,
+        "legal_basis": geracao.legal_basis,
+        "context_used": geracao.context_used,
+        "generated_text": geracao.generated_text,
+        "source_document_ids": geracao.source_document_ids,
+        "writing_profile_id": geracao.writing_profile_id,
+        "writing_profile_name": perfil.profile_name if perfil else "Sem perfil",
+        "is_pinned": bool(geracao.is_pinned),
+        "created_at": geracao.created_at,
+        "updated_at": geracao.updated_at,
+    }
 
-    selected_document_ids = _parse_selected_document_ids(form)
+
+def _serialize_filters_for_template(filtros: dict) -> dict:
+    return {
+        "search_term": filtros.get("search_term", ""),
+        "document_type": filtros.get("document_type", ""),
+        "writing_profile_id": filtros.get("writing_profile_id"),
+        "sem_perfil": bool(filtros.get("sem_perfil")),
+        "client_name": filtros.get("client_name", ""),
+        "case_subject": filtros.get("case_subject", ""),
+        "created_from": filtros["created_from"].isoformat() if filtros.get("created_from") else "",
+        "created_to": filtros["created_to"].isoformat() if filtros.get("created_to") else "",
+        "sort_by": filtros.get("sort_by", "updated_desc"),
+    }
+
+
+def _render_generation_form(
+    request: Request,
+    *,
+    documentos,
+    perfis,
+    tipos_de_documento,
+    error_message: str | None = None,
+    form_data: dict | None = None,
+    selected_document_ids: list[int] | None = None,
+    selected_profile_id: int | None = None,
+    modo_edicao: bool = False,
+    geracao=None,
+    duplicate_mode: bool = False,
+    duplicate_source_id: int | None = None,
+):
+    form_data = form_data or {}
+    selected_document_ids = selected_document_ids or []
+
+    if modo_edicao:
+        title = "Editar geração"
+        subtitle = "Atualize os dados e regenere a minuta mantendo a geração existente."
+        submit_label = "Salvar alterações"
+        submit_loading_text = "Salvando..."
+        action_url = f"/generations/{geracao.id}/edit"
+    elif duplicate_mode:
+        title = "Duplicar e regenerar"
+        subtitle = "Revise os dados abaixo e crie uma nova geração com base na anterior."
+        submit_label = "Duplicar e regenerar"
+        submit_loading_text = "Duplicando..."
+        action_url = "/generations/create"
+    else:
+        title = "Nova geração jurídica"
+        subtitle = "Preencha os dados abaixo para gerar uma nova minuta."
+        submit_label = "Gerar minuta"
+        submit_loading_text = "Gerando..."
+        action_url = "/generations/create"
+
+    return templates.TemplateResponse(
+        "generation_create.html",
+        {
+            "request": request,
+            "title": title,
+            "subtitle": subtitle,
+            "documentos": documentos,
+            "perfis": perfis,
+            "tipos_de_documento": tipos_de_documento,
+            "error_message": error_message,
+            "form_data": form_data,
+            "selected_document_ids": selected_document_ids,
+            "selected_profile_id": selected_profile_id,
+            "modo_edicao": modo_edicao,
+            "geracao": geracao,
+            "submit_label": submit_label,
+            "submit_loading_text": submit_loading_text,
+            "action_url": action_url,
+            "duplicate_mode": duplicate_mode,
+            "duplicate_source_id": duplicate_source_id,
+            "templates_prontos": listar_templates_juridicos_prontos(),
+        },
+    )
+
+
+@router.get("")
+async def list_generations(
+    request: Request,
+    search_term: str = "",
+    document_type: str = "",
+    writing_profile_id: int | None = None,
+    sem_perfil: bool = False,
+    client_name: str = "",
+    case_subject: str = "",
+    created_from: str = "",
+    created_to: str = "",
+    sort_by: str = "updated_desc",
+    db: Session = Depends(get_db),
+):
+    filtros = normalizar_filtros_listagem(
+        search_term=search_term,
+        document_type=document_type,
+        writing_profile_id=writing_profile_id,
+        sem_perfil=sem_perfil,
+        client_name=client_name,
+        case_subject=case_subject,
+        created_from=created_from,
+        created_to=created_to,
+        sort_by=sort_by,
+    )
+
+    geracoes = listar_geracoes(db, filtros=filtros)
+    perfis = listar_perfis_escrita(db)
+
+    geracoes_template = [_generation_to_dict(geracao) for geracao in geracoes]
+    filtros_template = _serialize_filters_for_template(filtros)
+
+    return templates.TemplateResponse(
+        "generations_list.html",
+        {
+            "request": request,
+            "geracoes": geracoes_template,
+            "perfis": perfis,
+            "tipos_de_documento": TIPOS_DE_DOCUMENTO,
+            "filtros": filtros_template,
+        },
+    )
+
+
+@router.get("/create")
+async def create_generation_form(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    documentos = listar_documentos(db)
+    perfis = listar_perfis_escrita(db)
+
+    return _render_generation_form(
+        request,
+        documentos=documentos,
+        perfis=perfis,
+        tipos_de_documento=TIPOS_DE_DOCUMENTO,
+        form_data={},
+        selected_document_ids=[],
+        selected_profile_id=None,
+    )
+
+
+@router.get("/{generation_id}")
+async def generation_detail(
+    generation_id: int,
+    request: Request,
+    sucesso: str | None = None,
+    erro: str | None = None,
+    db: Session = Depends(get_db),
+):
+    geracao = buscar_geracao_por_id(db, generation_id)
+    if not geracao:
+        raise HTTPException(status_code=404, detail="Geração não encontrada.")
+
+    documento_ids = desserializar_ids_documentos(geracao.source_document_ids)
+    documentos_base = listar_documentos_por_ids(db, documento_ids)
+
+    return templates.TemplateResponse(
+        "generation_detail.html",
+        {
+            "request": request,
+            "geracao": _generation_to_dict(geracao),
+            "documentos_base": documentos_base,
+            "sucesso": sucesso,
+            "erro": erro,
+        },
+    )
+
+
+@router.get("/{generation_id}/edit")
+async def edit_generation_form(
+    generation_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    geracao = buscar_geracao_por_id(db, generation_id)
+    if not geracao:
+        raise HTTPException(status_code=404, detail="Geração não encontrada.")
+
+    documentos = listar_documentos(db)
+    perfis = listar_perfis_escrita(db)
+
+    form_data = {
+        "client_name": geracao.client_name,
+        "document_type": geracao.document_type,
+        "case_subject": geracao.case_subject,
+        "facts": geracao.facts,
+        "requests": geracao.requests,
+        "legal_basis": geracao.legal_basis,
+    }
+
+    return _render_generation_form(
+        request,
+        documentos=documentos,
+        perfis=perfis,
+        tipos_de_documento=TIPOS_DE_DOCUMENTO,
+        form_data=form_data,
+        selected_document_ids=desserializar_ids_documentos(geracao.source_document_ids),
+        selected_profile_id=geracao.writing_profile_id,
+        modo_edicao=True,
+        geracao=geracao,
+    )
+
+
+@router.get("/{generation_id}/duplicate")
+async def duplicate_generation_form(
+    generation_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    geracao = buscar_geracao_por_id(db, generation_id)
+    if not geracao:
+        raise HTTPException(status_code=404, detail="Geração não encontrada.")
+
+    documentos = listar_documentos(db)
+    perfis = listar_perfis_escrita(db)
+
+    form_data = {
+        "client_name": geracao.client_name,
+        "document_type": geracao.document_type,
+        "case_subject": geracao.case_subject,
+        "facts": geracao.facts,
+        "requests": geracao.requests,
+        "legal_basis": geracao.legal_basis,
+    }
+
+    return _render_generation_form(
+        request,
+        documentos=documentos,
+        perfis=perfis,
+        tipos_de_documento=TIPOS_DE_DOCUMENTO,
+        form_data=form_data,
+        selected_document_ids=desserializar_ids_documentos(geracao.source_document_ids),
+        selected_profile_id=geracao.writing_profile_id,
+        duplicate_mode=True,
+        duplicate_source_id=geracao.id,
+    )
+
+
+@router.post("/create")
+async def create_generation(
+    request: Request,
+    client_name: str = Form(...),
+    document_type: str = Form(...),
+    case_subject: str = Form(...),
+    facts: str = Form(...),
+    requests: str = Form(...),
+    legal_basis: str = Form(""),
+    document_ids: list[str] | None = Form(None),
+    writing_profile_id: str | None = Form(None),
+    duplicate_mode: str | None = Form(None),
+    duplicate_source_id: str | None = Form(None),
+    db: Session = Depends(get_db),
+):
+    documentos = listar_documentos(db)
+    perfis = listar_perfis_escrita(db)
+
+    selected_document_ids = _to_int_list(document_ids)
+
+    selected_profile_id = None
+    if writing_profile_id and str(writing_profile_id).strip():
+        try:
+            selected_profile_id = int(writing_profile_id)
+        except ValueError:
+            selected_profile_id = None
+
+    duplicate_mode_bool = str(duplicate_mode or "").strip().lower() == "true"
+
+    duplicate_source_id_int = None
+    if duplicate_source_id and str(duplicate_source_id).strip():
+        try:
+            duplicate_source_id_int = int(duplicate_source_id)
+        except ValueError:
+            duplicate_source_id_int = None
 
     form_data = {
         "client_name": client_name,
@@ -81,250 +351,15 @@ def _extrair_dados_formulario(form) -> tuple[dict, int | None, list[int]]:
         "legal_basis": legal_basis,
     }
 
-    return form_data, selected_profile_id, selected_document_ids
-
-
-def _obter_form_data_da_geracao(geracao) -> dict:
-    return {
-        "client_name": geracao.client_name,
-        "document_type": geracao.document_type,
-        "case_subject": geracao.case_subject,
-        "facts": geracao.facts,
-        "requests": geracao.requests,
-        "legal_basis": geracao.legal_basis or "",
-    }
-
-
-def _montar_contexto_completo(perfil_escrita, documentos_selecionados: list) -> str:
-    contexto_documental = montar_contexto_documental(documentos_selecionados)
-    contexto_perfil = montar_contexto_perfil_escrita(perfil_escrita)
-
-    return (
-        f"{contexto_perfil}\n\n"
-        f"{'=' * 70}\n\n"
-        f"{contexto_documental}"
-    )
-
-
-def _montar_item_lista_geracao(geracao) -> dict:
-    perfil = geracao.writing_profile
-    document_ids = desserializar_ids_documentos(geracao.source_document_ids)
-
-    return {
-        "id": geracao.id,
-        "client_name": geracao.client_name,
-        "document_type": geracao.document_type,
-        "case_subject": geracao.case_subject,
-        "facts_preview": resumir_texto(geracao.facts, 160),
-        "requests_preview": resumir_texto(geracao.requests, 160),
-        "generated_text_preview": resumir_texto(geracao.generated_text, 260),
-        "created_at": geracao.created_at,
-        "updated_at": geracao.updated_at,
-        "writing_profile_name": perfil.profile_name if perfil else "Sem perfil",
-        "document_count": len(document_ids),
-        "is_pinned": bool(geracao.is_pinned),
-    }
-
-
-def _render_generation_form(
-    request: Request,
-    *,
-    documentos,
-    perfis,
-    tipos_de_documento,
-    error_message: str | None,
-    form_data: dict,
-    selected_document_ids: list[int],
-    selected_profile_id: int | None,
-    modo_edicao: bool,
-    geracao=None,
-    success_message: str | None = None,
-    duplicate_mode: bool = False,
-    duplicate_source_id: int | None = None,
-):
-    return templates.TemplateResponse(
-        "generation_create.html",
-        {
-            "request": request,
-            "title": "Editar geração jurídica" if modo_edicao else "Nova geração jurídica",
-            "documentos": documentos,
-            "perfis": perfis,
-            "tipos_de_documento": tipos_de_documento,
-            "error_message": error_message,
-            "form_data": form_data,
-            "selected_document_ids": selected_document_ids,
-            "selected_profile_id": selected_profile_id,
-            "sucesso": success_message or request.query_params.get("sucesso"),
-            "erro": request.query_params.get("erro"),
-            "modo_edicao": modo_edicao,
-            "geracao": geracao,
-            "templates_juridicos": listar_templates_juridicos_prontos(),
-            "duplicate_mode": duplicate_mode,
-            "duplicate_source_id": duplicate_source_id,
-        },
-    )
-
-
-@router.get("/")
-def generations_list(request: Request, db: Session = Depends(get_db)):
-    search_term = str(request.query_params.get("search", "")).strip()
-    client_name = str(request.query_params.get("client_name", "")).strip()
-    case_subject = str(request.query_params.get("case_subject", "")).strip()
-    document_type = str(request.query_params.get("document_type", "")).strip()
-    created_from = str(request.query_params.get("created_from", "")).strip()
-    created_to = str(request.query_params.get("created_to", "")).strip()
-    sort_by = str(request.query_params.get("sort_by", "updated_desc")).strip() or "updated_desc"
-
-    writing_profile_id, sem_perfil, writing_profile_value = _parse_writing_profile_filter(
-        request.query_params.get("writing_profile_id")
-    )
-
-    geracoes = listar_geracoes(
-        db,
-        search_term=search_term,
-        client_name=client_name,
-        case_subject=case_subject,
-        document_type=document_type,
-        writing_profile_id=writing_profile_id,
-        sem_perfil=sem_perfil,
-        created_from=created_from,
-        created_to=created_to,
-        sort_by=sort_by,
-    )
-
-    geracoes_view = [_montar_item_lista_geracao(geracao) for geracao in geracoes]
-    perfis = listar_perfis(db)
-
-    filtros = {
-        "search": search_term,
-        "client_name": client_name,
-        "case_subject": case_subject,
-        "document_type": document_type,
-        "writing_profile_id": writing_profile_value,
-        "created_from": created_from,
-        "created_to": created_to,
-        "sort_by": sort_by,
-    }
-
-    total_filtros_ativos = sum(
-        1
-        for valor in [
-            filtros["search"],
-            filtros["client_name"],
-            filtros["case_subject"],
-            filtros["document_type"],
-            filtros["writing_profile_id"],
-            filtros["created_from"],
-            filtros["created_to"],
-            filtros["sort_by"] if filtros["sort_by"] != "updated_desc" else "",
-        ]
-        if valor
-    )
-
-    ordenacoes = {
-        "updated_desc": "Mais recentemente atualizadas",
-        "updated_asc": "Menos recentemente atualizadas",
-        "created_desc": "Mais recentes primeiro",
-        "created_asc": "Mais antigas primeiro",
-        "client_name_asc": "Cliente (A-Z)",
-        "client_asc": "Cliente (A-Z)",
-        "client_desc": "Cliente (Z-A)",
-    }
-
-    return templates.TemplateResponse(
-        "generations_list.html",
-        {
-            "request": request,
-            "geracoes": geracoes_view,
-            "perfis": perfis,
-            "filtros": filtros,
-            "ordenacoes": ordenacoes,
-            "total_resultados": len(geracoes_view),
-            "total_filtros_ativos": total_filtros_ativos,
-            "sucesso": request.query_params.get("sucesso"),
-            "erro": request.query_params.get("erro"),
-        },
-    )
-
-
-@router.post("/{generation_id}/toggle-pin")
-def toggle_pin_generation(generation_id: int, request: Request, db: Session = Depends(get_db)):
-    geracao = toggle_fixacao_geracao(db, generation_id)
-
-    if not geracao:
-        return RedirectResponse(
-            url=f"/generations?erro={quote('Geração não encontrada.')}",
-            status_code=303,
-        )
-
-    mensagem = "Geração fixada com sucesso." if geracao.is_pinned else "Geração desfixada com sucesso."
-    destino = request.headers.get("referer") or "/generations"
-    separador = "&" if "?" in destino else "?"
-
-    return RedirectResponse(
-        url=f"{destino}{separador}sucesso={quote(mensagem)}",
-        status_code=303,
-    )
-
-
-@router.get("/create")
-def create_generation_page(request: Request, db: Session = Depends(get_db)):
-    documentos = listar_documentos(db)
-    perfis = listar_perfis(db)
-
-    selected_profile_id = None
-    form_data = {}
-    selected_document_ids = []
-    success_message = None
-    duplicate_mode = False
-    duplicate_source_id = None
-
-    duplicate_from = str(request.query_params.get("duplicate_from", "")).strip()
-    if duplicate_from.isdigit():
-        geracao_origem = buscar_geracao_por_id(db, int(duplicate_from))
-        if geracao_origem:
-            form_data = _obter_form_data_da_geracao(geracao_origem)
-            selected_document_ids = desserializar_ids_documentos(geracao_origem.source_document_ids)
-            selected_profile_id = geracao_origem.writing_profile_id
-            success_message = (
-                f"Base da geração #{geracao_origem.id} carregada. "
-                f"Revise os dados e clique em 'Duplicar e regenerar'."
-            )
-            duplicate_mode = True
-            duplicate_source_id = geracao_origem.id
-
-    return _render_generation_form(
-        request,
-        documentos=documentos,
-        perfis=perfis,
-        tipos_de_documento=TIPOS_DE_DOCUMENTO,
-        error_message=None,
-        form_data=form_data,
-        selected_document_ids=selected_document_ids,
-        selected_profile_id=selected_profile_id,
-        modo_edicao=False,
-        geracao=None,
-        success_message=success_message,
-        duplicate_mode=duplicate_mode,
-        duplicate_source_id=duplicate_source_id,
-    )
-
-
-@router.post("/create")
-async def create_generation(request: Request, db: Session = Depends(get_db)):
-    form = await request.form()
-
-    form_data, selected_profile_id, selected_document_ids = _extrair_dados_formulario(form)
-
-    documentos = listar_documentos(db)
-    perfis = listar_perfis(db)
-
-    duplicate_source_id_raw = str(form.get("duplicate_source_id", "")).strip()
-    duplicate_source_id = int(duplicate_source_id_raw) if duplicate_source_id_raw.isdigit() else None
-    duplicate_mode = duplicate_source_id is not None
-
     try:
-        dados_validados = validar_dados_geracao(**form_data)
+        dados_validados = validar_dados_geracao(
+            client_name=client_name,
+            document_type=document_type,
+            case_subject=case_subject,
+            facts=facts,
+            requests=requests,
+            legal_basis=legal_basis,
+        )
     except ValueError as exc:
         return _render_generation_form(
             request,
@@ -337,8 +372,8 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
             selected_profile_id=selected_profile_id,
             modo_edicao=False,
             geracao=None,
-            duplicate_mode=duplicate_mode,
-            duplicate_source_id=duplicate_source_id,
+            duplicate_mode=duplicate_mode_bool,
+            duplicate_source_id=duplicate_source_id_int,
         )
 
     documentos_selecionados = listar_documentos_por_ids(db, selected_document_ids)
@@ -347,7 +382,16 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
     if selected_profile_id is not None:
         perfil_escrita = buscar_perfil_por_id(db, selected_profile_id)
 
-    context_used = _montar_contexto_completo(perfil_escrita, documentos_selecionados)
+    context_used = montar_contexto_inteligente(
+        client_name=dados_validados["client_name"],
+        document_type=dados_validados["document_type"],
+        case_subject=dados_validados["case_subject"],
+        facts=dados_validados["facts"],
+        requests=dados_validados["requests"],
+        legal_basis=dados_validados["legal_basis"],
+        writing_profile=perfil_escrita,
+        documentos_selecionados=documentos_selecionados,
+    )
 
     generated_text = gerar_rascunho_juridico(
         client_name=dados_validados["client_name"],
@@ -357,6 +401,8 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
         requests=dados_validados["requests"],
         legal_basis=dados_validados["legal_basis"],
         context_used=context_used,
+        writing_profile=perfil_escrita,
+        documentos_selecionados=documentos_selecionados,
     )
 
     nova_geracao = criar_geracao(
@@ -373,8 +419,8 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
         source_document_ids=serializar_ids_documentos(selected_document_ids),
     )
 
-    if duplicate_mode and duplicate_source_id is not None:
-        mensagem_sucesso = f"Geração #{duplicate_source_id} duplicada e regenerada com sucesso."
+    if duplicate_mode_bool and duplicate_source_id_int is not None:
+        mensagem_sucesso = f"Geração #{duplicate_source_id_int} duplicada e regenerada com sucesso."
     else:
         mensagem_sucesso = "Geração criada com sucesso."
 
@@ -384,94 +430,54 @@ async def create_generation(request: Request, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/{generation_id}")
-def generation_detail(generation_id: int, request: Request, db: Session = Depends(get_db)):
+@router.post("/{generation_id}/edit")
+async def edit_generation(
+    generation_id: int,
+    request: Request,
+    client_name: str = Form(...),
+    document_type: str = Form(...),
+    case_subject: str = Form(...),
+    facts: str = Form(...),
+    requests: str = Form(...),
+    legal_basis: str = Form(""),
+    document_ids: list[str] | None = Form(None),
+    writing_profile_id: str | None = Form(None),
+    db: Session = Depends(get_db),
+):
     geracao = buscar_geracao_por_id(db, generation_id)
-
     if not geracao:
-        raise HTTPException(status_code=404, detail="Geração não encontrada")
+        raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
-    document_ids = desserializar_ids_documentos(geracao.source_document_ids)
-    documentos = listar_documentos_por_ids(db, document_ids)
+    documentos = listar_documentos(db)
+    perfis = listar_perfis_escrita(db)
 
-    geracao_view = {
-        "id": geracao.id,
-        "client_name": geracao.client_name,
-        "document_type": geracao.document_type,
-        "case_subject": geracao.case_subject,
-        "facts": geracao.facts,
-        "requests": geracao.requests,
-        "legal_basis": geracao.legal_basis,
-        "generated_text": geracao.generated_text,
-        "context_used": geracao.context_used,
-        "created_at": geracao.created_at,
-        "updated_at": geracao.updated_at,
-        "writing_profile_name": geracao.writing_profile.profile_name if geracao.writing_profile else "Sem perfil",
-        "documentos": documentos,
-        "document_count": len(document_ids),
-        "is_pinned": bool(geracao.is_pinned),
+    selected_document_ids = _to_int_list(document_ids)
+
+    selected_profile_id = None
+    if writing_profile_id and str(writing_profile_id).strip():
+        try:
+            selected_profile_id = int(writing_profile_id)
+        except ValueError:
+            selected_profile_id = None
+
+    form_data = {
+        "client_name": client_name,
+        "document_type": document_type,
+        "case_subject": case_subject,
+        "facts": facts,
+        "requests": requests,
+        "legal_basis": legal_basis,
     }
 
-    return templates.TemplateResponse(
-        "generation_detail.html",
-        {
-            "request": request,
-            "geracao": geracao_view,
-            "documentos_base": documentos,
-            "sucesso": request.query_params.get("sucesso"),
-            "erro": request.query_params.get("erro"),
-        },
-    )
-
-
-@router.get("/{generation_id}/edit")
-def edit_generation_page(generation_id: int, request: Request, db: Session = Depends(get_db)):
-    geracao = buscar_geracao_por_id(db, generation_id)
-
-    if not geracao:
-        return RedirectResponse(
-            url=f"/generations?erro={quote('Geração não encontrada para edição.')}",
-            status_code=303,
-        )
-
-    documentos = listar_documentos(db)
-    perfis = listar_perfis(db)
-    selected_document_ids = desserializar_ids_documentos(geracao.source_document_ids)
-    form_data = _obter_form_data_da_geracao(geracao)
-
-    return _render_generation_form(
-        request,
-        documentos=documentos,
-        perfis=perfis,
-        tipos_de_documento=TIPOS_DE_DOCUMENTO,
-        error_message=None,
-        form_data=form_data,
-        selected_document_ids=selected_document_ids,
-        selected_profile_id=geracao.writing_profile_id,
-        modo_edicao=True,
-        geracao=geracao,
-    )
-
-
-@router.post("/{generation_id}/edit")
-async def edit_generation(generation_id: int, request: Request, db: Session = Depends(get_db)):
-    geracao = buscar_geracao_por_id(db, generation_id)
-
-    if not geracao:
-        return RedirectResponse(
-            url=f"/generations?erro={quote('Geração não encontrada para edição.')}",
-            status_code=303,
-        )
-
-    form = await request.form()
-
-    form_data, selected_profile_id, selected_document_ids = _extrair_dados_formulario(form)
-
-    documentos = listar_documentos(db)
-    perfis = listar_perfis(db)
-
     try:
-        dados_validados = validar_dados_geracao(**form_data)
+        dados_validados = validar_dados_geracao(
+            client_name=client_name,
+            document_type=document_type,
+            case_subject=case_subject,
+            facts=facts,
+            requests=requests,
+            legal_basis=legal_basis,
+        )
     except ValueError as exc:
         return _render_generation_form(
             request,
@@ -492,7 +498,16 @@ async def edit_generation(generation_id: int, request: Request, db: Session = De
     if selected_profile_id is not None:
         perfil_escrita = buscar_perfil_por_id(db, selected_profile_id)
 
-    context_used = _montar_contexto_completo(perfil_escrita, documentos_selecionados)
+    context_used = montar_contexto_inteligente(
+        client_name=dados_validados["client_name"],
+        document_type=dados_validados["document_type"],
+        case_subject=dados_validados["case_subject"],
+        facts=dados_validados["facts"],
+        requests=dados_validados["requests"],
+        legal_basis=dados_validados["legal_basis"],
+        writing_profile=perfil_escrita,
+        documentos_selecionados=documentos_selecionados,
+    )
 
     generated_text = gerar_rascunho_juridico(
         client_name=dados_validados["client_name"],
@@ -502,6 +517,8 @@ async def edit_generation(generation_id: int, request: Request, db: Session = De
         requests=dados_validados["requests"],
         legal_basis=dados_validados["legal_basis"],
         context_used=context_used,
+        writing_profile=perfil_escrita,
+        documentos_selecionados=documentos_selecionados,
     )
 
     atualizar_geracao(
@@ -530,13 +547,10 @@ async def save_generation_text(generation_id: int, request: Request, db: Session
     geracao = buscar_geracao_por_id(db, generation_id)
 
     if not geracao:
-        return RedirectResponse(
-            url=f"/generations?erro={quote('Geração não encontrada.')}",
-            status_code=303,
-        )
+        raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
     form = await request.form()
-    generated_text = str(form.get("generated_text", "")).strip()
+    generated_text = str(form.get("generated_text") or "").strip()
 
     if not generated_text:
         return RedirectResponse(
@@ -545,10 +559,8 @@ async def save_generation_text(generation_id: int, request: Request, db: Session
         )
 
     geracao.generated_text = generated_text
-    geracao.updated_at = agora_brasil()
     db.add(geracao)
     db.commit()
-    db.refresh(geracao)
 
     return RedirectResponse(
         url=f"/generations/{generation_id}?sucesso={quote('Versão ajustada salva com sucesso.')}",
@@ -556,56 +568,141 @@ async def save_generation_text(generation_id: int, request: Request, db: Session
     )
 
 
-@router.get("/{generation_id}/duplicate")
-def duplicate_generation_flow(generation_id: int, db: Session = Depends(get_db)):
-    geracao = buscar_geracao_por_id(db, generation_id)
-
-    if not geracao:
-        return RedirectResponse(
-            url=f"/generations?erro={quote('Geração não encontrada para duplicação.')}",
-            status_code=303,
-        )
-
-    return RedirectResponse(
-        url=f"/generations/create?duplicate_from={generation_id}",
-        status_code=303,
-    )
-
-
 @router.post("/{generation_id}/delete")
-def delete_generation(generation_id: int, db: Session = Depends(get_db)):
+async def delete_generation(generation_id: int, db: Session = Depends(get_db)):
     geracao = buscar_geracao_por_id(db, generation_id)
-
     if not geracao:
-        return RedirectResponse(
-            url=f"/generations?erro={quote('Geração não encontrada para exclusão.')}",
-            status_code=303,
-        )
+        raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
-    excluir_geracao(db, generation_id)
-
+    excluir_geracao(db, geracao)
     return RedirectResponse(
         url=f"/generations?sucesso={quote('Geração excluída com sucesso.')}",
         status_code=303,
     )
 
 
-@router.get("/{generation_id}/download-docx")
-def download_generation_docx(generation_id: int, db: Session = Depends(get_db)):
+@router.post("/{generation_id}/toggle-pin")
+async def toggle_pin_generation(generation_id: int, db: Session = Depends(get_db)):
     geracao = buscar_geracao_por_id(db, generation_id)
-
     if not geracao:
-        raise HTTPException(status_code=404, detail="Geração não encontrada")
+        raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
-    arquivo = gerar_docx_da_geracao(geracao)
-    nome_arquivo = f"geracao_juridica_{geracao.id}.docx"
+    geracao = alternar_fixacao_geracao(db, geracao)
 
-    headers = {
-        "Content-Disposition": f'attachment; filename="{nome_arquivo}"'
+    mensagem = "Geração fixada com sucesso." if geracao.is_pinned else "Geração desfixada com sucesso."
+
+    return RedirectResponse(
+        url=f"/generations?sucesso={quote(mensagem)}",
+        status_code=303,
+    )
+
+
+@router.post("/apply-template")
+async def apply_template_to_generation_form(
+    request: Request,
+    document_type: str = Form(...),
+    client_name: str = Form(""),
+    writing_profile_id: str | None = Form(None),
+    document_ids: list[str] | None = Form(None),
+    duplicate_mode: str | None = Form(None),
+    duplicate_source_id: str | None = Form(None),
+    db: Session = Depends(get_db),
+):
+    documentos = listar_documentos(db)
+    perfis = listar_perfis_escrita(db)
+
+    selected_document_ids = _to_int_list(document_ids)
+
+    selected_profile_id = None
+    if writing_profile_id and str(writing_profile_id).strip():
+        try:
+            selected_profile_id = int(writing_profile_id)
+        except ValueError:
+            selected_profile_id = None
+
+    duplicate_mode_bool = str(duplicate_mode or "").strip().lower() == "true"
+
+    duplicate_source_id_int = None
+    if duplicate_source_id and str(duplicate_source_id).strip():
+        try:
+            duplicate_source_id_int = int(duplicate_source_id)
+        except ValueError:
+            duplicate_source_id_int = None
+
+    form_data = {
+        "client_name": client_name,
+        "document_type": document_type,
+        "case_subject": "",
+        "facts": "",
+        "requests": "",
+        "legal_basis": "",
     }
 
+    try:
+        dados_template = aplicar_template_juridico_pronto(document_type)
+        form_data.update(
+            {
+                "document_type": dados_template["document_type"],
+                "case_subject": dados_template["case_subject"],
+                "facts": dados_template["facts"],
+                "requests": dados_template["requests"],
+                "legal_basis": dados_template["legal_basis"],
+            }
+        )
+    except ValueError as exc:
+        return _render_generation_form(
+            request,
+            documentos=documentos,
+            perfis=perfis,
+            tipos_de_documento=TIPOS_DE_DOCUMENTO,
+            error_message=str(exc),
+            form_data=form_data,
+            selected_document_ids=selected_document_ids,
+            selected_profile_id=selected_profile_id,
+            duplicate_mode=duplicate_mode_bool,
+            duplicate_source_id=duplicate_source_id_int,
+        )
+
+    return _render_generation_form(
+        request,
+        documentos=documentos,
+        perfis=perfis,
+        tipos_de_documento=TIPOS_DE_DOCUMENTO,
+        form_data=form_data,
+        selected_document_ids=selected_document_ids,
+        selected_profile_id=selected_profile_id,
+        duplicate_mode=duplicate_mode_bool,
+        duplicate_source_id=duplicate_source_id_int,
+    )
+
+
+@router.get("/{generation_id}/download-docx")
+async def download_generation_docx(generation_id: int, db: Session = Depends(get_db)):
+    geracao = buscar_geracao_por_id(db, generation_id)
+    if not geracao:
+        raise HTTPException(status_code=404, detail="Geração não encontrada.")
+
+    arquivo = gerar_docx_da_geracao(geracao)
+    nome_arquivo = f"geracao_{geracao.id}.docx"
+
     return Response(
-        content=arquivo.getvalue(),
+        content=arquivo,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers=headers,
+        headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},
+    )
+
+
+@router.get("/{generation_id}/download-txt")
+async def download_generation_txt(generation_id: int, db: Session = Depends(get_db)):
+    geracao = buscar_geracao_por_id(db, generation_id)
+    if not geracao:
+        raise HTTPException(status_code=404, detail="Geração não encontrada.")
+
+    arquivo = gerar_txt_da_geracao(geracao)
+    nome_arquivo = f"geracao_{geracao.id}.txt"
+
+    return Response(
+        content=arquivo,
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},
     )
