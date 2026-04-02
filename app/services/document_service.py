@@ -6,6 +6,15 @@ from app.models.document import Document
 from app.schemas.document import DocumentCreate
 
 
+ORDENACOES_DOCUMENTOS = {
+    "recentes": "Mais recentes primeiro",
+    "antigos": "Mais antigos primeiro",
+    "nome_az": "Nome (A-Z)",
+    "nome_za": "Nome (Z-A)",
+    "tipo_az": "Tipo (A-Z)",
+}
+
+
 def criar_documento(db: Session, document_data: DocumentCreate) -> Document:
     documento = Document(
         original_filename=document_data.original_filename,
@@ -48,6 +57,16 @@ def listar_documentos_por_ids(db: Session, document_ids: list[int]) -> list[Docu
 
 def buscar_documento_por_id(db: Session, document_id: int) -> Document | None:
     return db.query(Document).filter(Document.id == document_id).first()
+
+
+def excluir_documento(db: Session, documento: Document) -> None:
+    caminho = obter_path_documento(documento)
+
+    if caminho.exists():
+        caminho.unlink()
+
+    db.delete(documento)
+    db.commit()
 
 
 def montar_dados_documento(

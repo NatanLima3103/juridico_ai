@@ -2101,3 +2101,60 @@ button.botao,
     flex-direction: column;
     gap: 6px;
 }
+.barra-acoes-tabela {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.barra-acoes-tabela form {
+    margin: 0;
+}
+
+.bloco-filtros-documentos {
+    margin-bottom: 20px;
+}
+
+.grid-filtros-documentos {
+    grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+}
+
+.painel-resumo-documentos {
+    margin-top: 18px;
+}
+
+.tabela-documentos {
+    min-width: 1040px;
+}
+
+.documento-celula-principal {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 260px;
+}
+
+.documento-nome {
+    color: #0f172a;
+    word-break: break-word;
+}
+
+.documento-resumo {
+    max-width: 360px;
+    line-height: 1.55;
+}
+
+.barra-acoes-documentos {
+    min-width: 250px;
+}
+
+.botao-perigo-tabela {
+    padding: 11px 16px;
+}
+
+@media (max-width: 900px) {
+    .grid-filtros-documentos {
+        grid-template-columns: 1fr;
+    }
+}

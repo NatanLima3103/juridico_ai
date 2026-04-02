@@ -1,16 +1,18 @@
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.core.config import MAX_UPLOAD_SIZE_MB, TEMPLATES_DIR
 from app.database import get_db
 from app.services.document_service import (
+    ORDENACOES_DOCUMENTOS,
     buscar_documento_por_id,
     contar_caracteres_texto,
     contar_palavras_texto,
     criar_documento,
     documento_existe,
+    excluir_documento,
     formatar_tamanho_arquivo,
     listar_documentos,
     montar_dados_documento,
@@ -116,7 +118,12 @@ async def upload_document(
 
 
 @router.get("/", response_class=HTMLResponse)
-def documents_list(request: Request, db: Session = Depends(get_db)):
+def documents_list(
+    request: Request,
+    q: str = Query(""),
+    sort: str = Query("recentes"),
+    db: Session = Depends(get_db),
+):
     documentos = listar_documentos(db)
 
     documentos_view = []
@@ -137,6 +144,49 @@ def documents_list(request: Request, db: Session = Depends(get_db)):
             }
         )
 
+    busca = (q or "").strip().lower()
+    sort = sort if sort in ORDENACOES_DOCUMENTOS else "recentes"
+
+    if busca:
+        documentos_view = [
+            documento
+            for documento in documentos_view
+            if busca in (documento["original_filename"] or "").lower()
+            or busca in (documento["saved_filename"] or "").lower()
+            or busca in (documento["file_type"] or "").lower()
+            or busca in (documento["text_preview"] or "").lower()
+        ]
+
+    if sort == "antigos":
+        documentos_view.sort(
+            key=lambda documento: documento["created_at"] or "",
+        )
+    elif sort == "nome_az":
+        documentos_view.sort(
+            key=lambda documento: (documento["original_filename"] or "").lower(),
+        )
+    elif sort == "nome_za":
+        documentos_view.sort(
+            key=lambda documento: (documento["original_filename"] or "").lower(),
+            reverse=True,
+        )
+    elif sort == "tipo_az":
+        documentos_view.sort(
+            key=lambda documento: (
+                (documento["file_type"] or "").lower(),
+                (documento["original_filename"] or "").lower(),
+            ),
+        )
+    else:
+        documentos_view.sort(
+            key=lambda documento: documento["created_at"] or "",
+            reverse=True,
+        )
+
+    total_documentos = len(documentos)
+    total_resultados = len(documentos_view)
+    total_filtros_ativos = int(bool(busca)) + int(sort != "recentes")
+
     return templates.TemplateResponse(
         "documents_list.html",
         {
@@ -145,8 +195,40 @@ def documents_list(request: Request, db: Session = Depends(get_db)):
             "documentos": documentos_view,
             "sucesso": request.query_params.get("sucesso"),
             "erro": request.query_params.get("erro"),
+            "filtros": {"q": q, "sort": sort},
+            "ordenacoes": ORDENACOES_DOCUMENTOS,
+            "total_documentos": total_documentos,
+            "total_resultados": total_resultados,
+            "total_filtros_ativos": total_filtros_ativos,
         },
     )
+
+
+@router.post("/{document_id}/delete")
+def delete_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+):
+    documento = buscar_documento_por_id(db, document_id)
+
+    if not documento:
+        return RedirectResponse(
+            url="/documents?erro=Documento+não+encontrado.",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    try:
+        nome_documento = documento.original_filename
+        excluir_documento(db, documento)
+        return RedirectResponse(
+            url=f"/documents?sucesso=Documento+%27{nome_documento}%27+excluído+com+sucesso.",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    except Exception:
+        return RedirectResponse(
+            url="/documents?erro=Não+foi+possível+excluir+o+documento.",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
 
 
 @router.get("/{document_id}", response_class=HTMLResponse)

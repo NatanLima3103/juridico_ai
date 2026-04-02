@@ -9,7 +9,7 @@
             <span class="etiqueta-secao">Documentos</span>
             <h2>Documentos enviados</h2>
             <p class="texto-suave">
-                Aqui você pode acompanhar os arquivos já enviados, abrir os detalhes e baixar o documento original.
+                Organize sua base jurídica com mais praticidade, usando busca, ordenação e ações rápidas.
             </p>
         </div>
         <div class="acoes-topo">
@@ -40,17 +40,110 @@
         </div>
     {% endif %}
 
+    <section class="bloco-informativo bloco-filtros-avancados bloco-filtros-documentos">
+        <div class="bloco-informativo-topo bloco-informativo-topo-entre-linhas">
+            <div>
+                <h3>Busca e organização</h3>
+                <p class="texto-suave">
+                    Pesquise por nome, tipo ou trecho do conteúdo extraído e ordene os documentos da forma que preferir.
+                </p>
+            </div>
+
+            <span class="badge badge-neutro">
+                {{ total_resultados }} resultado(s)
+            </span>
+        </div>
+
+        <form method="get" action="/documents" class="formulario-geracao formulario-filtros-avancados formulario-filtros-documentos">
+            <div class="grid-filtros-avancados grid-filtros-documentos">
+                <div>
+                    <label for="q">Busca</label>
+                    <input
+                        type="text"
+                        id="q"
+                        name="q"
+                        value="{{ filtros.q }}"
+                        placeholder="Pesquisar por nome do arquivo, tipo ou trecho do texto"
+                    >
+                </div>
+
+                <div>
+                    <label for="sort">Ordenação</label>
+                    <select id="sort" name="sort">
+                        {% for chave, descricao in ordenacoes.items() %}
+                            <option value="{{ chave }}" {% if filtros.sort == chave %}selected{% endif %}>
+                                {{ descricao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="acoes-formulario-geracao">
+                <a class="botao botao-secundario" href="/documents">
+                    <span class="icone-botao" aria-hidden="true">↺</span>
+                    Limpar
+                </a>
+
+                <button type="submit" class="botao">
+                    <span class="icone-botao" aria-hidden="true">🔎</span>
+                    Aplicar
+                </button>
+            </div>
+        </form>
+
+        {% if total_filtros_ativos > 0 %}
+            <div class="filtros-ativos-wrap">
+                <span class="info-label">Filtros ativos</span>
+                <div class="chips-filtros-ativos">
+                    {% if filtros.q %}
+                        <span class="chip-filtro">Busca: {{ filtros.q }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="painel-resumo-geracao painel-resumo-sem-inline painel-resumo-documentos">
+            <div class="info-box">
+                <span class="info-label">Total cadastrado</span>
+                <span class="info-value">{{ total_documentos }}</span>
+            </div>
+
+            <div class="info-box">
+                <span class="info-label">Resultados exibidos</span>
+                <span class="info-value">{{ total_resultados }}</span>
+            </div>
+
+            <div class="info-box">
+                <span class="info-label">Filtros ativos</span>
+                <span class="info-value">{{ total_filtros_ativos }}</span>
+            </div>
+
+            <div class="info-box info-box-largo">
+                <span class="info-label">Estado da listagem</span>
+                <span class="info-value">
+                    {% if filtros.q %}
+                        A listagem está filtrada conforme a busca informada.
+                    {% elif filtros.sort != "recentes" %}
+                        A listagem está organizada conforme a ordenação selecionada.
+                    {% else %}
+                        Exibindo todos os documentos cadastrados na base.
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </section>
+
     {% if documentos %}
         <div class="tabela-responsiva">
-            <table class="tabela">
+            <table class="tabela tabela-documentos">
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Arquivo original</th>
-                        <th>Nome salvo</th>
+                        <th>Documento</th>
                         <th>Tipo</th>
                         <th>Tamanho</th>
-                        <th>Texto</th>
+                        <th>Texto extraído</th>
                         <th>Data</th>
                         <th>Status</th>
                         <th>Ações</th>
@@ -61,11 +154,15 @@
                     <tr>
                         <td>#{{ documento.id }}</td>
                         <td>
-                            <strong>{{ documento.original_filename }}</strong>
-                            <div class="texto-pequeno">{{ documento.text_preview }}</div>
+                            <div class="documento-celula-principal">
+                                <strong class="documento-nome">{{ documento.original_filename }}</strong>
+                                <span class="texto-pequeno">Salvo como: {{ documento.saved_filename }}</span>
+                                <div class="texto-pequeno documento-resumo">{{ documento.text_preview }}</div>
+                            </div>
                         </td>
-                        <td>{{ documento.saved_filename }}</td>
-                        <td>{{ documento.file_type }}</td>
+                        <td>
+                            <span class="badge badge-neutro">{{ documento.file_type }}</span>
+                        </td>
                         <td>{{ documento.file_size_label }}</td>
                         <td>
                             {{ documento.text_length }} caracteres
@@ -80,17 +177,36 @@
                             {% endif %}
                         </td>
                         <td>
-                            <div class="barra-acoes-tabela">
+                            <div class="barra-acoes-tabela barra-acoes-documentos">
                                 <a class="botao botao-secundario" href="/documents/{{ documento.id }}">
                                     <span class="icone-botao" aria-hidden="true">👁</span>
                                     Detalhes
                                 </a>
+
                                 {% if documento.file_exists %}
                                     <a class="botao" href="/documents/{{ documento.id }}/download">
                                         <span class="icone-botao" aria-hidden="true">↓</span>
                                         Baixar
                                     </a>
                                 {% endif %}
+
+                                <form
+                                    action="/documents/{{ documento.id }}/delete"
+                                    method="post"
+                                    data-loading-form
+                                    data-confirm-action
+                                    data-confirm-title="Excluir documento"
+                                    data-confirm-message="Tem certeza que deseja excluir este documento? Essa ação removerá o arquivo da base e não poderá ser desfeita."
+                                    data-confirm-submit-label="Excluir documento"
+                                    data-confirm-submit-icon='<span class="icone-botao" aria-hidden="true">🗑</span>'
+                                    data-loading-message="Excluindo documento..."
+                                    data-loading-button-text="Excluindo..."
+                                >
+                                    <button type="submit" class="botao-perigo botao-perigo-tabela">
+                                        <span class="icone-botao" aria-hidden="true">🗑</span>
+                                        Excluir
+                                    </button>
+                                </form>
                             </div>
                         </td>
                     </tr>
@@ -101,14 +217,24 @@
     {% else %}
         <div class="estado-vazio">
             <div class="estado-vazio-icone" aria-hidden="true">📁</div>
-            <h3>Nenhum documento foi enviado ainda</h3>
-            <p>Envie o primeiro documento para começar a montar sua base jurídica.</p>
-            <div class="estado-vazio-acoes">
-                <a class="botao" href="/documents/upload">
-                    <span class="icone-botao" aria-hidden="true">↑</span>
-                    Enviar primeiro documento
-                </a>
-            </div>
+            <h3>Nenhum documento encontrado</h3>
+            {% if total_documentos > 0 %}
+                <p>Tente ajustar a busca ou limpar os filtros para visualizar novamente todos os documentos.</p>
+                <div class="estado-vazio-acoes">
+                    <a class="botao botao-secundario" href="/documents">
+                        <span class="icone-botao" aria-hidden="true">↺</span>
+                        Limpar filtros
+                    </a>
+                </div>
+            {% else %}
+                <p>Envie o primeiro documento para começar a montar sua base jurídica.</p>
+                <div class="estado-vazio-acoes">
+                    <a class="botao" href="/documents/upload">
+                        <span class="icone-botao" aria-hidden="true">↑</span>
+                        Enviar primeiro documento
+                    </a>
+                </div>
+            {% endif %}
         </div>
     {% endif %}
 </section>
