@@ -13,7 +13,6 @@ from app.services.generation_service import (
     buscar_geracao_por_id,
     criar_geracao,
     desserializar_ids_documentos,
-    duplicar_geracao,
     excluir_geracao,
     gerar_docx_da_geracao,
     gerar_rascunho_juridico,
@@ -36,6 +35,16 @@ router = APIRouter(prefix="/generations", tags=["Generations"])
 templates = Jinja2Templates(directory="app/templates")
 
 
+ORDENACOES_GERACOES = {
+    "updated_desc": "Atualização (mais recente primeiro)",
+    "updated_asc": "Atualização (mais antiga primeiro)",
+    "created_desc": "Criação (mais recente primeiro)",
+    "created_asc": "Criação (mais antiga primeiro)",
+    "client_asc": "Cliente (A-Z)",
+    "client_desc": "Cliente (Z-A)",
+}
+
+
 def _to_int_list(values: list[str] | None) -> list[int]:
     ids: list[int] = []
     for value in values or []:
@@ -48,8 +57,46 @@ def _to_int_list(values: list[str] | None) -> list[int]:
     return ids
 
 
+def _resumir_texto(texto: str | None, limite: int = 140) -> str:
+    texto_limpo = " ".join((texto or "").split())
+
+    if not texto_limpo:
+        return "—"
+
+    if len(texto_limpo) <= limite:
+        return texto_limpo
+
+    return texto_limpo[:limite].rstrip(" .,;:") + "..."
+
+
+def _contar_filtros_ativos(filtros: dict) -> int:
+    total = 0
+
+    if filtros.get("search_term"):
+        total += 1
+    if filtros.get("document_type"):
+        total += 1
+    if filtros.get("writing_profile_id"):
+        total += 1
+    if filtros.get("sem_perfil"):
+        total += 1
+    if filtros.get("client_name"):
+        total += 1
+    if filtros.get("case_subject"):
+        total += 1
+    if filtros.get("created_from"):
+        total += 1
+    if filtros.get("created_to"):
+        total += 1
+    if filtros.get("sort_by", "updated_desc") != "updated_desc":
+        total += 1
+
+    return total
+
+
 def _generation_to_dict(geracao):
     perfil = geracao.writing_profile
+    document_ids = desserializar_ids_documentos(geracao.source_document_ids)
 
     return {
         "id": geracao.id,
@@ -67,14 +114,26 @@ def _generation_to_dict(geracao):
         "is_pinned": bool(geracao.is_pinned),
         "created_at": geracao.created_at,
         "updated_at": geracao.updated_at,
+        "document_count": len(document_ids),
+        "facts_preview": _resumir_texto(geracao.facts, 180),
+        "requests_preview": _resumir_texto(geracao.requests, 180),
+        "generated_text_preview": _resumir_texto(geracao.generated_text, 220),
     }
 
 
 def _serialize_filters_for_template(filtros: dict) -> dict:
+    if filtros.get("sem_perfil"):
+        writing_profile_id = "none"
+    elif filtros.get("writing_profile_id"):
+        writing_profile_id = str(filtros.get("writing_profile_id"))
+    else:
+        writing_profile_id = ""
+
     return {
+        "search": filtros.get("search_term", ""),
         "search_term": filtros.get("search_term", ""),
         "document_type": filtros.get("document_type", ""),
-        "writing_profile_id": filtros.get("writing_profile_id"),
+        "writing_profile_id": writing_profile_id,
         "sem_perfil": bool(filtros.get("sem_perfil")),
         "client_name": filtros.get("client_name", ""),
         "case_subject": filtros.get("case_subject", ""),
@@ -149,21 +208,36 @@ def _render_generation_form(
 @router.get("")
 async def list_generations(
     request: Request,
+    search: str = "",
     search_term: str = "",
     document_type: str = "",
-    writing_profile_id: int | None = None,
-    sem_perfil: bool = False,
+    writing_profile_id: str = "",
     client_name: str = "",
     case_subject: str = "",
     created_from: str = "",
     created_to: str = "",
     sort_by: str = "updated_desc",
+    sucesso: str | None = None,
+    erro: str | None = None,
     db: Session = Depends(get_db),
 ):
+    termo_busca = (search or search_term or "").strip()
+
+    sem_perfil = False
+    profile_id_int: int | None = None
+
+    if writing_profile_id == "none":
+        sem_perfil = True
+    elif writing_profile_id:
+        try:
+            profile_id_int = int(writing_profile_id)
+        except ValueError:
+            profile_id_int = None
+
     filtros = normalizar_filtros_listagem(
-        search_term=search_term,
+        search_term=termo_busca,
         document_type=document_type,
-        writing_profile_id=writing_profile_id,
+        writing_profile_id=profile_id_int,
         sem_perfil=sem_perfil,
         client_name=client_name,
         case_subject=case_subject,
@@ -177,6 +251,8 @@ async def list_generations(
 
     geracoes_template = [_generation_to_dict(geracao) for geracao in geracoes]
     filtros_template = _serialize_filters_for_template(filtros)
+    total_resultados = len(geracoes_template)
+    total_filtros_ativos = _contar_filtros_ativos(filtros)
 
     return templates.TemplateResponse(
         "generations_list.html",
@@ -186,6 +262,11 @@ async def list_generations(
             "perfis": perfis,
             "tipos_de_documento": TIPOS_DE_DOCUMENTO,
             "filtros": filtros_template,
+            "ordenacoes": ORDENACOES_GERACOES,
+            "total_resultados": total_resultados,
+            "total_filtros_ativos": total_filtros_ativos,
+            "sucesso": sucesso,
+            "erro": erro,
         },
     )
 
@@ -602,6 +683,10 @@ async def apply_template_to_generation_form(
     request: Request,
     document_type: str = Form(...),
     client_name: str = Form(""),
+    case_subject: str = Form(""),
+    facts: str = Form(""),
+    requests: str = Form(""),
+    legal_basis: str = Form(""),
     writing_profile_id: str | None = Form(None),
     document_ids: list[str] | None = Form(None),
     duplicate_mode: str | None = Form(None),
@@ -632,10 +717,10 @@ async def apply_template_to_generation_form(
     form_data = {
         "client_name": client_name,
         "document_type": document_type,
-        "case_subject": "",
-        "facts": "",
-        "requests": "",
-        "legal_basis": "",
+        "case_subject": case_subject,
+        "facts": facts,
+        "requests": requests,
+        "legal_basis": legal_basis,
     }
 
     try:

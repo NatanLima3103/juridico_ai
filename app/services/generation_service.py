@@ -185,6 +185,16 @@ TEMPLATES_JURIDICOS_PRONTOS = {'Petição inicial': {'titulo': 'Modelo base para
 def listar_templates_juridicos_prontos() -> dict:
     return TEMPLATES_JURIDICOS_PRONTOS
 
+def resumir_texto(texto: str | None, limite: int = 80) -> str:
+    texto_limpo = " ".join((texto or "").split())
+
+    if not texto_limpo:
+        return "—"
+
+    if len(texto_limpo) <= limite:
+        return texto_limpo
+
+    return texto_limpo[:limite].rstrip(" .,;:") + "..."
 
 def agora_brasil():
     if ZoneInfo is not None:

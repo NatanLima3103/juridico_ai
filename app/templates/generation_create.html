@@ -69,36 +69,29 @@
             </div>
 
             <div class="acoes-formulario-geracao">
-                <form method="post" action="/generations/apply-template">
-                    <input type="hidden" name="client_name" value="{{ form_data.client_name or '' }}">
-                    <input type="hidden" name="writing_profile_id" value="{{ selected_profile_id or '' }}">
-                    {% if duplicate_mode %}
-                        <input type="hidden" name="duplicate_mode" value="true">
-                        <input type="hidden" name="duplicate_source_id" value="{{ duplicate_source_id }}">
-                    {% endif %}
-                    {% for document_id in selected_document_ids %}
-                        <input type="hidden" name="document_ids" value="{{ document_id }}">
-                    {% endfor %}
+                <div class="campo-formulario">
+                    <label for="document_type_template">Tipo de documento</label>
+                    <select id="document_type_template" name="document_type" required>
+                        <option value="">Selecione</option>
+                        {% for tipo in tipos_de_documento %}
+                            <option value="{{ tipo }}" {% if form_data.document_type == tipo %}selected{% endif %}>
+                                {{ tipo }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-                    <div class="campo-formulario">
-                        <label for="document_type_template">Tipo de documento</label>
-                        <select id="document_type_template" name="document_type" required>
-                            <option value="">Selecione</option>
-                            {% for tipo in tipos_de_documento %}
-                                <option value="{{ tipo }}" {% if form_data.document_type == tipo %}selected{% endif %}>
-                                    {{ tipo }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="acoes-formulario-geracao" style="margin-top: 14px;">
-                        <button type="submit" class="botao botao-secundario">
-                            <span class="icone-botao" aria-hidden="true">⚡</span>
-                            Aplicar template pronto
-                        </button>
-                    </div>
-                </form>
+                <div class="acoes-formulario-geracao" style="margin-top: 14px;">
+                    <button
+                        type="submit"
+                        class="botao botao-secundario"
+                        formaction="/generations/apply-template"
+                        formmethod="post"
+                    >
+                        <span class="icone-botao" aria-hidden="true">⚡</span>
+                        Aplicar template pronto
+                    </button>
+                </div>
             </div>
         </section>
 
