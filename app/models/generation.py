@@ -29,20 +29,32 @@ class Generation(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     client_name = Column(Text, nullable=False)
-    document_type = Column(Text, nullable=False)
-    case_subject = Column(Text, nullable=False)
+    document_type = Column(Text, nullable=False, index=True)
+    case_subject = Column(Text, nullable=False, index=True)
     facts = Column(Text, nullable=False)
     requests = Column(Text, nullable=False)
     legal_basis = Column(Text, nullable=True)
     context_used = Column(Text, nullable=False)
     generated_text = Column(Text, nullable=False)
+
+    # Mantido temporariamente como texto para não quebrar o projeto atual
     source_document_ids = Column(Text, nullable=True)
 
-    writing_profile_id = Column(Integer, ForeignKey("writing_profiles.id"), nullable=True)
-    writing_profile = relationship("WritingProfile", back_populates="generations")
+    writing_profile_id = Column(
+        Integer,
+        ForeignKey("writing_profiles.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    writing_profile = relationship(
+        "WritingProfile",
+        back_populates="generations",
+        passive_deletes=True,
+    )
 
     is_pinned = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=agora_brasil, nullable=False)
+    created_at = Column(DateTime, default=agora_brasil, nullable=False, index=True)
     updated_at = Column(DateTime, default=agora_brasil, onupdate=agora_brasil, nullable=False)
 
     @property
@@ -50,3 +62,6 @@ class Generation(Base):
         if self.writing_profile:
             return self.writing_profile.profile_name
         return "Sem perfil"
+
+    def __repr__(self) -> str:
+        return f"<Generation id={self.id} client_name='{self.client_name}'>"

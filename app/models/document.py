@@ -8,9 +8,12 @@ class Document(Base):
     __tablename__ = "documents"
 
     id = Column(Integer, primary_key=True, index=True)
-    original_filename = Column(String(255), nullable=False)
+    original_filename = Column(String(255), nullable=False, index=True)
     saved_filename = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False)
-    file_type = Column(String(20), nullable=False)
+    file_type = Column(String(20), nullable=False, index=True)
     extracted_text = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<Document id={self.id} original_filename='{self.original_filename}'>"

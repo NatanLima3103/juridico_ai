@@ -7,8 +7,16 @@ connect_args = {}
 if DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_engine(
+    DATABASE_URL,
+    connect_args=connect_args,
+)
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)
 
 Base = declarative_base()
 
@@ -20,10 +28,14 @@ def _sqlite_column_exists(connection, table_name: str, column_name: str) -> bool
 
 
 def ensure_database_schema() -> None:
-    inspector = inspect(engine)
-
+    """
+    Ajustes incrementais de schema para SQLite sem quebrar bancos já existentes.
+    Mantém compatibilidade com o estágio atual do projeto.
+    """
     if not DATABASE_URL.startswith("sqlite"):
         return
+
+    inspector = inspect(engine)
 
     ajustes = {
         "generations": {

@@ -9,7 +9,7 @@ class WritingProfile(Base):
     __tablename__ = "writing_profiles"
 
     id = Column(Integer, primary_key=True, index=True)
-    profile_name = Column(String(150), nullable=False)
+    profile_name = Column(String(150), nullable=False, index=True)
     lawyer_name = Column(String(150), nullable=True)
     office_name = Column(String(200), nullable=True)
 
@@ -48,6 +48,13 @@ class WritingProfile(Base):
     is_active = Column(Boolean, default=False, nullable=False)
     is_pinned = Column(Boolean, default=False, nullable=False)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    generations = relationship("Generation", back_populates="writing_profile")
+    generations = relationship(
+        "Generation",
+        back_populates="writing_profile",
+        passive_deletes=True,
+    )
+
+    def __repr__(self) -> str:
+        return f"<WritingProfile id={self.id} profile_name='{self.profile_name}'>"
