@@ -96,7 +96,7 @@ def _contar_filtros_ativos(filtros: dict) -> int:
 
 def _generation_to_dict(geracao):
     perfil = geracao.writing_profile
-    document_ids = desserializar_ids_documentos(geracao.source_document_ids)
+    document_ids = geracao.document_ids
 
     return {
         "id": geracao.id,
@@ -302,7 +302,7 @@ async def generation_detail(
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
-    documento_ids = desserializar_ids_documentos(geracao.source_document_ids)
+    documento_ids = geracao.document_ids
     documentos_base = listar_documentos_por_ids(db, documento_ids)
 
     return templates.TemplateResponse(
@@ -345,7 +345,7 @@ async def edit_generation_form(
         perfis=perfis,
         tipos_de_documento=TIPOS_DE_DOCUMENTO,
         form_data=form_data,
-        selected_document_ids=desserializar_ids_documentos(geracao.source_document_ids),
+        selected_document_ids=geracao.document_ids,
         selected_profile_id=geracao.writing_profile_id,
         modo_edicao=True,
         geracao=geracao,
@@ -380,7 +380,7 @@ async def duplicate_generation_form(
         perfis=perfis,
         tipos_de_documento=TIPOS_DE_DOCUMENTO,
         form_data=form_data,
-        selected_document_ids=desserializar_ids_documentos(geracao.source_document_ids),
+        selected_document_ids=geracao.document_ids,
         selected_profile_id=geracao.writing_profile_id,
         duplicate_mode=True,
         duplicate_source_id=geracao.id,

@@ -13,6 +13,7 @@ from docx.shared import Pt
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.document import Document
 from app.models.generation import Generation
 from app.services.llm_service import gerar_texto_juridico_com_fallback
 from app.services.prompt_service import build_advanced_prompt, build_smart_context
@@ -339,6 +340,21 @@ def criar_geracao(
     writing_profile_id: int | None = None,
     source_document_ids: str | None = None,
 ) -> Generation:
+    document_ids = desserializar_ids_documentos(source_document_ids)
+    documentos_relacionados = []
+    if document_ids:
+        documentos_relacionados = (
+            db.query(Document)
+            .filter(Document.id.in_(document_ids))
+            .all()
+        )
+        documentos_por_id = {documento.id: documento for documento in documentos_relacionados}
+        documentos_relacionados = [
+            documentos_por_id[document_id]
+            for document_id in document_ids
+            if document_id in documentos_por_id
+        ]
+
     nova_geracao = Generation(
         client_name=client_name,
         document_type=document_type,
@@ -349,9 +365,10 @@ def criar_geracao(
         context_used=context_used,
         generated_text=generated_text,
         writing_profile_id=writing_profile_id,
-        source_document_ids=source_document_ids,
+        source_document_ids=serializar_ids_documentos([documento.id for documento in documentos_relacionados]),
         updated_at=agora_brasil(),
     )
+    nova_geracao.documents = documentos_relacionados
 
     db.add(nova_geracao)
     db.commit()
@@ -373,6 +390,21 @@ def atualizar_geracao(
     writing_profile_id: int | None = None,
     source_document_ids: str | None = None,
 ) -> Generation:
+    document_ids = desserializar_ids_documentos(source_document_ids)
+    documentos_relacionados = []
+    if document_ids:
+        documentos_relacionados = (
+            db.query(Document)
+            .filter(Document.id.in_(document_ids))
+            .all()
+        )
+        documentos_por_id = {documento.id: documento for documento in documentos_relacionados}
+        documentos_relacionados = [
+            documentos_por_id[document_id]
+            for document_id in document_ids
+            if document_id in documentos_por_id
+        ]
+
     geracao.client_name = client_name
     geracao.document_type = document_type
     geracao.case_subject = case_subject
@@ -382,7 +414,8 @@ def atualizar_geracao(
     geracao.context_used = context_used
     geracao.generated_text = generated_text
     geracao.writing_profile_id = writing_profile_id
-    geracao.source_document_ids = source_document_ids
+    geracao.documents = documentos_relacionados
+    geracao.source_document_ids = serializar_ids_documentos([documento.id for documento in documentos_relacionados])
     geracao.updated_at = agora_brasil()
 
     db.add(geracao)
@@ -394,7 +427,7 @@ def atualizar_geracao(
 def buscar_geracao_por_id(db: Session, generation_id: int) -> Generation | None:
     return (
         db.query(Generation)
-        .options(joinedload(Generation.writing_profile))
+        .options(joinedload(Generation.writing_profile), joinedload(Generation.documents))
         .filter(Generation.id == generation_id)
         .first()
     )
@@ -406,7 +439,7 @@ def listar_geracoes(
 ):
     filtros = filtros or {}
 
-    query = db.query(Generation).options(joinedload(Generation.writing_profile))
+    query = db.query(Generation).options(joinedload(Generation.writing_profile), joinedload(Generation.documents))
 
     search_term = filtros.get("search_term")
     if search_term:
@@ -495,10 +528,11 @@ def duplicar_geracao(
         context_used=geracao_origem.context_used,
         generated_text=geracao_origem.generated_text,
         writing_profile_id=geracao_origem.writing_profile_id,
-        source_document_ids=geracao_origem.source_document_ids,
+        source_document_ids=serializar_ids_documentos(geracao_origem.document_ids),
         is_pinned=False,
         updated_at=agora_brasil(),
     )
+    nova_geracao.documents = list(geracao_origem.documents)
 
     db.add(nova_geracao)
     db.commit()

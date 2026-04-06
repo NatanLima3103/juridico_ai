@@ -6,7 +6,7 @@ except ImportError:
     ZoneInfo = None
     ZoneInfoNotFoundError = Exception
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Table, Text
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -24,6 +24,24 @@ def agora_brasil():
     return datetime.now()
 
 
+generation_documents = Table(
+    "generation_documents",
+    Base.metadata,
+    Column(
+        "generation_id",
+        Integer,
+        ForeignKey("generations.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "document_id",
+        Integer,
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+
 class Generation(Base):
     __tablename__ = "generations"
 
@@ -37,7 +55,8 @@ class Generation(Base):
     context_used = Column(Text, nullable=False)
     generated_text = Column(Text, nullable=False)
 
-    # Mantido temporariamente como texto para não quebrar o projeto atual
+    # Mantido temporariamente como texto para compatibilidade com bancos já existentes.
+    # A relação oficial com documentos agora é feita por generation_documents.
     source_document_ids = Column(Text, nullable=True)
 
     writing_profile_id = Column(
@@ -53,6 +72,13 @@ class Generation(Base):
         passive_deletes=True,
     )
 
+    documents = relationship(
+        "Document",
+        secondary=generation_documents,
+        back_populates="generations",
+        passive_deletes=True,
+    )
+
     is_pinned = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=agora_brasil, nullable=False, index=True)
     updated_at = Column(DateTime, default=agora_brasil, onupdate=agora_brasil, nullable=False)
@@ -62,6 +88,28 @@ class Generation(Base):
         if self.writing_profile:
             return self.writing_profile.profile_name
         return "Sem perfil"
+
+    @property
+    def document_ids(self) -> list[int]:
+        if self.documents:
+            return [document.id for document in self.documents if getattr(document, "id", None) is not None]
+
+        if not self.source_document_ids:
+            return []
+
+        ids: list[int] = []
+        for parte in self.source_document_ids.split(","):
+            valor = (parte or "").strip()
+            if not valor:
+                continue
+            try:
+                numero = int(valor)
+            except ValueError:
+                continue
+            if numero not in ids:
+                ids.append(numero)
+
+        return ids
 
     def __repr__(self) -> str:
         return f"<Generation id={self.id} client_name='{self.client_name}'>"
