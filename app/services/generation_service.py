@@ -185,6 +185,7 @@ TEMPLATES_JURIDICOS_PRONTOS = {'Petição inicial': {'titulo': 'Modelo base para
 def listar_templates_juridicos_prontos() -> dict:
     return TEMPLATES_JURIDICOS_PRONTOS
 
+
 def resumir_texto(texto: str | None, limite: int = 80) -> str:
     texto_limpo = " ".join((texto or "").split())
 
@@ -195,6 +196,7 @@ def resumir_texto(texto: str | None, limite: int = 80) -> str:
         return texto_limpo
 
     return texto_limpo[:limite].rstrip(" .,;:") + "..."
+
 
 def agora_brasil():
     if ZoneInfo is not None:
@@ -531,15 +533,18 @@ def montar_contexto_documentos(documentos_selecionados: list) -> str:
 
     blocos = []
     for documento in documentos_selecionados:
-        resumo = (documento.summary or "").strip()
-        texto_extraido = (documento.extracted_text or "").strip()
+        resumo = (getattr(documento, "summary", "") or "").strip()
+        texto_extraido = (getattr(documento, "extracted_text", "") or "").strip()
+        nome_arquivo = getattr(documento, "original_filename", "Documento sem nome")
+        tipo_arquivo = getattr(documento, "file_type", "arquivo")
+        documento_id = getattr(documento, "id", "?")
 
         conteudo = resumo or texto_extraido or "Documento sem conteúdo textual extraído."
         if len(conteudo) > 600:
             conteudo = conteudo[:600].rstrip() + "..."
 
         blocos.append(
-            f"Documento #{documento.id} - {documento.original_filename} ({documento.file_type})\n"
+            f"Documento #{documento_id} - {nome_arquivo} ({tipo_arquivo})\n"
             f"{conteudo}"
         )
 
@@ -648,8 +653,9 @@ def _coletar_trechos_documentais(documentos_selecionados: list | None, limite: i
 
     trechos = []
     for documento in documentos_selecionados[:limite]:
-        resumo = (documento.summary or "").strip()
-        texto_extraido = (documento.extracted_text or "").strip()
+        resumo = (getattr(documento, "summary", "") or "").strip()
+        texto_extraido = (getattr(documento, "extracted_text", "") or "").strip()
+        nome_arquivo = getattr(documento, "original_filename", "Documento sem nome")
 
         base = resumo or texto_extraido
         if not base:
@@ -657,7 +663,7 @@ def _coletar_trechos_documentais(documentos_selecionados: list | None, limite: i
 
         frase = _primeira_frase(base, 220)
         if frase:
-            trechos.append(f"- {documento.original_filename}: {frase}")
+            trechos.append(f"- {nome_arquivo}: {frase}")
 
     return trechos
 

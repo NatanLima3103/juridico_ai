@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", function () {
     inicializarLoading();
     inicializarConfirmacoes();
     inicializarTemplatesJuridicos();
+    inicializarCopiaTextoJuridico();
 });
 
 function inicializarSeletorDocumentos() {
@@ -300,4 +301,68 @@ function inicializarTemplatesJuridicos() {
 
     seletorTipo.addEventListener("change", atualizarPreview);
     atualizarPreview();
+}
+
+function inicializarCopiaTextoJuridico() {
+    const botaoCopiar = document.getElementById("botao-copiar-texto");
+    const campoTexto = document.getElementById("texto-juridico");
+    const mensagemCopia = document.getElementById("mensagem-copia");
+
+    if (!botaoCopiar || !campoTexto) {
+        return;
+    }
+
+    botaoCopiar.addEventListener("click", async function () {
+        const texto = String(campoTexto.value || "").trim();
+
+        if (!texto) {
+            if (mensagemCopia) {
+                mensagemCopia.textContent = "Não há texto para copiar.";
+            }
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(texto);
+
+            if (mensagemCopia) {
+                mensagemCopia.textContent = "Texto copiado com sucesso.";
+            }
+
+            const textoOriginalBotao = botaoCopiar.innerHTML;
+            botaoCopiar.innerHTML = '<span class="icone-botao" aria-hidden="true">✓</span> Copiado';
+
+            window.setTimeout(function () {
+                botaoCopiar.innerHTML = textoOriginalBotao;
+            }, 1600);
+
+            if (mensagemCopia) {
+                window.setTimeout(function () {
+                    mensagemCopia.textContent = "";
+                }, 2200);
+            }
+        } catch (error) {
+            console.error("Erro ao copiar o texto jurídico:", error);
+
+            campoTexto.focus();
+            campoTexto.select();
+
+            try {
+                const copiou = document.execCommand("copy");
+
+                if (copiou) {
+                    if (mensagemCopia) {
+                        mensagemCopia.textContent = "Texto copiado com sucesso.";
+                    }
+                    return;
+                }
+            } catch (erroFallback) {
+                console.error("Erro no fallback de cópia:", erroFallback);
+            }
+
+            if (mensagemCopia) {
+                mensagemCopia.textContent = "Não foi possível copiar o texto automaticamente.";
+            }
+        }
+    });
 }
