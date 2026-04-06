@@ -681,7 +681,7 @@ async def toggle_pin_generation(generation_id: int, db: Session = Depends(get_db
 @router.post("/apply-template")
 async def apply_template_to_generation_form(
     request: Request,
-    document_type: str = Form(...),
+    template_document_type: str = Form(...),
     client_name: str = Form(""),
     case_subject: str = Form(""),
     facts: str = Form(""),
@@ -716,7 +716,7 @@ async def apply_template_to_generation_form(
 
     form_data = {
         "client_name": client_name,
-        "document_type": document_type,
+        "document_type": template_document_type,
         "case_subject": case_subject,
         "facts": facts,
         "requests": requests,
@@ -724,7 +724,7 @@ async def apply_template_to_generation_form(
     }
 
     try:
-        dados_template = aplicar_template_juridico_pronto(document_type)
+        dados_template = aplicar_template_juridico_pronto(template_document_type)
         form_data.update(
             {
                 "document_type": dados_template["document_type"],

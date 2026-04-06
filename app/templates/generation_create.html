@@ -71,7 +71,7 @@
             <div class="acoes-formulario-geracao">
                 <div class="campo-formulario">
                     <label for="document_type_template">Tipo de documento</label>
-                    <select id="document_type_template" name="document_type" required>
+                    <select id="document_type_template" name="template_document_type" required>
                         <option value="">Selecione</option>
                         {% for tipo in tipos_de_documento %}
                             <option value="{{ tipo }}" {% if form_data.document_type == tipo %}selected{% endif %}>
@@ -87,6 +87,7 @@
                         class="botao botao-secundario"
                         formaction="/generations/apply-template"
                         formmethod="post"
+                        formnovalidate
                     >
                         <span class="icone-botao" aria-hidden="true">⚡</span>
                         Aplicar template pronto
@@ -241,27 +242,58 @@
                 <span class="badge badge-neutro">7.10</span>
             </div>
 
-            <div class="lista-documentos-utilizados">
-                <div class="documento-utilizado-item">
-                    <strong>Contexto mais inteligente</strong>
-                    <span>Resumo do caso + perfil de escrita + trechos priorizados dos documentos base.</span>
+            {% if selected_document_ids %}
+                <div class="lista-checks-ia-real">
+                    <div class="check-ia-real">
+                        <span class="check-ia-real-icone">✓</span>
+                        <div>
+                            <strong>Documentos selecionados:</strong>
+                            {{ selected_document_ids|length }} documento(s) incluído(s) no contexto.
+                        </div>
+                    </div>
+
+                    {% if selected_profile_id %}
+                        <div class="check-ia-real">
+                            <span class="check-ia-real-icone">✓</span>
+                            <div>
+                                <strong>Perfil aplicado:</strong>
+                                a geração considerará o estilo do perfil selecionado.
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="check-ia-real">
+                            <span class="check-ia-real-icone">•</span>
+                            <div>
+                                <strong>Perfil não selecionado:</strong>
+                                a geração será criada com estilo padrão do sistema.
+                            </div>
+                        </div>
+                    {% endif %}
                 </div>
-                <div class="documento-utilizado-item">
-                    <strong>Prompt mais avançado</strong>
-                    <span>Estrutura pronta para ser enviada a um provedor real de IA futuramente.</span>
+            {% else %}
+                <div class="estado-vazio">
+                    <p>
+                        Nenhum documento foi selecionado ainda. Você pode gerar sem documentos, mas a IA terá menos contexto.
+                    </p>
                 </div>
-                <div class="documento-utilizado-item">
-                    <strong>Fallback preservado</strong>
-                    <span>A geração local continua funcionando normalmente até a integração real.</span>
-                </div>
-            </div>
+            {% endif %}
         </section>
 
-        <div class="acoes-formulario-geracao">
+        <div class="acoes-formulario">
             <button type="submit" class="botao">
-                <span class="icone-botao" aria-hidden="true">⚖</span>
-                {{ submit_label }}
+                {% if modo_edicao %}
+                    <span class="icone-botao" aria-hidden="true">💾</span>
+                    Salvar alterações
+                {% elif duplicate_mode %}
+                    <span class="icone-botao" aria-hidden="true">🧬</span>
+                    Duplicar e regenerar
+                {% else %}
+                    <span class="icone-botao" aria-hidden="true">✨</span>
+                    Gerar minuta
+                {% endif %}
             </button>
+
+            <a class="botao botao-secundario" href="/generations">Cancelar</a>
         </div>
     </form>
 </section>
