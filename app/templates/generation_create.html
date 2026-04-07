@@ -1,15 +1,25 @@
 {% extends "base.html" %}
 
-{% block title %}Nova geração{% endblock %}
+{% block title %}{{ title or "Nova geração" }}{% endblock %}
 
 {% block content %}
 <section class="card">
     <div class="cabecalho-pagina">
         <div>
-            <span class="etiqueta-secao">Nova geração</span>
-            <h2>Gerar minuta jurídica</h2>
+            <span class="etiqueta-secao">
+                {% if modo_edicao %}
+                    Edição da geração
+                {% elif duplicate_mode %}
+                    Duplicar e regenerar
+                {% else %}
+                    Nova geração
+                {% endif %}
+            </span>
+
+            <h2>{{ title or "Gerar minuta jurídica" }}</h2>
+
             <p class="texto-suave">
-                Preencha os dados principais do caso, selecione documentos base e, opcionalmente, organize a geração com tags, favorito e status.
+                {{ subtitle or "Preencha os dados principais do caso, selecione documentos base e utilize um template jurídico, se desejar." }}
             </p>
         </div>
 
@@ -21,6 +31,16 @@
         </div>
     </div>
 
+    {% if error_message %}
+        <div class="alerta alerta-erro" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Não foi possível continuar</span>
+                <p>{{ error_message }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
+    {% endif %}
+
     {% if erro %}
         <div class="alerta alerta-erro" data-alerta>
             <div class="alerta-conteudo">
@@ -31,14 +51,146 @@
         </div>
     {% endif %}
 
+    {% if sucesso %}
+        <div class="alerta alerta-sucesso" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Tudo certo</span>
+                <p>{{ sucesso }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
+    {% endif %}
+
     <form
         method="post"
-        action="/generations/create"
+        action="/generations/apply-template"
+        class="bloco-informativo"
+        style="margin-bottom: 24px;"
+    >
+        <div class="bloco-informativo-topo bloco-informativo-topo-entre-linhas">
+            <div>
+                <h3>Template jurídico pronto</h3>
+                <p class="texto-suave">
+                    Escolha um tipo de documento para preencher automaticamente assunto, fatos, pedidos e fundamentação inicial.
+                </p>
+            </div>
+
+            <span class="badge badge-neutro">
+                {{ templates_prontos|length if templates_prontos else 0 }} modelo(s)
+            </span>
+        </div>
+
+        <div class="grid-formulario" style="margin-top: 16px;">
+            <div>
+                <label for="template_document_type">Aplicar template por tipo</label>
+                <select id="template_document_type" name="template_document_type" required>
+                    <option value="">Selecione</option>
+                    {% for tipo in tipos_de_documento %}
+                        <option
+                            value="{{ tipo }}"
+                            {% if form_data and form_data.document_type == tipo %}selected{% endif %}
+                        >
+                            {{ tipo }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="campo-completo">
+                <div class="texto-pequeno" style="margin-top: 6px;">
+                    Ao aplicar o template, os campos de assunto, fatos, pedidos e fundamentação serão preenchidos com um modelo base do tipo selecionado.
+                </div>
+            </div>
+        </div>
+
+        {% if form_data %}
+            <input type="hidden" name="client_name" value="{{ form_data.client_name if form_data.client_name is defined else '' }}">
+            <input type="hidden" name="case_subject" value="{{ form_data.case_subject if form_data.case_subject is defined else '' }}">
+            <input type="hidden" name="facts" value="{{ form_data.facts if form_data.facts is defined else '' }}">
+            <input type="hidden" name="requests" value="{{ form_data.requests if form_data.requests is defined else '' }}">
+            <input type="hidden" name="legal_basis" value="{{ form_data.legal_basis if form_data.legal_basis is defined else '' }}">
+            <input type="hidden" name="tags" value="{{ form_data.tags if form_data.tags is defined else '' }}">
+            <input type="hidden" name="status" value="{{ form_data.status if form_data.status is defined else '' }}">
+        {% endif %}
+
+        {% if selected_profile_id %}
+            <input type="hidden" name="writing_profile_id" value="{{ selected_profile_id }}">
+        {% endif %}
+
+        {% for document_id in selected_document_ids %}
+            <input type="hidden" name="document_ids" value="{{ document_id }}">
+        {% endfor %}
+
+        {% if not modo_edicao and form_data and form_data.is_favorite %}
+            <input type="hidden" name="is_favorite" value="true">
+        {% endif %}
+
+        {% if duplicate_mode %}
+            <input type="hidden" name="duplicate_mode" value="true">
+        {% endif %}
+
+        {% if duplicate_source_id %}
+            <input type="hidden" name="duplicate_source_id" value="{{ duplicate_source_id }}">
+        {% endif %}
+
+        <div class="acoes-formulario-geracao" style="margin-top: 18px;">
+            <button type="submit" class="botao botao-secundario">
+                <span class="icone-botao" aria-hidden="true">📄</span>
+                Aplicar template
+            </button>
+        </div>
+
+        {% if form_data and form_data.document_type and templates_prontos and templates_prontos.get(form_data.document_type) %}
+            {% set template_atual = templates_prontos.get(form_data.document_type) %}
+            <div class="bloco-informativo" style="margin-top: 18px;">
+                <div class="bloco-informativo-topo">
+                    <div>
+                        <h3>{{ template_atual.titulo }}</h3>
+                        <p class="texto-suave">{{ template_atual.descricao }}</p>
+                    </div>
+                </div>
+
+                <div class="grid-formulario" style="margin-top: 12px;">
+                    <div class="campo-completo">
+                        <strong class="texto-pequeno">Assunto sugerido</strong>
+                        <div class="texto-pequeno" style="margin-top: 4px;">{{ template_atual.case_subject }}</div>
+                    </div>
+
+                    <div class="campo-completo">
+                        <strong class="texto-pequeno">Fatos sugeridos</strong>
+                        <div class="texto-pequeno" style="margin-top: 4px;">{{ template_atual.facts }}</div>
+                    </div>
+
+                    <div class="campo-completo">
+                        <strong class="texto-pequeno">Pedidos sugeridos</strong>
+                        <div class="texto-pequeno" style="margin-top: 4px; white-space: pre-line;">{{ template_atual.requests }}</div>
+                    </div>
+
+                    <div class="campo-completo">
+                        <strong class="texto-pequeno">Fundamentação sugerida</strong>
+                        <div class="texto-pequeno" style="margin-top: 4px;">{{ template_atual.legal_basis }}</div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </form>
+
+    <form
+        method="post"
+        action="{{ action_url or '/generations/create' }}"
         class="formulario-geracao"
         data-loading-form
-        data-loading-message="Gerando minuta jurídica..."
-        data-loading-button-text="Gerando..."
+        data-loading-message="{{ submit_loading_text or 'Gerando...' }}"
+        data-loading-button-text="{{ submit_loading_text or 'Gerando...' }}"
     >
+        {% if duplicate_mode %}
+            <input type="hidden" name="duplicate_mode" value="true">
+        {% endif %}
+
+        {% if duplicate_source_id %}
+            <input type="hidden" name="duplicate_source_id" value="{{ duplicate_source_id }}">
+        {% endif %}
+
         <div class="grid-formulario">
             <div>
                 <label for="client_name">Nome do cliente</label>
@@ -86,7 +238,7 @@
                     {% for perfil in perfis %}
                         <option
                             value="{{ perfil.id }}"
-                            {% if form_data and form_data.writing_profile_id == perfil.id|string %}selected{% endif %}
+                            {% if selected_profile_id == perfil.id %}selected{% endif %}
                         >
                             {{ perfil.profile_name }}
                         </option>
@@ -116,17 +268,19 @@
                 >
             </div>
 
-            <div class="campo-completo">
-                <label class="checkbox-label">
-                    <input
-                        type="checkbox"
-                        name="is_favorite"
-                        value="true"
-                        {% if form_data and form_data.is_favorite %}checked{% endif %}
-                    >
-                    Marcar esta geração como favorita
-                </label>
-            </div>
+            {% if not modo_edicao %}
+                <div class="campo-completo">
+                    <label class="checkbox-label">
+                        <input
+                            type="checkbox"
+                            name="is_favorite"
+                            value="true"
+                            {% if form_data and form_data.is_favorite %}checked{% endif %}
+                        >
+                        Marcar esta geração como favorita
+                    </label>
+                </div>
+            {% endif %}
 
             <div class="campo-completo">
                 <label for="facts">Fatos</label>
@@ -183,10 +337,11 @@
                                 type="checkbox"
                                 name="document_ids"
                                 value="{{ documento.id }}"
-                                {% if form_data and form_data.document_ids and (documento.id|string) in form_data.document_ids %}checked{% endif %}
+                                {% if documento.id in selected_document_ids %}checked{% endif %}
                             >
                             <div class="item-documento-selecao-conteudo">
                                 <strong>{{ documento.original_filename }}</strong>
+
                                 <div class="linha-badges" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px;">
                                     <span class="badge badge-neutro">{{ documento.file_type }}</span>
 
@@ -234,8 +389,10 @@
             </a>
 
             <button type="submit" class="botao">
-                <span class="icone-botao" aria-hidden="true">⚖</span>
-                Gerar minuta
+                <span class="icone-botao" aria-hidden="true">
+                    {% if modo_edicao %}💾{% elif duplicate_mode %}📄{% else %}⚖{% endif %}
+                </span>
+                {{ submit_label or "Gerar minuta" }}
             </button>
         </div>
     </form>

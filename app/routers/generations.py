@@ -164,6 +164,11 @@ def _render_generation_form(
     form_data = form_data or {}
     selected_document_ids = selected_document_ids or []
 
+    if selected_profile_id is not None:
+        form_data["writing_profile_id"] = str(selected_profile_id)
+
+    form_data["document_ids"] = [str(document_id) for document_id in selected_document_ids]
+
     if modo_edicao:
         title = "Editar geração"
         subtitle = "Atualize os dados e regenere a minuta mantendo a geração existente."
@@ -204,6 +209,8 @@ def _render_generation_form(
             "duplicate_mode": duplicate_mode,
             "duplicate_source_id": duplicate_source_id,
             "templates_prontos": listar_templates_juridicos_prontos(),
+            "sucesso": request.query_params.get("sucesso"),
+            "erro": request.query_params.get("erro"),
         },
     )
 
@@ -342,6 +349,7 @@ async def edit_generation_form(
         "legal_basis": geracao.legal_basis,
         "tags": geracao.tags or "",
         "status": geracao.status or "",
+        "is_favorite": bool(geracao.is_favorite),
     }
 
     return _render_generation_form(
@@ -379,6 +387,7 @@ async def duplicate_generation_form(
         "legal_basis": geracao.legal_basis,
         "tags": geracao.tags or "",
         "status": geracao.status or "",
+        "is_favorite": bool(geracao.is_favorite),
     }
 
     return _render_generation_form(
@@ -405,6 +414,7 @@ async def create_generation(
     legal_basis: str = Form(""),
     tags: str = Form(""),
     status_value: str = Form("", alias="status"),
+    is_favorite: str | None = Form(None),
     document_ids: list[str] | None = Form(None),
     writing_profile_id: str | None = Form(None),
     duplicate_mode: str | None = Form(None),
@@ -432,6 +442,8 @@ async def create_generation(
         except ValueError:
             duplicate_source_id_int = None
 
+    is_favorite_bool = str(is_favorite or "").strip().lower() == "true"
+
     form_data = {
         "client_name": client_name,
         "document_type": document_type,
@@ -441,6 +453,7 @@ async def create_generation(
         "legal_basis": legal_basis,
         "tags": tags,
         "status": status_value,
+        "is_favorite": is_favorite_bool,
     }
 
     try:
@@ -511,6 +524,7 @@ async def create_generation(
         source_document_ids=serializar_ids_documentos(selected_document_ids),
         tags=tags,
         status=status_value,
+        is_favorite=is_favorite_bool,
     )
 
     if duplicate_mode_bool and duplicate_source_id_int is not None:
@@ -565,6 +579,7 @@ async def edit_generation(
         "legal_basis": legal_basis,
         "tags": tags,
         "status": status_value,
+        "is_favorite": bool(geracao.is_favorite),
     }
 
     try:
@@ -728,6 +743,7 @@ async def apply_template_to_generation_form(
     legal_basis: str = Form(""),
     tags: str = Form(""),
     status_value: str = Form("", alias="status"),
+    is_favorite: str | None = Form(None),
     writing_profile_id: str | None = Form(None),
     document_ids: list[str] | None = Form(None),
     duplicate_mode: str | None = Form(None),
@@ -755,6 +771,8 @@ async def apply_template_to_generation_form(
         except ValueError:
             duplicate_source_id_int = None
 
+    is_favorite_bool = str(is_favorite or "").strip().lower() == "true"
+
     form_data = {
         "client_name": client_name,
         "document_type": template_document_type,
@@ -764,6 +782,7 @@ async def apply_template_to_generation_form(
         "legal_basis": legal_basis,
         "tags": tags,
         "status": status_value,
+        "is_favorite": is_favorite_bool,
     }
 
     try:
