@@ -48,6 +48,10 @@ class WritingProfile(Base):
     is_active = Column(Boolean, default=False, nullable=False)
     is_pinned = Column(Boolean, default=False, nullable=False)
 
+    tags = Column(Text, nullable=True)
+    is_favorite = Column(Boolean, default=False, nullable=False)
+    status = Column(String(100), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     generations = relationship(

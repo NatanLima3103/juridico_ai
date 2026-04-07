@@ -9,6 +9,9 @@ class DocumentBase(BaseModel):
     file_path: str
     file_type: str
     extracted_text: str
+    tags: str | None = None
+    is_favorite: bool = False
+    status: str | None = None
 
 
 class DocumentCreate(DocumentBase):

@@ -19,8 +19,9 @@ from app.services.writing_profile_service import (
     montar_resumo_perfil,
     normalizar_filtros_perfis,
     obter_ordenacoes_perfis,
-    toggle_fixacao_perfil,
     obter_tons_disponiveis,
+    toggle_favorito_perfil,
+    toggle_fixacao_perfil,
     validar_dados_perfil,
 )
 
@@ -107,6 +108,27 @@ def toggle_pin_profile(profile_id: int, request: Request, db: Session = Depends(
 
 
 @router.get("/create")
+@router.post("/{profile_id}/toggle-favorite")
+def toggle_favorite_profile(profile_id: int, request: Request, db: Session = Depends(get_db)):
+    perfil = toggle_favorito_perfil(db, profile_id)
+
+    if not perfil:
+        return RedirectResponse(
+            url=f"/writing-profiles?erro={quote('Perfil não encontrado.')}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    mensagem = "Perfil favoritado com sucesso." if perfil.is_favorite else "Perfil removido dos favoritos com sucesso."
+    destino = request.headers.get("referer") or "/writing-profiles"
+    separador = "&" if "?" in destino else "?"
+
+    return RedirectResponse(
+        url=f"{destino}{separador}sucesso={quote(mensagem)}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.get("/create")
 def exibir_formulario_perfil(request: Request):
     return templates.TemplateResponse(
         "writing_profile_form.html",
@@ -133,6 +155,8 @@ def criar_perfil_page(
     closing_phrase: str = Form(""),
     legal_style_notes: str = Form(""),
     recurring_expressions: str = Form(""),
+    tags: str = Form(""),
+    status_value: str = Form("", alias="status"),
     db: Session = Depends(get_db),
 ):
     try:
@@ -147,6 +171,8 @@ def criar_perfil_page(
             closing_phrase=closing_phrase,
             legal_style_notes=legal_style_notes,
             recurring_expressions=recurring_expressions,
+            tags=tags,
+            status=status_value,
         )
 
         payload = WritingProfileCreate(**dados)
@@ -174,6 +200,8 @@ def criar_perfil_page(
                     "closing_phrase": closing_phrase,
                     "legal_style_notes": legal_style_notes,
                     "recurring_expressions": recurring_expressions,
+                    "tags": tags,
+                    "status": status_value,
                 },
                 "modo_edicao": False,
                 "perfil_id": None,
@@ -212,6 +240,8 @@ def exibir_formulario_edicao_perfil(
                 "closing_phrase": perfil.closing_phrase or "",
                 "legal_style_notes": perfil.legal_style_notes or "",
                 "recurring_expressions": perfil.recurring_expressions or "",
+                "tags": perfil.tags or "",
+                "status": perfil.status or "",
             },
             "modo_edicao": True,
             "perfil_id": perfil.id,
@@ -233,6 +263,8 @@ def editar_perfil_page(
     closing_phrase: str = Form(""),
     legal_style_notes: str = Form(""),
     recurring_expressions: str = Form(""),
+    tags: str = Form(""),
+    status_value: str = Form("", alias="status"),
     db: Session = Depends(get_db),
 ):
     perfil = buscar_perfil_por_id(db, profile_id)
@@ -255,6 +287,8 @@ def editar_perfil_page(
             closing_phrase=closing_phrase,
             legal_style_notes=legal_style_notes,
             recurring_expressions=recurring_expressions,
+            tags=tags,
+            status=status_value,
         )
 
         payload = WritingProfileCreate(**dados)
@@ -282,6 +316,8 @@ def editar_perfil_page(
                     "closing_phrase": closing_phrase,
                     "legal_style_notes": legal_style_notes,
                     "recurring_expressions": recurring_expressions,
+                    "tags": tags,
+                    "status": status_value,
                 },
                 "modo_edicao": True,
                 "perfil_id": profile_id,

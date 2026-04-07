@@ -118,6 +118,8 @@ def validar_dados_perfil(
     closing_phrase: str = "",
     legal_style_notes: str = "",
     recurring_expressions: str = "",
+    tags: str = "",
+    status: str = "",
 ) -> dict[str, str]:
     profile_name = _normalizar_texto(profile_name)
     tone = _normalizar_texto(tone)
@@ -129,6 +131,8 @@ def validar_dados_perfil(
     closing_phrase = _normalizar_texto(closing_phrase)
     legal_style_notes = _normalizar_texto(legal_style_notes)
     recurring_expressions = _normalizar_texto(recurring_expressions)
+    tags = _normalizar_texto(tags)
+    status = _normalizar_texto(status)
 
     if not profile_name:
         raise ValueError("Informe o nome do perfil.")
@@ -151,6 +155,8 @@ def validar_dados_perfil(
         "closing_phrase": closing_phrase,
         "legal_style_notes": legal_style_notes,
         "recurring_expressions": recurring_expressions,
+        "tags": tags,
+        "status": status,
     }
 
 
@@ -166,6 +172,9 @@ def criar_perfil(db: Session, payload: WritingProfileCreate) -> WritingProfile:
         closing_phrase=_normalizar_texto(payload.closing_phrase),
         legal_style_notes=_normalizar_texto(payload.legal_style_notes),
         recurring_expressions=_normalizar_texto(payload.recurring_expressions),
+        tags=_normalizar_texto(payload.tags) or None,
+        is_favorite=bool(getattr(payload, "is_favorite", False)),
+        status=_normalizar_texto(payload.status) or None,
         is_active=bool(getattr(payload, "is_active", False)),
     )
 
@@ -199,6 +208,8 @@ def atualizar_perfil(
     perfil.closing_phrase = _normalizar_texto(payload.closing_phrase)
     perfil.legal_style_notes = _normalizar_texto(payload.legal_style_notes)
     perfil.recurring_expressions = _normalizar_texto(payload.recurring_expressions)
+    perfil.tags = _normalizar_texto(payload.tags) or None
+    perfil.status = _normalizar_texto(payload.status) or None
 
     db.add(perfil)
     db.commit()
@@ -235,8 +246,11 @@ def duplicar_perfil(db: Session, profile_id: int) -> WritingProfile | None:
         closing_phrase=_normalizar_texto(perfil_origem.closing_phrase),
         legal_style_notes=_normalizar_texto(perfil_origem.legal_style_notes),
         recurring_expressions=_normalizar_texto(perfil_origem.recurring_expressions),
+        tags=_normalizar_texto(perfil_origem.tags) or None,
+        status=_normalizar_texto(perfil_origem.status) or None,
         is_active=False,
         is_pinned=False,
+        is_favorite=False,
     )
 
     db.add(novo_perfil)
@@ -252,6 +266,20 @@ def toggle_fixacao_perfil(db: Session, profile_id: int) -> WritingProfile | None
         return None
 
     perfil.is_pinned = not bool(perfil.is_pinned)
+
+    db.add(perfil)
+    db.commit()
+    db.refresh(perfil)
+    return perfil
+
+
+def toggle_favorito_perfil(db: Session, profile_id: int) -> WritingProfile | None:
+    perfil = buscar_perfil_por_id(db, profile_id)
+
+    if not perfil:
+        return None
+
+    perfil.is_favorite = not bool(perfil.is_favorite)
 
     db.add(perfil)
     db.commit()
@@ -293,6 +321,8 @@ def listar_perfis_filtrados(
                 WritingProfile.closing_phrase.ilike(like_term),
                 WritingProfile.legal_style_notes.ilike(like_term),
                 WritingProfile.recurring_expressions.ilike(like_term),
+                WritingProfile.tags.ilike(like_term),
+                WritingProfile.status.ilike(like_term),
             )
         )
 
@@ -339,6 +369,7 @@ def listar_perfis_filtrados(
     else:
         query = query.order_by(
             WritingProfile.is_pinned.desc(),
+            WritingProfile.is_favorite.desc(),
             WritingProfile.created_at.desc(),
             WritingProfile.id.desc(),
         )
@@ -371,7 +402,10 @@ def montar_resumo_perfil(perfil: WritingProfile) -> dict[str, Any]:
         "closing_phrase": _normalizar_texto(perfil.closing_phrase) or "Não informada",
         "legal_style_notes": _normalizar_texto(perfil.legal_style_notes) or "Não informado",
         "recurring_expressions": _normalizar_texto(perfil.recurring_expressions) or "Não informado",
+        "tags": _normalizar_texto(perfil.tags),
+        "status": _normalizar_texto(perfil.status),
         "is_active": bool(perfil.is_active),
         "is_pinned": bool(perfil.is_pinned),
+        "is_favorite": bool(perfil.is_favorite),
         "created_at": getattr(perfil, "created_at", None),
     }

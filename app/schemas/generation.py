@@ -12,6 +12,9 @@ class GenerationBase(BaseModel):
     legal_basis: str | None = None
     context_used: str
     generated_text: str
+    tags: str | None = None
+    is_favorite: bool = False
+    status: str | None = None
 
 
 class GenerationCreate(GenerationBase):

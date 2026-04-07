@@ -15,6 +15,10 @@ ORDENACOES_DOCUMENTOS = {
 }
 
 
+def _normalizar_texto(valor: str | None) -> str:
+    return (valor or "").strip()
+
+
 def criar_documento(db: Session, document_data: DocumentCreate) -> Document:
     documento = Document(
         original_filename=document_data.original_filename,
@@ -22,6 +26,9 @@ def criar_documento(db: Session, document_data: DocumentCreate) -> Document:
         file_path=document_data.file_path,
         file_type=document_data.file_type,
         extracted_text=document_data.extracted_text,
+        tags=_normalizar_texto(document_data.tags) or None,
+        is_favorite=bool(document_data.is_favorite),
+        status=_normalizar_texto(document_data.status) or None,
     )
     db.add(documento)
     db.commit()
@@ -30,7 +37,11 @@ def criar_documento(db: Session, document_data: DocumentCreate) -> Document:
 
 
 def listar_documentos(db: Session) -> list[Document]:
-    return db.query(Document).order_by(Document.created_at.desc()).all()
+    return (
+        db.query(Document)
+        .order_by(Document.is_favorite.desc(), Document.created_at.desc(), Document.id.desc())
+        .all()
+    )
 
 
 def listar_documentos_por_ids(db: Session, document_ids: list[int]) -> list[Document]:
@@ -59,6 +70,31 @@ def buscar_documento_por_id(db: Session, document_id: int) -> Document | None:
     return db.query(Document).filter(Document.id == document_id).first()
 
 
+def atualizar_metadados_documento(
+    db: Session,
+    documento: Document,
+    *,
+    tags: str | None = None,
+    status: str | None = None,
+) -> Document:
+    documento.tags = _normalizar_texto(tags) or None
+    documento.status = _normalizar_texto(status) or None
+
+    db.add(documento)
+    db.commit()
+    db.refresh(documento)
+    return documento
+
+
+def toggle_favorito_documento(db: Session, documento: Document) -> Document:
+    documento.is_favorite = not bool(documento.is_favorite)
+
+    db.add(documento)
+    db.commit()
+    db.refresh(documento)
+    return documento
+
+
 def excluir_documento(db: Session, documento: Document) -> None:
     caminho = obter_path_documento(documento)
 
@@ -80,6 +116,9 @@ def montar_dados_documento(
         file_path=str(saved_path),
         file_type=saved_path.suffix.lower(),
         extracted_text=normalizar_texto_extraido(extracted_text),
+        tags=None,
+        is_favorite=False,
+        status=None,
     )
 
 

@@ -131,11 +131,22 @@ def ensure_database_schema() -> None:
         return
 
     ajustes = {
+        "documents": {
+            "tags": "ALTER TABLE documents ADD COLUMN tags TEXT",
+            "is_favorite": "ALTER TABLE documents ADD COLUMN is_favorite BOOLEAN NOT NULL DEFAULT 0",
+            "status": "ALTER TABLE documents ADD COLUMN status TEXT",
+        },
         "generations": {
             "is_pinned": "ALTER TABLE generations ADD COLUMN is_pinned BOOLEAN NOT NULL DEFAULT 0",
+            "tags": "ALTER TABLE generations ADD COLUMN tags TEXT",
+            "is_favorite": "ALTER TABLE generations ADD COLUMN is_favorite BOOLEAN NOT NULL DEFAULT 0",
+            "status": "ALTER TABLE generations ADD COLUMN status TEXT",
         },
         "writing_profiles": {
             "is_pinned": "ALTER TABLE writing_profiles ADD COLUMN is_pinned BOOLEAN NOT NULL DEFAULT 0",
+            "tags": "ALTER TABLE writing_profiles ADD COLUMN tags TEXT",
+            "is_favorite": "ALTER TABLE writing_profiles ADD COLUMN is_favorite BOOLEAN NOT NULL DEFAULT 0",
+            "status": "ALTER TABLE writing_profiles ADD COLUMN status TEXT",
         },
     }
 

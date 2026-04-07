@@ -223,6 +223,10 @@ def _parse_date_input(raw_value: str | None) -> date | None:
         return None
 
 
+def _normalizar_texto(valor: str | None) -> str:
+    return (valor or "").strip()
+
+
 def normalizar_filtros_listagem(
     search_term: str = "",
     document_type: str = "",
@@ -244,17 +248,16 @@ def normalizar_filtros_listagem(
     }
 
     return {
-        "search_term": (search_term or "").strip(),
-        "document_type": (document_type or "").strip(),
+        "search_term": _normalizar_texto(search_term),
+        "document_type": _normalizar_texto(document_type),
         "writing_profile_id": writing_profile_id if isinstance(writing_profile_id, int) and writing_profile_id > 0 else None,
         "sem_perfil": bool(sem_perfil),
-        "client_name": (client_name or "").strip(),
-        "case_subject": (case_subject or "").strip(),
+        "client_name": _normalizar_texto(client_name),
+        "case_subject": _normalizar_texto(case_subject),
         "created_from": _parse_date_input(created_from),
         "created_to": _parse_date_input(created_to),
         "sort_by": sort_by if sort_by in opcoes_ordenacao else "updated_desc",
     }
-
 
 def validar_dados_geracao(
     client_name: str,
@@ -339,9 +342,13 @@ def criar_geracao(
     generated_text: str,
     writing_profile_id: int | None = None,
     source_document_ids: str | None = None,
+    tags: str | None = None,
+    is_favorite: bool = False,
+    status: str | None = None,
 ) -> Generation:
     document_ids = desserializar_ids_documentos(source_document_ids)
     documentos_relacionados = []
+
     if document_ids:
         documentos_relacionados = (
             db.query(Document)
@@ -356,16 +363,19 @@ def criar_geracao(
         ]
 
     nova_geracao = Generation(
-        client_name=client_name,
-        document_type=document_type,
-        case_subject=case_subject,
-        facts=facts,
-        requests=requests,
-        legal_basis=legal_basis,
-        context_used=context_used,
-        generated_text=generated_text,
+        client_name=_normalizar_texto(client_name),
+        document_type=_normalizar_texto(document_type),
+        case_subject=_normalizar_texto(case_subject),
+        facts=_normalizar_texto(facts),
+        requests=_normalizar_texto(requests),
+        legal_basis=_normalizar_texto(legal_basis),
+        context_used=_normalizar_texto(context_used),
+        generated_text=_normalizar_texto(generated_text),
         writing_profile_id=writing_profile_id,
         source_document_ids=serializar_ids_documentos([documento.id for documento in documentos_relacionados]),
+        tags=_normalizar_texto(tags) or None,
+        is_favorite=bool(is_favorite),
+        status=_normalizar_texto(status) or None,
         updated_at=agora_brasil(),
     )
     nova_geracao.documents = documentos_relacionados
@@ -374,7 +384,6 @@ def criar_geracao(
     db.commit()
     db.refresh(nova_geracao)
     return nova_geracao
-
 
 def atualizar_geracao(
     db: Session,
@@ -389,9 +398,12 @@ def atualizar_geracao(
     generated_text: str,
     writing_profile_id: int | None = None,
     source_document_ids: str | None = None,
+    tags: str | None = None,
+    status: str | None = None,
 ) -> Generation:
     document_ids = desserializar_ids_documentos(source_document_ids)
     documentos_relacionados = []
+
     if document_ids:
         documentos_relacionados = (
             db.query(Document)
@@ -405,24 +417,26 @@ def atualizar_geracao(
             if document_id in documentos_por_id
         ]
 
-    geracao.client_name = client_name
-    geracao.document_type = document_type
-    geracao.case_subject = case_subject
-    geracao.facts = facts
-    geracao.requests = requests
-    geracao.legal_basis = legal_basis
-    geracao.context_used = context_used
-    geracao.generated_text = generated_text
+    geracao.client_name = _normalizar_texto(client_name)
+    geracao.document_type = _normalizar_texto(document_type)
+    geracao.case_subject = _normalizar_texto(case_subject)
+    geracao.facts = _normalizar_texto(facts)
+    geracao.requests = _normalizar_texto(requests)
+    geracao.legal_basis = _normalizar_texto(legal_basis)
+    geracao.context_used = _normalizar_texto(context_used)
+    geracao.generated_text = _normalizar_texto(generated_text)
     geracao.writing_profile_id = writing_profile_id
     geracao.documents = documentos_relacionados
     geracao.source_document_ids = serializar_ids_documentos([documento.id for documento in documentos_relacionados])
+
+    geracao.tags = _normalizar_texto(tags) or None
+    geracao.status = _normalizar_texto(status) or None
     geracao.updated_at = agora_brasil()
 
     db.add(geracao)
     db.commit()
     db.refresh(geracao)
     return geracao
-
 
 def buscar_geracao_por_id(db: Session, generation_id: int) -> Generation | None:
     return (
@@ -453,6 +467,8 @@ def listar_geracoes(
                 Generation.requests.ilike(like_term),
                 Generation.legal_basis.ilike(like_term),
                 Generation.generated_text.ilike(like_term),
+                Generation.tags.ilike(like_term),
+                Generation.status.ilike(like_term),
             )
         )
 
@@ -484,35 +500,70 @@ def listar_geracoes(
         query = query.filter(Generation.created_at <= datetime.combine(created_to, time.max))
 
     sort_by = filtros.get("sort_by", "updated_desc")
+
     if sort_by == "updated_asc":
-        query = query.order_by(Generation.updated_at.asc(), Generation.id.asc())
+        query = query.order_by(
+            Generation.is_pinned.desc(),
+            Generation.is_favorite.desc(),
+            Generation.updated_at.asc(),
+            Generation.id.asc(),
+        )
     elif sort_by == "created_desc":
-        query = query.order_by(Generation.created_at.desc(), Generation.id.desc())
+        query = query.order_by(
+            Generation.is_pinned.desc(),
+            Generation.is_favorite.desc(),
+            Generation.created_at.desc(),
+            Generation.id.desc(),
+        )
     elif sort_by == "created_asc":
-        query = query.order_by(Generation.created_at.asc(), Generation.id.asc())
+        query = query.order_by(
+            Generation.is_pinned.desc(),
+            Generation.is_favorite.desc(),
+            Generation.created_at.asc(),
+            Generation.id.asc(),
+        )
     elif sort_by == "client_asc":
-        query = query.order_by(Generation.client_name.asc(), Generation.id.asc())
+        query = query.order_by(
+            Generation.is_pinned.desc(),
+            Generation.is_favorite.desc(),
+            Generation.client_name.asc(),
+            Generation.id.asc(),
+        )
     elif sort_by == "client_desc":
-        query = query.order_by(Generation.client_name.desc(), Generation.id.desc())
+        query = query.order_by(
+            Generation.is_pinned.desc(),
+            Generation.is_favorite.desc(),
+            Generation.client_name.desc(),
+            Generation.id.desc(),
+        )
     else:
-        query = query.order_by(Generation.updated_at.desc(), Generation.id.desc())
+        query = query.order_by(
+            Generation.is_pinned.desc(),
+            Generation.is_favorite.desc(),
+            Generation.updated_at.desc(),
+            Generation.id.desc(),
+        )
 
     return query.all()
-
-
-def excluir_geracao(db: Session, geracao: Generation) -> None:
-    db.delete(geracao)
-    db.commit()
-
 
 def alternar_fixacao_geracao(db: Session, geracao: Generation) -> Generation:
     geracao.is_pinned = not bool(geracao.is_pinned)
     geracao.updated_at = agora_brasil()
+
     db.add(geracao)
     db.commit()
     db.refresh(geracao)
     return geracao
 
+
+def alternar_favorito_geracao(db: Session, geracao: Generation) -> Generation:
+    geracao.is_favorite = not bool(geracao.is_favorite)
+    geracao.updated_at = agora_brasil()
+
+    db.add(geracao)
+    db.commit()
+    db.refresh(geracao)
+    return geracao
 
 def duplicar_geracao(
     db: Session,

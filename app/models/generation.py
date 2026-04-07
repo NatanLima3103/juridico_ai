@@ -6,7 +6,7 @@ except ImportError:
     ZoneInfo = None
     ZoneInfoNotFoundError = Exception
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Table, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, Text
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -79,7 +79,10 @@ class Generation(Base):
         passive_deletes=True,
     )
 
+    tags = Column(Text, nullable=True)
     is_pinned = Column(Boolean, default=False, nullable=False)
+    is_favorite = Column(Boolean, default=False, nullable=False)
+    status = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=agora_brasil, nullable=False, index=True)
     updated_at = Column(DateTime, default=agora_brasil, onupdate=agora_brasil, nullable=False)
 

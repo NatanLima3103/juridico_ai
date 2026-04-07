@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -15,6 +15,11 @@ class Document(Base):
     file_path = Column(String(500), nullable=False)
     file_type = Column(String(20), nullable=False, index=True)
     extracted_text = Column(Text, nullable=False)
+
+    tags = Column(Text, nullable=True)
+    is_favorite = Column(Boolean, default=False, nullable=False)
+    status = Column(String(100), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     generations = relationship(

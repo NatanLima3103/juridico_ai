@@ -16,6 +16,10 @@ class WritingProfileCreate(BaseModel):
     legal_style_notes: Optional[str] = None
     recurring_expressions: Optional[str] = None
 
+    tags: Optional[str] = None
+    is_favorite: bool = False
+    status: Optional[str] = Field(default=None, max_length=100)
+
     is_active: bool = False
 
 

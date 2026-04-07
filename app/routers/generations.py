@@ -9,22 +9,22 @@ from app.database import get_db
 from app.services.document_service import listar_documentos, listar_documentos_por_ids
 from app.services.generation_service import (
     TIPOS_DE_DOCUMENTO,
+    alternar_favorito_geracao,
+    alternar_fixacao_geracao,
+    aplicar_template_juridico_pronto,
     atualizar_geracao,
     buscar_geracao_por_id,
     criar_geracao,
-    desserializar_ids_documentos,
     excluir_geracao,
     gerar_docx_da_geracao,
-    gerar_rascunho_juridico,
     gerar_txt_da_geracao,
+    gerar_rascunho_juridico,
     listar_geracoes,
     listar_templates_juridicos_prontos,
     montar_contexto_inteligente,
     normalizar_filtros_listagem,
     serializar_ids_documentos,
     validar_dados_geracao,
-    alternar_fixacao_geracao,
-    aplicar_template_juridico_pronto,
 )
 from app.services.writing_profile_service import (
     buscar_perfil_por_id,
@@ -111,7 +111,10 @@ def _generation_to_dict(geracao):
         "source_document_ids": geracao.source_document_ids,
         "writing_profile_id": geracao.writing_profile_id,
         "writing_profile_name": perfil.profile_name if perfil else "Sem perfil",
+        "tags": geracao.tags or "",
+        "status": geracao.status or "",
         "is_pinned": bool(geracao.is_pinned),
+        "is_favorite": bool(geracao.is_favorite),
         "created_at": geracao.created_at,
         "updated_at": geracao.updated_at,
         "document_count": len(document_ids),
@@ -337,6 +340,8 @@ async def edit_generation_form(
         "facts": geracao.facts,
         "requests": geracao.requests,
         "legal_basis": geracao.legal_basis,
+        "tags": geracao.tags or "",
+        "status": geracao.status or "",
     }
 
     return _render_generation_form(
@@ -372,6 +377,8 @@ async def duplicate_generation_form(
         "facts": geracao.facts,
         "requests": geracao.requests,
         "legal_basis": geracao.legal_basis,
+        "tags": geracao.tags or "",
+        "status": geracao.status or "",
     }
 
     return _render_generation_form(
@@ -396,6 +403,8 @@ async def create_generation(
     facts: str = Form(...),
     requests: str = Form(...),
     legal_basis: str = Form(""),
+    tags: str = Form(""),
+    status_value: str = Form("", alias="status"),
     document_ids: list[str] | None = Form(None),
     writing_profile_id: str | None = Form(None),
     duplicate_mode: str | None = Form(None),
@@ -430,6 +439,8 @@ async def create_generation(
         "facts": facts,
         "requests": requests,
         "legal_basis": legal_basis,
+        "tags": tags,
+        "status": status_value,
     }
 
     try:
@@ -498,6 +509,8 @@ async def create_generation(
         generated_text=generated_text,
         writing_profile_id=selected_profile_id,
         source_document_ids=serializar_ids_documentos(selected_document_ids),
+        tags=tags,
+        status=status_value,
     )
 
     if duplicate_mode_bool and duplicate_source_id_int is not None:
@@ -521,6 +534,8 @@ async def edit_generation(
     facts: str = Form(...),
     requests: str = Form(...),
     legal_basis: str = Form(""),
+    tags: str = Form(""),
+    status_value: str = Form("", alias="status"),
     document_ids: list[str] | None = Form(None),
     writing_profile_id: str | None = Form(None),
     db: Session = Depends(get_db),
@@ -548,6 +563,8 @@ async def edit_generation(
         "facts": facts,
         "requests": requests,
         "legal_basis": legal_basis,
+        "tags": tags,
+        "status": status_value,
     }
 
     try:
@@ -615,6 +632,8 @@ async def edit_generation(
         generated_text=generated_text,
         writing_profile_id=selected_profile_id,
         source_document_ids=serializar_ids_documentos(selected_document_ids),
+        tags=tags,
+        status=status_value,
     )
 
     return RedirectResponse(
@@ -663,7 +682,7 @@ async def delete_generation(generation_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{generation_id}/toggle-pin")
-async def toggle_pin_generation(generation_id: int, db: Session = Depends(get_db)):
+async def toggle_pin_generation(generation_id: int, request: Request, db: Session = Depends(get_db)):
     geracao = buscar_geracao_por_id(db, generation_id)
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
@@ -671,9 +690,29 @@ async def toggle_pin_generation(generation_id: int, db: Session = Depends(get_db
     geracao = alternar_fixacao_geracao(db, geracao)
 
     mensagem = "Geração fixada com sucesso." if geracao.is_pinned else "Geração desfixada com sucesso."
+    destino = request.headers.get("referer") or "/generations"
+    separador = "&" if "?" in destino else "?"
 
     return RedirectResponse(
-        url=f"/generations?sucesso={quote(mensagem)}",
+        url=f"{destino}{separador}sucesso={quote(mensagem)}",
+        status_code=303,
+    )
+
+
+@router.post("/{generation_id}/toggle-favorite")
+async def toggle_favorite_generation(generation_id: int, request: Request, db: Session = Depends(get_db)):
+    geracao = buscar_geracao_por_id(db, generation_id)
+    if not geracao:
+        raise HTTPException(status_code=404, detail="Geração não encontrada.")
+
+    geracao = alternar_favorito_geracao(db, geracao)
+
+    mensagem = "Geração favoritada com sucesso." if geracao.is_favorite else "Geração removida dos favoritos com sucesso."
+    destino = request.headers.get("referer") or "/generations"
+    separador = "&" if "?" in destino else "?"
+
+    return RedirectResponse(
+        url=f"{destino}{separador}sucesso={quote(mensagem)}",
         status_code=303,
     )
 
@@ -687,6 +726,8 @@ async def apply_template_to_generation_form(
     facts: str = Form(""),
     requests: str = Form(""),
     legal_basis: str = Form(""),
+    tags: str = Form(""),
+    status_value: str = Form("", alias="status"),
     writing_profile_id: str | None = Form(None),
     document_ids: list[str] | None = Form(None),
     duplicate_mode: str | None = Form(None),
@@ -721,6 +762,8 @@ async def apply_template_to_generation_form(
         "facts": facts,
         "requests": requests,
         "legal_basis": legal_basis,
+        "tags": tags,
+        "status": status_value,
     }
 
     try:

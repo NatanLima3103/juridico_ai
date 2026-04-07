@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from urllib.parse import quote
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -19,6 +21,8 @@ from app.services.document_service import (
     obter_path_documento,
     obter_tamanho_arquivo,
     resumir_texto_extraido,
+    toggle_favorito_documento,
+    atualizar_metadados_documento,
 )
 from app.services.file_service import salvar_arquivo_upload
 from app.services.text_extractor import extrair_texto_arquivo
@@ -75,6 +79,9 @@ async def upload_document(
             "word_count": contar_palavras_texto(documento.extracted_text),
             "text_preview": resumir_texto_extraido(documento.extracted_text, 500),
             "extracted_text": documento.extracted_text,
+            "tags": documento.tags or "",
+            "status": documento.status or "",
+            "is_favorite": bool(documento.is_favorite),
         }
 
         return templates.TemplateResponse(
@@ -141,6 +148,9 @@ def documents_list(
                 "text_preview": resumir_texto_extraido(documento.extracted_text, 180),
                 "text_length": contar_caracteres_texto(documento.extracted_text),
                 "word_count": contar_palavras_texto(documento.extracted_text),
+                "tags": documento.tags or "",
+                "status": documento.status or "",
+                "is_favorite": bool(documento.is_favorite),
             }
         )
 
@@ -155,6 +165,8 @@ def documents_list(
             or busca in (documento["saved_filename"] or "").lower()
             or busca in (documento["file_type"] or "").lower()
             or busca in (documento["text_preview"] or "").lower()
+            or busca in (documento["tags"] or "").lower()
+            or busca in (documento["status"] or "").lower()
         ]
 
     if sort == "antigos":
@@ -268,6 +280,66 @@ def document_detail(
             "sucesso": request.query_params.get("sucesso"),
             "erro": request.query_params.get("erro"),
         },
+    )
+
+
+
+
+@router.post("/{document_id}/favorite")
+def toggle_document_favorite(
+    document_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    documento = buscar_documento_por_id(db, document_id)
+
+    if not documento:
+        return RedirectResponse(
+            url="/documents?erro=Documento+não+encontrado.",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    documento = toggle_favorito_documento(db, documento)
+
+    mensagem = "Documento favoritado com sucesso." if documento.is_favorite else "Documento removido dos favoritos com sucesso."
+    destino = request.headers.get("referer") or "/documents"
+    separador = "&" if "?" in destino else "?"
+
+    return RedirectResponse(
+        url=f"{destino}{separador}sucesso={quote(mensagem)}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.post("/{document_id}/metadata")
+def update_document_metadata(
+    document_id: int,
+    request: Request,
+    tags: str = Form(""),
+    status_value: str = Form("", alias="status"),
+    db: Session = Depends(get_db),
+):
+    documento = buscar_documento_por_id(db, document_id)
+
+    if not documento:
+        return RedirectResponse(
+            url="/documents?erro=Documento+não+encontrado.",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    atualizar_metadados_documento(
+        db,
+        documento,
+        tags=tags,
+        status=status_value,
+    )
+
+    destino = request.headers.get("referer") or f"/documents/{document_id}"
+    separador = "&" if "?" in destino else "?"
+
+    return RedirectResponse(
+        url=f"{destino}{separador}sucesso=Metadados+do+documento+atualizados+com+sucesso.",
+        status_code=status.HTTP_303_SEE_OTHER,
     )
 
 
