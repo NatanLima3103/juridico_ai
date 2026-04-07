@@ -79,6 +79,83 @@
         </div>
     </div>
 
+    <section class="bloco-informativo">
+        <div class="bloco-informativo-topo bloco-informativo-topo-entre-linhas">
+            <div>
+                <h3>Metadados da geração</h3>
+                <p class="texto-suave">
+                    Informações auxiliares para organização futura da base.
+                </p>
+            </div>
+
+            <div class="acoes-topo">
+                <form
+                    action="/generations/{{ geracao.id }}/toggle-pin"
+                    method="post"
+                    data-loading-form
+                    data-loading-message="Atualizando fixação da geração..."
+                    data-loading-button-text="Salvando..."
+                >
+                    <button type="submit" class="botao botao-fixar">
+                        <span class="icone-botao" aria-hidden="true">📌</span>
+                        {% if geracao.is_pinned %}Desfixar{% else %}Fixar{% endif %}
+                    </button>
+                </form>
+
+                <form
+                    action="/generations/{{ geracao.id }}/toggle-favorite"
+                    method="post"
+                    data-loading-form
+                    data-loading-message="Atualizando favorito da geração..."
+                    data-loading-button-text="Salvando..."
+                >
+                    <button type="submit" class="botao botao-secundario">
+                        <span class="icone-botao" aria-hidden="true">★</span>
+                        {% if geracao.is_favorite %}Desfavoritar{% else %}Favoritar{% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="painel-resumo-geracao">
+            <div class="info-box">
+                <span class="info-label">Fixação</span>
+                <span class="info-value">
+                    {% if geracao.is_pinned %}
+                        📌 Fixada
+                    {% else %}
+                        Não fixada
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="info-box">
+                <span class="info-label">Favorito</span>
+                <span class="info-value">
+                    {% if geracao.is_favorite %}
+                        ★ Favorita
+                    {% else %}
+                        Não favorita
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="info-box">
+                <span class="info-label">Status</span>
+                <span class="info-value">
+                    {{ geracao.status or "Não informado" }}
+                </span>
+            </div>
+
+            <div class="info-box info-box-largo">
+                <span class="info-label">Tags</span>
+                <span class="info-value">
+                    {{ geracao.tags or "Não informadas" }}
+                </span>
+            </div>
+        </div>
+    </section>
+
     <section class="bloco-resultado-principal">
         <div class="bloco-destaque-texto">
             <div class="cabecalho-resultado">

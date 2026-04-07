@@ -7,11 +7,12 @@
     <div class="cabecalho-pagina">
         <div>
             <span class="etiqueta-secao">Perfis de escrita</span>
-            <h2>Perfis de escrita</h2>
+            <h2>Perfis cadastrados</h2>
             <p class="texto-suave">
-                Cadastre estilos jurídicos diferentes, pesquise, filtre e encontre rapidamente o perfil ideal para as próximas gerações.
+                Organize seus estilos jurídicos com busca, filtros, favoritos, fixação e ações rápidas.
             </p>
         </div>
+
         <div class="acoes-topo">
             <a class="botao" href="/writing-profiles/create">
                 <span class="icone-botao" aria-hidden="true">＋</span>
@@ -45,7 +46,7 @@
             <div>
                 <h3>Busca e filtros</h3>
                 <p class="texto-suave">
-                    Faça busca geral, aplique filtros específicos, selecione período de criação e ordene a listagem dos perfis.
+                    Localize perfis por nome, advogado, escritório, tom, tags ou status.
                 </p>
             </div>
 
@@ -63,7 +64,7 @@
                         id="search"
                         name="search"
                         value="{{ filtros.search }}"
-                        placeholder="Pesquisar em nome, advogado, escritório, tom ou conteúdo"
+                        placeholder="Pesquisar em nome, advogado, escritório, tom, tags ou status"
                     >
                 </div>
 
@@ -74,18 +75,18 @@
                         id="profile_name"
                         name="profile_name"
                         value="{{ filtros.profile_name }}"
-                        placeholder="Filtrar pelo nome do perfil"
+                        placeholder="Ex.: Cível formal"
                     >
                 </div>
 
                 <div>
-                    <label for="lawyer_name">Advogado</label>
+                    <label for="lawyer_name">Advogado(a)</label>
                     <input
                         type="text"
                         id="lawyer_name"
                         name="lawyer_name"
                         value="{{ filtros.lawyer_name }}"
-                        placeholder="Filtrar pelo nome do advogado"
+                        placeholder="Ex.: Natan Jonatan de Lima"
                     >
                 </div>
 
@@ -96,40 +97,20 @@
                         id="office_name"
                         name="office_name"
                         value="{{ filtros.office_name }}"
-                        placeholder="Filtrar pelo nome do escritório"
+                        placeholder="Ex.: Santos e Silveiro"
                     >
                 </div>
 
                 <div>
-                    <label for="tone">Tom da escrita</label>
+                    <label for="tone">Tom</label>
                     <select id="tone" name="tone">
                         <option value="">Todos</option>
-                        {% for item in tons_disponiveis %}
-                            <option value="{{ item }}" {% if filtros.tone == item %}selected{% endif %}>
-                                {{ item }}
+                        {% for tone in tones %}
+                            <option value="{{ tone }}" {% if filtros.tone == tone %}selected{% endif %}>
+                                {{ tone }}
                             </option>
                         {% endfor %}
                     </select>
-                </div>
-
-                <div>
-                    <label for="created_from">Criado a partir de</label>
-                    <input
-                        type="date"
-                        id="created_from"
-                        name="created_from"
-                        value="{{ filtros.created_from }}"
-                    >
-                </div>
-
-                <div>
-                    <label for="created_to">Criado até</label>
-                    <input
-                        type="date"
-                        id="created_to"
-                        name="created_to"
-                        value="{{ filtros.created_to }}"
-                    >
                 </div>
 
                 <div>
@@ -141,6 +122,16 @@
                             </option>
                         {% endfor %}
                     </select>
+                </div>
+
+                <div>
+                    <label for="created_from">Criado a partir de</label>
+                    <input type="date" id="created_from" name="created_from" value="{{ filtros.created_from }}">
+                </div>
+
+                <div>
+                    <label for="created_to">Criado até</label>
+                    <input type="date" id="created_to" name="created_to" value="{{ filtros.created_to }}">
                 </div>
             </div>
 
@@ -156,164 +147,158 @@
                 </button>
             </div>
         </form>
-
-        {% if total_filtros_ativos > 0 %}
-            <div class="filtros-ativos-wrap">
-                <span class="info-label">Filtros ativos</span>
-                <div class="chips-filtros-ativos">
-                    {% if filtros.search %}
-                        <span class="chip-filtro">Busca: {{ filtros.search }}</span>
-                    {% endif %}
-                    {% if filtros.profile_name %}
-                        <span class="chip-filtro">Perfil: {{ filtros.profile_name }}</span>
-                    {% endif %}
-                    {% if filtros.lawyer_name %}
-                        <span class="chip-filtro">Advogado: {{ filtros.lawyer_name }}</span>
-                    {% endif %}
-                    {% if filtros.office_name %}
-                        <span class="chip-filtro">Escritório: {{ filtros.office_name }}</span>
-                    {% endif %}
-                    {% if filtros.tone %}
-                        <span class="chip-filtro">Tom: {{ filtros.tone }}</span>
-                    {% endif %}
-                    {% if filtros.created_from %}
-                        <span class="chip-filtro">De: {{ filtros.created_from }}</span>
-                    {% endif %}
-                    {% if filtros.created_to %}
-                        <span class="chip-filtro">Até: {{ filtros.created_to }}</span>
-                    {% endif %}
-                    {% if filtros.sort_by != "created_desc" %}
-                        <span class="chip-filtro">Ordem: {{ ordenacoes[filtros.sort_by] }}</span>
-                    {% endif %}
-                </div>
-            </div>
-        {% endif %}
-
-        <div class="painel-resumo-geracao painel-resumo-sem-inline">
-            <div class="info-box">
-                <span class="info-label">Resultados</span>
-                <span class="info-value">{{ total_resultados }}</span>
-            </div>
-
-            <div class="info-box">
-                <span class="info-label">Filtros ativos</span>
-                <span class="info-value">{{ total_filtros_ativos }}</span>
-            </div>
-
-            <div class="info-box info-box-largo">
-                <span class="info-label">Estado da listagem</span>
-                <span class="info-value">
-                    {% if total_filtros_ativos > 0 %}
-                        A listagem está refinada conforme os critérios selecionados.
-                    {% else %}
-                        Exibindo todos os perfis cadastrados.
-                    {% endif %}
-                </span>
-            </div>
-        </div>
     </section>
 
-    {% if perfis %}
-        <div class="lista-cards">
-            {% for perfil in perfis %}
-                <div class="mini-card perfil-card">
-                    <div class="perfil-card-topo">
-                        <div>
-                            {% if perfil.is_pinned %}<span class="badge badge-fixado">📌 Fixado</span>{% endif %}
-                            <h3 class="perfil-titulo">{{ perfil.profile_name }}</h3>
-                            <p class="texto-pequeno">ID #{{ perfil.id }}</p>
+    {% if profiles %}
+        <div class="lista-geracoes-cards">
+            {% for profile in profiles %}
+                <article class="geracao-card">
+                    <div class="geracao-card-topo">
+                        <div class="geracao-identificacao">
+                            <div class="geracao-titulo-linha">
+                                <span class="badge badge-neutro">#{{ profile.id }}</span>
+
+                                {% if profile.is_pinned %}
+                                    <span class="badge badge-fixado">📌 Fixado</span>
+                                {% endif %}
+
+                                {% if profile.is_favorite %}
+                                    <span class="badge badge-status">★ Favorito</span>
+                                {% endif %}
+
+                                {% if profile.status %}
+                                    <span class="badge badge-neutro">{{ profile.status }}</span>
+                                {% endif %}
+
+                                <h3>{{ profile.profile_name }}</h3>
+                            </div>
+
+                            <p class="texto-suave">
+                                {{ profile.tone }}
+                            </p>
+
+                            {% if profile.tags %}
+                                <p class="texto-suave">
+                                    <strong>Tags:</strong> {{ profile.tags }}
+                                </p>
+                            {% endif %}
+                        </div>
+
+                        <div class="geracao-meta">
+                            <span><strong>Advogado:</strong> {{ profile.lawyer_name or "Não informado" }}</span>
+                            <span><strong>Escritório:</strong> {{ profile.office_name or "Não informado" }}</span>
+                            <span>
+                                <strong>Criado em:</strong>
+                                {{ profile.created_at.strftime("%d/%m/%Y %H:%M") if profile.created_at else "-" }}
+                            </span>
                         </div>
                     </div>
 
-                    <p><strong>Tom:</strong> {{ perfil.tone }}</p>
-                    <p><strong>Advogado:</strong> {{ perfil.lawyer_name }}</p>
-                    <p><strong>Escritório:</strong> {{ perfil.office_name }}</p>
-                    <p><strong>Qualificação:</strong> {{ perfil.qualification_style_preview }}</p>
-                    <p><strong>Abertura:</strong> {{ perfil.opening_phrase_preview }}</p>
-                    <p><strong>Introdução dos pedidos:</strong> {{ perfil.request_intro_preview }}</p>
-                    <p><strong>Encerramento:</strong> {{ perfil.closing_phrase_preview }}</p>
-                    <p><strong>Observações de estilo:</strong> {{ perfil.legal_style_notes_preview }}</p>
-                    <p><strong>Expressões recorrentes:</strong> {{ perfil.recurring_expressions_preview }}</p>
-                    <p class="texto-pequeno">
-                        Criado em:
-                        {{ perfil.created_at.strftime("%d/%m/%Y %H:%M") if perfil.created_at else "-" }}
-                    </p>
+                    <div class="geracao-resumos">
+                        <div class="geracao-resumo-box">
+                            <span class="info-label">Qualificação</span>
+                            <p>{{ profile.qualification_style or "Não informado" }}</p>
+                        </div>
 
-                    <div class="acoes-topo acoes-perfil">
-                        <a class="botao botao-secundario" href="/writing-profiles/{{ perfil.id }}/edit">
-                            <span class="icone-botao" aria-hidden="true">✎</span>
-                            Editar
-                        </a>
+                        <div class="geracao-resumo-box">
+                            <span class="info-label">Abertura</span>
+                            <p>{{ profile.opening_phrase or "Não informado" }}</p>
+                        </div>
 
-                        <form
-                            action="/writing-profiles/{{ perfil.id }}/duplicate"
-                            method="post"
-                            data-loading-form
-                            data-loading-message="Duplicando perfil de escrita..."
-                            data-loading-button-text="Duplicando..."
-                        >
-                            <button class="botao botao-secundario" type="submit">
-                                <span class="icone-botao" aria-hidden="true">⧉</span>
-                                Duplicar
-                            </button>
-                        </form>
+                        <div class="geracao-resumo-box">
+                            <span class="info-label">Encerramento</span>
+                            <p>{{ profile.closing_phrase or "Não informado" }}</p>
+                        </div>
 
-                        <form
-                            action="/writing-profiles/{{ perfil.id }}/toggle-pin"
-                            method="post"
-                            data-loading-form
-                            data-loading-message="Atualizando fixação do perfil..."
-                            data-loading-button-text="Salvando..."
-                        >
-                            <button class="botao botao-fixar" type="submit">
-                                <span class="icone-botao" aria-hidden="true">📌</span>
-                                {% if perfil.is_pinned %}Desfixar{% else %}Fixar{% endif %}
-                            </button>
-                        </form>
-
-                        <form
-                            action="/writing-profiles/{{ perfil.id }}/delete"
-                            method="post"
-                            data-confirm-action
-                            data-loading-form
-                            data-loading-message="Excluindo perfil..."
-                            data-loading-button-text="Excluindo..."
-                            data-confirm-title="Excluir perfil de escrita"
-                            data-confirm-message="Tem certeza que deseja excluir este perfil de escrita?"
-                            data-confirm-submit-label="Excluir perfil"
-                            data-confirm-submit-icon='<span class="icone-botao" aria-hidden="true">🗑</span>'
-                        >
-                            <button class="botao-perigo" type="submit">
-                                <span class="icone-botao" aria-hidden="true">🗑</span>
-                                Excluir
-                            </button>
-                        </form>
+                        <div class="geracao-resumo-box geracao-resumo-box-largo">
+                            <span class="info-label">Observações</span>
+                            <p>{{ profile.legal_style_notes or "Não informado" }}</p>
+                        </div>
                     </div>
-                </div>
+
+                    <div class="geracao-card-rodape">
+                        <div class="geracao-status-visual">
+                            <span class="texto-pequeno">Ações disponíveis para este perfil</span>
+                        </div>
+
+                        <div class="geracao-card-acoes">
+                            <form
+                                action="/writing-profiles/{{ profile.id }}/toggle-pin"
+                                method="post"
+                                data-loading-form
+                                data-loading-message="Atualizando fixação do perfil..."
+                                data-loading-button-text="Salvando..."
+                            >
+                                <button type="submit" class="botao botao-fixar">
+                                    <span class="icone-botao" aria-hidden="true">📌</span>
+                                    {% if profile.is_pinned %}Desfixar{% else %}Fixar{% endif %}
+                                </button>
+                            </form>
+
+                            <form
+                                action="/writing-profiles/{{ profile.id }}/toggle-favorite"
+                                method="post"
+                                data-loading-form
+                                data-loading-message="Atualizando favorito do perfil..."
+                                data-loading-button-text="Salvando..."
+                            >
+                                <button type="submit" class="botao botao-secundario">
+                                    <span class="icone-botao" aria-hidden="true">★</span>
+                                    {% if profile.is_favorite %}Desfavoritar{% else %}Favoritar{% endif %}
+                                </button>
+                            </form>
+
+                            <form
+                                action="/writing-profiles/{{ profile.id }}/duplicate"
+                                method="post"
+                                data-loading-form
+                                data-loading-message="Duplicando perfil..."
+                                data-loading-button-text="Duplicando..."
+                            >
+                                <button type="submit" class="botao botao-secundario">
+                                    <span class="icone-botao" aria-hidden="true">⧉</span>
+                                    Duplicar
+                                </button>
+                            </form>
+
+                            <a class="botao" href="/writing-profiles/{{ profile.id }}/edit">
+                                <span class="icone-botao" aria-hidden="true">✎</span>
+                                Editar
+                            </a>
+
+                            <form
+                                action="/writing-profiles/{{ profile.id }}/delete"
+                                method="post"
+                                data-loading-form
+                                data-confirm-action
+                                data-confirm-title="Excluir perfil de escrita"
+                                data-confirm-message="Deseja realmente excluir este perfil? Esta ação não poderá ser desfeita."
+                                data-confirm-submit-label="Excluir perfil"
+                                data-confirm-submit-icon='<span class="icone-botao" aria-hidden="true">🗑</span>'
+                                data-loading-message="Excluindo perfil..."
+                                data-loading-button-text="Excluindo..."
+                            >
+                                <button type="submit" class="botao-perigo">
+                                    <span class="icone-botao" aria-hidden="true">🗑</span>
+                                    Excluir
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </article>
             {% endfor %}
         </div>
     {% else %}
         <div class="estado-vazio">
-            <div class="estado-vazio-icone" aria-hidden="true">🔎</div>
-            {% if total_filtros_ativos > 0 %}
-                <h3>Nenhum perfil encontrado com os filtros aplicados</h3>
-                <p>Revise os critérios selecionados ou clique em limpar para exibir todos os perfis novamente.</p>
-                <div class="estado-vazio-acoes">
-                    <a class="botao botao-secundario" href="/writing-profiles">
-                        <span class="icone-botao" aria-hidden="true">↺</span>
-                        Limpar filtros
-                    </a>
-                </div>
-            {% else %}
-                <h3>Nenhum perfil de escrita foi cadastrado ainda</h3>
-                <p>Crie o primeiro perfil para personalizar o estilo das próximas minutas.</p>
-                <div class="estado-vazio-acoes">
-                    <a class="botao" href="/writing-profiles/create">
-                        <span class="icone-botao" aria-hidden="true">＋</span>
-                        Criar primeiro perfil
-                    </a>
-                </div>
-            {% endif %}
+            <div class="estado-vazio-icone" aria-hidden="true">✍</div>
+            <h3>Nenhum perfil encontrado</h3>
+            <p>Crie seu primeiro perfil de escrita para padronizar as minutas jurídicas do sistema.</p>
+            <div class="estado-vazio-acoes">
+                <a class="botao" href="/writing-profiles/create">
+                    <span class="icone-botao" aria-hidden="true">＋</span>
+                    Criar perfil
+                </a>
+            </div>
         </div>
     {% endif %}
 </section>

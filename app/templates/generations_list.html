@@ -61,7 +61,7 @@
                 <div>
                     <label for="search">Busca geral</label>
                     <input type="text" id="search" name="search" value="{{ filtros.search }}"
-                        placeholder="Pesquisar em cliente, assunto, fatos, pedidos ou texto gerado">
+                        placeholder="Pesquisar em cliente, assunto, fatos, pedidos, tags, status ou texto gerado">
                 </div>
 
                 <div>
@@ -96,8 +96,7 @@
                             Sem perfil
                         </option>
                         {% for perfil in perfis %}
-                        <option value="{{ perfil.id }}" {% if filtros.writing_profile_id==perfil.id|string %}selected{%
-                            endif %}>
+                        <option value="{{ perfil.id }}" {% if filtros.writing_profile_id==perfil.id|string %}selected{% endif %}>
                             {{ perfil.profile_name }}
                         </option>
                         {% endfor %}
@@ -210,10 +209,18 @@
                     <div class="geracao-titulo-linha">
                         <span class="badge badge-neutro">#{{ geracao.id }}</span>
                         {% if geracao.is_pinned %}<span class="badge badge-fixado">📌 Fixada</span>{% endif %}
+                        {% if geracao.is_favorite %}<span class="badge badge-status">★ Favorita</span>{% endif %}
+                        {% if geracao.status %}<span class="badge badge-neutro">{{ geracao.status }}</span>{% endif %}
                         <h3>{{ geracao.document_type }}</h3>
                     </div>
 
                     <p class="texto-suave">{{ geracao.case_subject }}</p>
+
+                    {% if geracao.tags %}
+                    <p class="texto-suave">
+                        <strong>Tags:</strong> {{ geracao.tags }}
+                    </p>
+                    {% endif %}
                 </div>
 
                 <div class="geracao-meta">
@@ -273,6 +280,14 @@
                         <button type="submit" class="botao botao-fixar">
                             <span class="icone-botao" aria-hidden="true">📌</span>
                             {% if geracao.is_pinned %}Desfixar{% else %}Fixar{% endif %}
+                        </button>
+                    </form>
+
+                    <form action="/generations/{{ geracao.id }}/toggle-favorite" method="post" data-loading-form
+                        data-loading-message="Atualizando favorito da geração..." data-loading-button-text="Salvando...">
+                        <button type="submit" class="botao botao-secundario">
+                            <span class="icone-botao" aria-hidden="true">★</span>
+                            {% if geracao.is_favorite %}Desfavoritar{% else %}Favoritar{% endif %}
                         </button>
                     </form>
 

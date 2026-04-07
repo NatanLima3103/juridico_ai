@@ -565,6 +565,10 @@ def alternar_favorito_geracao(db: Session, geracao: Generation) -> Generation:
     db.refresh(geracao)
     return geracao
 
+def excluir_geracao(db: Session, geracao: Generation) -> None:
+    db.delete(geracao)
+    db.commit()
+
 def duplicar_geracao(
     db: Session,
     geracao_origem: Generation,

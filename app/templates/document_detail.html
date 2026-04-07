@@ -9,7 +9,7 @@
             <span class="etiqueta-secao">Documento</span>
             <h2>Detalhes do documento</h2>
             <p class="texto-suave">
-                Visualize as informações completas do arquivo, confira o texto extraído e baixe o original.
+                Visualize as informações completas do arquivo, confira o texto extraído, organize metadados e baixe o original.
             </p>
         </div>
         <div class="acoes-topo">
@@ -17,6 +17,20 @@
                 <span class="icone-botao" aria-hidden="true">←</span>
                 Voltar para lista
             </a>
+
+            <form
+                action="/documents/{{ documento.id }}/favorite"
+                method="post"
+                data-loading-form
+                data-loading-message="Atualizando favorito do documento..."
+                data-loading-button-text="Salvando..."
+            >
+                <button type="submit" class="botao botao-secundario">
+                    <span class="icone-botao" aria-hidden="true">★</span>
+                    {% if documento.is_favorite %}Desfavoritar{% else %}Favoritar{% endif %}
+                </button>
+            </form>
+
             {% if documento.file_exists %}
                 <a class="botao" href="/documents/{{ documento.id }}/download">
                     <span class="icone-botao" aria-hidden="true">↓</span>
@@ -83,6 +97,24 @@
             </span>
         </div>
 
+        <div class="info-box">
+            <span class="info-label">Favorito</span>
+            <span class="info-value">
+                {% if documento.is_favorite %}
+                    ★ Favorito
+                {% else %}
+                    Não favoritado
+                {% endif %}
+            </span>
+        </div>
+
+        <div class="info-box">
+            <span class="info-label">Status interno</span>
+            <span class="info-value">
+                {{ documento.status or "Não informado" }}
+            </span>
+        </div>
+
         <div class="info-box info-box-largo">
             <span class="info-label">Nome original</span>
             <span class="info-value">{{ documento.original_filename }}</span>
@@ -91,6 +123,11 @@
         <div class="info-box info-box-largo">
             <span class="info-label">Nome salvo</span>
             <span class="info-value">{{ documento.saved_filename }}</span>
+        </div>
+
+        <div class="info-box info-box-largo">
+            <span class="info-label">Tags</span>
+            <span class="info-value">{{ documento.tags or "Não informadas" }}</span>
         </div>
 
         <div class="info-box info-box-largo">
@@ -105,6 +142,61 @@
             </span>
         </div>
     </div>
+
+    <section class="bloco-informativo">
+        <div class="bloco-informativo-topo bloco-informativo-topo-entre-linhas">
+            <div>
+                <h3>Metadados do documento</h3>
+                <p class="texto-suave">
+                    Campos futuros para organização da sua base.
+                </p>
+            </div>
+
+            {% if documento.is_favorite %}
+                <span class="badge badge-status">★ Favorito</span>
+            {% endif %}
+        </div>
+
+        <form
+            action="/documents/{{ documento.id }}/metadata"
+            method="post"
+            class="formulario-geracao"
+            data-loading-form
+            data-loading-message="Salvando metadados do documento..."
+            data-loading-button-text="Salvando..."
+        >
+            <div class="grid-formulario">
+                <div class="campo-completo">
+                    <label for="tags">Tags</label>
+                    <input
+                        type="text"
+                        id="tags"
+                        name="tags"
+                        value="{{ documento.tags or '' }}"
+                        placeholder="Ex.: contrato, cível, consumidor, urgente"
+                    >
+                </div>
+
+                <div class="campo-completo">
+                    <label for="status">Status</label>
+                    <input
+                        type="text"
+                        id="status"
+                        name="status"
+                        value="{{ documento.status or '' }}"
+                        placeholder="Ex.: ativo, em revisão, arquivado"
+                    >
+                </div>
+            </div>
+
+            <div class="acoes-formulario-geracao">
+                <button type="submit" class="botao">
+                    <span class="icone-botao" aria-hidden="true">💾</span>
+                    Salvar metadados
+                </button>
+            </div>
+        </form>
+    </section>
 
     <section class="bloco-informativo">
         <div class="bloco-informativo-topo">

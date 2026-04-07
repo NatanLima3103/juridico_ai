@@ -45,7 +45,7 @@
             <div>
                 <h3>Busca e organização</h3>
                 <p class="texto-suave">
-                    Pesquise por nome, tipo ou trecho do conteúdo extraído e ordene os documentos da forma que preferir.
+                    Pesquise por nome, tipo, tags, status ou trecho do conteúdo extraído e ordene os documentos da forma que preferir.
                 </p>
             </div>
 
@@ -63,7 +63,7 @@
                         id="q"
                         name="q"
                         value="{{ filtros.q }}"
-                        placeholder="Pesquisar por nome do arquivo, tipo ou trecho do texto"
+                        placeholder="Pesquisar por nome, tipo, tags, status ou trecho do texto"
                     >
                 </div>
 
@@ -156,7 +156,27 @@
                         <td>
                             <div class="documento-celula-principal">
                                 <strong class="documento-nome">{{ documento.original_filename }}</strong>
+
+                                <div class="linha-badges" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px;">
+                                    <span class="badge badge-neutro">{{ documento.file_type }}</span>
+
+                                    {% if documento.is_favorite %}
+                                        <span class="badge badge-status">★ Favorito</span>
+                                    {% endif %}
+
+                                    {% if documento.status %}
+                                        <span class="badge badge-neutro">{{ documento.status }}</span>
+                                    {% endif %}
+                                </div>
+
                                 <span class="texto-pequeno">Salvo como: {{ documento.saved_filename }}</span>
+
+                                {% if documento.tags %}
+                                    <div class="texto-pequeno">
+                                        <strong>Tags:</strong> {{ documento.tags }}
+                                    </div>
+                                {% endif %}
+
                                 <div class="texto-pequeno documento-resumo">{{ documento.text_preview }}</div>
                             </div>
                         </td>
@@ -170,11 +190,17 @@
                         </td>
                         <td>{{ documento.created_at.strftime("%d/%m/%Y %H:%M") if documento.created_at else "-" }}</td>
                         <td>
-                            {% if documento.file_exists %}
-                                <span class="badge badge-sucesso">Disponível</span>
-                            {% else %}
-                                <span class="badge badge-erro">Não localizado</span>
-                            {% endif %}
+                            <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start;">
+                                {% if documento.file_exists %}
+                                    <span class="badge badge-sucesso">Disponível</span>
+                                {% else %}
+                                    <span class="badge badge-erro">Não localizado</span>
+                                {% endif %}
+
+                                {% if documento.status %}
+                                    <span class="badge badge-neutro">{{ documento.status }}</span>
+                                {% endif %}
+                            </div>
                         </td>
                         <td>
                             <div class="barra-acoes-tabela barra-acoes-documentos">
@@ -182,6 +208,19 @@
                                     <span class="icone-botao" aria-hidden="true">👁</span>
                                     Detalhes
                                 </a>
+
+                                <form
+                                    action="/documents/{{ documento.id }}/favorite"
+                                    method="post"
+                                    data-loading-form
+                                    data-loading-message="Atualizando favorito do documento..."
+                                    data-loading-button-text="Salvando..."
+                                >
+                                    <button type="submit" class="botao botao-secundario">
+                                        <span class="icone-botao" aria-hidden="true">★</span>
+                                        {% if documento.is_favorite %}Desfavoritar{% else %}Favoritar{% endif %}
+                                    </button>
+                                </form>
 
                                 {% if documento.file_exists %}
                                     <a class="botao" href="/documents/{{ documento.id }}/download">
@@ -227,11 +266,11 @@
                     </a>
                 </div>
             {% else %}
-                <p>Envie o primeiro documento para começar a montar sua base jurídica.</p>
+                <p>Envie seu primeiro documento para começar a montar a base jurídica do sistema.</p>
                 <div class="estado-vazio-acoes">
                     <a class="botao" href="/documents/upload">
                         <span class="icone-botao" aria-hidden="true">↑</span>
-                        Enviar primeiro documento
+                        Fazer upload
                     </a>
                 </div>
             {% endif %}
