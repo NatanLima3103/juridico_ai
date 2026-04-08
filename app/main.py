@@ -2,12 +2,11 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import APP_NAME, STATIC_DIR
-from app.database import Base, engine, ensure_database_schema
+from app.database import initialize_database
 from app.models import Document, Generation, WritingProfile
 from app.routers import documents, generations, home, writing_profiles
 
-Base.metadata.create_all(bind=engine)
-ensure_database_schema()
+initialize_database()
 
 app = FastAPI(title=APP_NAME)
 

@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -31,6 +33,8 @@ SessionLocal = sessionmaker(
 )
 
 Base = declarative_base()
+
+LATEST_SCHEMA_VERSION = 3
 
 
 def _sqlite_column_exists(connection, table_name: str, column_name: str) -> bool:
@@ -122,14 +126,39 @@ def _sincronizar_source_document_ids(connection) -> None:
         )
 
 
-def ensure_database_schema() -> None:
-    """
-    Ajustes incrementais de schema para SQLite sem quebrar bancos já existentes.
-    Mantém compatibilidade com o estágio atual do projeto.
-    """
-    if not DATABASE_URL.startswith("sqlite"):
-        return
+def _criar_tabela_schema_migrations(connection) -> None:
+    connection.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+    )
 
+
+def _listar_migracoes_aplicadas(connection) -> set[int]:
+    _criar_tabela_schema_migrations(connection)
+    resultado = connection.execute(text("SELECT version FROM schema_migrations"))
+    return {int(version) for (version,) in resultado.fetchall()}
+
+
+def _registrar_migracao(connection, version: int, name: str) -> None:
+    connection.execute(
+        text(
+            """
+            INSERT INTO schema_migrations (version, name)
+            VALUES (:version, :name)
+            """
+        ),
+        {"version": version, "name": name},
+    )
+
+
+def _migration_001_add_metadata_columns(connection) -> None:
     ajustes = {
         "documents": {
             "tags": "ALTER TABLE documents ADD COLUMN tags TEXT",
@@ -150,34 +179,68 @@ def ensure_database_schema() -> None:
         },
     }
 
-    with engine.begin() as connection:
-        inspector = inspect(connection)
-        tabelas_existentes = set(inspector.get_table_names())
+    inspector = inspect(connection)
+    tabelas_existentes = set(inspector.get_table_names())
 
-        for tabela, colunas in ajustes.items():
-            if tabela not in tabelas_existentes:
+    for tabela, colunas in ajustes.items():
+        if tabela not in tabelas_existentes:
+            continue
+
+        for coluna, sql in colunas.items():
+            if not _sqlite_column_exists(connection, tabela, coluna):
+                connection.execute(text(sql))
+
+
+def _migration_002_create_generation_documents(connection) -> None:
+    connection.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS generation_documents (
+                generation_id INTEGER NOT NULL,
+                document_id INTEGER NOT NULL,
+                PRIMARY KEY (generation_id, document_id),
+                FOREIGN KEY(generation_id) REFERENCES generations (id) ON DELETE CASCADE,
+                FOREIGN KEY(document_id) REFERENCES documents (id) ON DELETE CASCADE
+            )
+            """
+        )
+    )
+
+
+def _migration_003_sync_generation_documents(connection) -> None:
+    _migrar_relacao_generation_documents(connection)
+    _sincronizar_source_document_ids(connection)
+
+
+SQLITE_MIGRATIONS: list[tuple[int, str, Callable]] = [
+    (1, "add_metadata_columns", _migration_001_add_metadata_columns),
+    (2, "create_generation_documents", _migration_002_create_generation_documents),
+    (3, "sync_generation_documents", _migration_003_sync_generation_documents),
+]
+
+
+def ensure_database_schema() -> None:
+    """
+    Aplica migracoes incrementais e idempotentes para bancos SQLite existentes.
+    Cada versao e registrada em schema_migrations para facilitar evolucao futura.
+    """
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+
+    with engine.begin() as connection:
+        migracoes_aplicadas = _listar_migracoes_aplicadas(connection)
+
+        for version, name, migration_fn in SQLITE_MIGRATIONS:
+            if version in migracoes_aplicadas:
                 continue
 
-            for coluna, sql in colunas.items():
-                if not _sqlite_column_exists(connection, tabela, coluna):
-                    connection.execute(text(sql))
+            migration_fn(connection)
+            _registrar_migracao(connection, version, name)
 
-        connection.execute(
-            text(
-                """
-                CREATE TABLE IF NOT EXISTS generation_documents (
-                    generation_id INTEGER NOT NULL,
-                    document_id INTEGER NOT NULL,
-                    PRIMARY KEY (generation_id, document_id),
-                    FOREIGN KEY(generation_id) REFERENCES generations (id) ON DELETE CASCADE,
-                    FOREIGN KEY(document_id) REFERENCES documents (id) ON DELETE CASCADE
-                )
-                """
-            )
-        )
 
-        _migrar_relacao_generation_documents(connection)
-        _sincronizar_source_document_ids(connection)
+def initialize_database() -> None:
+    Base.metadata.create_all(bind=engine)
+    ensure_database_schema()
 
 
 def get_db():
