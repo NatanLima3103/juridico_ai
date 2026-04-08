@@ -2,11 +2,11 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from app.core.config import MAX_UPLOAD_SIZE_MB, TEMPLATES_DIR
+from app.core.config import MAX_UPLOAD_SIZE_MB
 from app.database import get_db
+from app.routers.common import templates
 from app.services.document_service import (
     ORDENACOES_DOCUMENTOS,
     buscar_documento_por_id,
@@ -28,7 +28,6 @@ from app.services.file_service import salvar_arquivo_upload
 from app.services.text_extractor import extrair_texto_arquivo
 
 router = APIRouter(prefix="/documents", tags=["documents"])
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 @router.get("/upload", response_class=HTMLResponse)

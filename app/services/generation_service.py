@@ -31,6 +31,15 @@ TIPOS_DE_DOCUMENTO = [
     "Outro",
 ]
 
+ORDENACOES_GERACOES = {
+    "updated_desc": "AtualizaÃ§Ã£o (mais recente primeiro)",
+    "updated_asc": "AtualizaÃ§Ã£o (mais antiga primeiro)",
+    "created_desc": "CriaÃ§Ã£o (mais recente primeiro)",
+    "created_asc": "CriaÃ§Ã£o (mais antiga primeiro)",
+    "client_asc": "Cliente (A-Z)",
+    "client_desc": "Cliente (Z-A)",
+}
+
 
 TEMPLATES_JURIDICOS_PRONTOS = {'Petição inicial': {'titulo': 'Modelo base para ajuizamento da ação',
                      'descricao': 'Estrutura pronta para iniciar uma ação com fatos, pedidos e fundamentos essenciais.',
@@ -199,6 +208,18 @@ def resumir_texto(texto: str | None, limite: int = 80) -> str:
     return texto_limpo[:limite].rstrip(" .,;:") + "..."
 
 
+def coletar_ids_inteiros_unicos(values: list[str] | None) -> list[int]:
+    ids: list[int] = []
+    for value in values or []:
+        try:
+            numero = int(value)
+        except (TypeError, ValueError):
+            continue
+        if numero not in ids:
+            ids.append(numero)
+    return ids
+
+
 def agora_brasil():
     if ZoneInfo is not None:
         try:
@@ -257,6 +278,58 @@ def normalizar_filtros_listagem(
         "created_from": _parse_date_input(created_from),
         "created_to": _parse_date_input(created_to),
         "sort_by": sort_by if sort_by in opcoes_ordenacao else "updated_desc",
+    }
+
+
+def contar_filtros_ativos_geracoes(filtros: dict | None) -> int:
+    if not filtros:
+        return 0
+
+    total = 0
+
+    if filtros.get("search_term"):
+        total += 1
+    if filtros.get("document_type"):
+        total += 1
+    if filtros.get("writing_profile_id"):
+        total += 1
+    if filtros.get("sem_perfil"):
+        total += 1
+    if filtros.get("client_name"):
+        total += 1
+    if filtros.get("case_subject"):
+        total += 1
+    if filtros.get("created_from"):
+        total += 1
+    if filtros.get("created_to"):
+        total += 1
+    if filtros.get("sort_by", "updated_desc") != "updated_desc":
+        total += 1
+
+    return total
+
+
+def serializar_filtros_geracao_para_template(filtros: dict | None) -> dict:
+    filtros = filtros or {}
+
+    if filtros.get("sem_perfil"):
+        writing_profile_id = "none"
+    elif filtros.get("writing_profile_id"):
+        writing_profile_id = str(filtros.get("writing_profile_id"))
+    else:
+        writing_profile_id = ""
+
+    return {
+        "search": filtros.get("search_term", ""),
+        "search_term": filtros.get("search_term", ""),
+        "document_type": filtros.get("document_type", ""),
+        "writing_profile_id": writing_profile_id,
+        "sem_perfil": bool(filtros.get("sem_perfil")),
+        "client_name": filtros.get("client_name", ""),
+        "case_subject": filtros.get("case_subject", ""),
+        "created_from": filtros["created_from"].isoformat() if filtros.get("created_from") else "",
+        "created_to": filtros["created_to"].isoformat() if filtros.get("created_to") else "",
+        "sort_by": filtros.get("sort_by", "updated_desc"),
     }
 
 def validar_dados_geracao(
@@ -545,6 +618,36 @@ def listar_geracoes(
         )
 
     return query.all()
+
+
+def montar_resumo_geracao(geracao: Generation) -> dict:
+    perfil = geracao.writing_profile
+    document_ids = geracao.document_ids
+
+    return {
+        "id": geracao.id,
+        "client_name": geracao.client_name,
+        "document_type": geracao.document_type,
+        "case_subject": geracao.case_subject,
+        "facts": geracao.facts,
+        "requests": geracao.requests,
+        "legal_basis": geracao.legal_basis,
+        "context_used": geracao.context_used,
+        "generated_text": geracao.generated_text,
+        "source_document_ids": geracao.source_document_ids,
+        "writing_profile_id": geracao.writing_profile_id,
+        "writing_profile_name": perfil.profile_name if perfil else "Sem perfil",
+        "tags": geracao.tags or "",
+        "status": geracao.status or "",
+        "is_pinned": bool(geracao.is_pinned),
+        "is_favorite": bool(geracao.is_favorite),
+        "created_at": geracao.created_at,
+        "updated_at": geracao.updated_at,
+        "document_count": len(document_ids),
+        "facts_preview": resumir_texto(geracao.facts, 180),
+        "requests_preview": resumir_texto(geracao.requests, 180),
+        "generated_text_preview": resumir_texto(geracao.generated_text, 220),
+    }
 
 def alternar_fixacao_geracao(db: Session, geracao: Generation) -> Generation:
     geracao.is_pinned = not bool(geracao.is_pinned)

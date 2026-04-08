@@ -2,10 +2,10 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.routers.common import templates
 from app.services.document_service import listar_documentos, listar_documentos_por_ids
 from app.services.generation_service import (
     TIPOS_DE_DOCUMENTO,
@@ -19,10 +19,14 @@ from app.services.generation_service import (
     gerar_docx_da_geracao,
     gerar_txt_da_geracao,
     gerar_rascunho_juridico,
+    coletar_ids_inteiros_unicos,
+    contar_filtros_ativos_geracoes,
     listar_geracoes,
     listar_templates_juridicos_prontos,
+    montar_resumo_geracao,
     montar_contexto_inteligente,
     normalizar_filtros_listagem,
+    serializar_filtros_geracao_para_template,
     serializar_ids_documentos,
     validar_dados_geracao,
 )
@@ -31,8 +35,7 @@ from app.services.writing_profile_service import (
     listar_perfis_escrita,
 )
 
-router = APIRouter(prefix="/generations", tags=["Generations"])
-templates = Jinja2Templates(directory="app/templates")
+router = APIRouter(prefix="/generations", tags=["generations"])
 
 
 ORDENACOES_GERACOES = {
@@ -46,15 +49,7 @@ ORDENACOES_GERACOES = {
 
 
 def _to_int_list(values: list[str] | None) -> list[int]:
-    ids: list[int] = []
-    for value in values or []:
-        try:
-            numero = int(value)
-        except (TypeError, ValueError):
-            continue
-        if numero not in ids:
-            ids.append(numero)
-    return ids
+    return coletar_ids_inteiros_unicos(values)
 
 
 def _resumir_texto(texto: str | None, limite: int = 140) -> str:
@@ -70,80 +65,15 @@ def _resumir_texto(texto: str | None, limite: int = 140) -> str:
 
 
 def _contar_filtros_ativos(filtros: dict) -> int:
-    total = 0
-
-    if filtros.get("search_term"):
-        total += 1
-    if filtros.get("document_type"):
-        total += 1
-    if filtros.get("writing_profile_id"):
-        total += 1
-    if filtros.get("sem_perfil"):
-        total += 1
-    if filtros.get("client_name"):
-        total += 1
-    if filtros.get("case_subject"):
-        total += 1
-    if filtros.get("created_from"):
-        total += 1
-    if filtros.get("created_to"):
-        total += 1
-    if filtros.get("sort_by", "updated_desc") != "updated_desc":
-        total += 1
-
-    return total
+    return contar_filtros_ativos_geracoes(filtros)
 
 
 def _generation_to_dict(geracao):
-    perfil = geracao.writing_profile
-    document_ids = geracao.document_ids
-
-    return {
-        "id": geracao.id,
-        "client_name": geracao.client_name,
-        "document_type": geracao.document_type,
-        "case_subject": geracao.case_subject,
-        "facts": geracao.facts,
-        "requests": geracao.requests,
-        "legal_basis": geracao.legal_basis,
-        "context_used": geracao.context_used,
-        "generated_text": geracao.generated_text,
-        "source_document_ids": geracao.source_document_ids,
-        "writing_profile_id": geracao.writing_profile_id,
-        "writing_profile_name": perfil.profile_name if perfil else "Sem perfil",
-        "tags": geracao.tags or "",
-        "status": geracao.status or "",
-        "is_pinned": bool(geracao.is_pinned),
-        "is_favorite": bool(geracao.is_favorite),
-        "created_at": geracao.created_at,
-        "updated_at": geracao.updated_at,
-        "document_count": len(document_ids),
-        "facts_preview": _resumir_texto(geracao.facts, 180),
-        "requests_preview": _resumir_texto(geracao.requests, 180),
-        "generated_text_preview": _resumir_texto(geracao.generated_text, 220),
-    }
+    return montar_resumo_geracao(geracao)
 
 
 def _serialize_filters_for_template(filtros: dict) -> dict:
-    if filtros.get("sem_perfil"):
-        writing_profile_id = "none"
-    elif filtros.get("writing_profile_id"):
-        writing_profile_id = str(filtros.get("writing_profile_id"))
-    else:
-        writing_profile_id = ""
-
-    return {
-        "search": filtros.get("search_term", ""),
-        "search_term": filtros.get("search_term", ""),
-        "document_type": filtros.get("document_type", ""),
-        "writing_profile_id": writing_profile_id,
-        "sem_perfil": bool(filtros.get("sem_perfil")),
-        "client_name": filtros.get("client_name", ""),
-        "case_subject": filtros.get("case_subject", ""),
-        "created_from": filtros["created_from"].isoformat() if filtros.get("created_from") else "",
-        "created_to": filtros["created_to"].isoformat() if filtros.get("created_to") else "",
-        "sort_by": filtros.get("sort_by", "updated_desc"),
-    }
+    return serializar_filtros_geracao_para_template(filtros)
 
 
 def _render_generation_form(
@@ -259,10 +189,10 @@ async def list_generations(
     geracoes = listar_geracoes(db, filtros=filtros)
     perfis = listar_perfis_escrita(db)
 
-    geracoes_template = [_generation_to_dict(geracao) for geracao in geracoes]
-    filtros_template = _serialize_filters_for_template(filtros)
+    geracoes_template = [montar_resumo_geracao(geracao) for geracao in geracoes]
+    filtros_template = serializar_filtros_geracao_para_template(filtros)
     total_resultados = len(geracoes_template)
-    total_filtros_ativos = _contar_filtros_ativos(filtros)
+    total_filtros_ativos = contar_filtros_ativos_geracoes(filtros)
 
     return templates.TemplateResponse(
         "generations_list.html",
@@ -319,7 +249,7 @@ async def generation_detail(
         "generation_detail.html",
         {
             "request": request,
-            "geracao": _generation_to_dict(geracao),
+            "geracao": montar_resumo_geracao(geracao),
             "documentos_base": documentos_base,
             "sucesso": sucesso,
             "erro": erro,
@@ -424,7 +354,7 @@ async def create_generation(
     documentos = listar_documentos(db)
     perfis = listar_perfis_escrita(db)
 
-    selected_document_ids = _to_int_list(document_ids)
+    selected_document_ids = coletar_ids_inteiros_unicos(document_ids)
 
     selected_profile_id = None
     if writing_profile_id and str(writing_profile_id).strip():
@@ -561,7 +491,7 @@ async def edit_generation(
     documentos = listar_documentos(db)
     perfis = listar_perfis_escrita(db)
 
-    selected_document_ids = _to_int_list(document_ids)
+    selected_document_ids = coletar_ids_inteiros_unicos(document_ids)
 
     selected_profile_id = None
     if writing_profile_id and str(writing_profile_id).strip():
@@ -753,7 +683,7 @@ async def apply_template_to_generation_form(
     documentos = listar_documentos(db)
     perfis = listar_perfis_escrita(db)
 
-    selected_document_ids = _to_int_list(document_ids)
+    selected_document_ids = coletar_ids_inteiros_unicos(document_ids)
 
     selected_profile_id = None
     if writing_profile_id and str(writing_profile_id).strip():

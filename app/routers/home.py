@@ -2,17 +2,15 @@ from collections import Counter
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from app.core.config import TEMPLATES_DIR
 from app.database import get_db
 from app.models.document import Document
 from app.models.generation import Generation
 from app.models.writing_profile import WritingProfile
+from app.routers.common import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 @router.get("/", response_class=HTMLResponse)

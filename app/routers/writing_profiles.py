@@ -2,10 +2,10 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, Query, Request, status
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.routers.common import templates
 from app.schemas.writing_profile import WritingProfileCreate
 from app.services.generation_service import resumir_texto
 from app.services.writing_profile_service import (
@@ -25,8 +25,7 @@ from app.services.writing_profile_service import (
     validar_dados_perfil,
 )
 
-router = APIRouter(prefix="/writing-profiles", tags=["Perfis de escrita"])
-templates = Jinja2Templates(directory="app/templates")
+router = APIRouter(prefix="/writing-profiles", tags=["writing_profiles"])
 
 
 @router.get("")
@@ -85,8 +84,6 @@ def listar_perfis_page(
     )
 
 
-
-
 @router.post("/{profile_id}/toggle-pin")
 def toggle_pin_profile(profile_id: int, request: Request, db: Session = Depends(get_db)):
     perfil = toggle_fixacao_perfil(db, profile_id)
@@ -107,7 +104,6 @@ def toggle_pin_profile(profile_id: int, request: Request, db: Session = Depends(
     )
 
 
-@router.get("/create")
 @router.post("/{profile_id}/toggle-favorite")
 def toggle_favorite_profile(profile_id: int, request: Request, db: Session = Depends(get_db)):
     perfil = toggle_favorito_perfil(db, profile_id)
