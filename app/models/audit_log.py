@@ -6,7 +6,7 @@ except ImportError:
     ZoneInfo = None
     ZoneInfoNotFoundError = Exception
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy import Column, DateTime, Integer, String, Text
 
 from app.database import Base
 
@@ -23,16 +23,19 @@ def agora_brasil():
     return datetime.now()
 
 
-class User(Base):
-    __tablename__ = "users"
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    full_name = Column(String(150), nullable=False)
-    email = Column(String(255), nullable=False, unique=True, index=True)
-    password_hash = Column(String(255), nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
+    entity_type = Column(String(50), nullable=False, index=True)
+    entity_id = Column(Integer, nullable=False, index=True)
+    action = Column(String(50), nullable=False, index=True)
+    entity_version = Column(Integer, nullable=False, default=1)
+    payload = Column(Text, nullable=False)
     created_at = Column(DateTime, default=agora_brasil, nullable=False, index=True)
-    updated_at = Column(DateTime, default=agora_brasil, onupdate=agora_brasil, nullable=False)
 
     def __repr__(self) -> str:
-        return f"<User id={self.id} email='{self.email}'>"
+        return (
+            f"<AuditLog id={self.id} entity_type='{self.entity_type}' "
+            f"entity_id={self.entity_id} action='{self.action}'>"
+        )

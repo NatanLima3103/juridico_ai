@@ -1,8 +1,27 @@
+from datetime import datetime
+
+try:
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+except ImportError:
+    ZoneInfo = None
+    ZoneInfoNotFoundError = Exception
+
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
 
 from app.database import Base
+
+
+def agora_brasil():
+    if ZoneInfo is not None:
+        try:
+            return datetime.now(ZoneInfo("America/Sao_Paulo")).replace(tzinfo=None)
+        except ZoneInfoNotFoundError:
+            pass
+        except Exception:
+            pass
+
+    return datetime.now()
 
 
 class WritingProfile(Base):
@@ -51,8 +70,10 @@ class WritingProfile(Base):
     tags = Column(Text, nullable=True)
     is_favorite = Column(Boolean, default=False, nullable=False)
     status = Column(String(100), nullable=True)
+    version = Column(Integer, default=1, nullable=False)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(DateTime, default=agora_brasil, nullable=False)
+    updated_at = Column(DateTime, default=agora_brasil, onupdate=agora_brasil, nullable=False)
 
     generations = relationship(
         "Generation",

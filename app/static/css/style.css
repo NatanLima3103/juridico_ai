@@ -82,6 +82,25 @@ a:hover {
     text-decoration: none;
 }
 
+.menu-logout-form {
+    margin: 0;
+}
+
+.menu-logout-button {
+    border: 0;
+    background: transparent;
+    color: #ffffff;
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font: inherit;
+    transition: background 0.2s ease;
+}
+
+.menu-logout-button:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
 .pagina-conteudo {
     padding: 32px 0;
 }

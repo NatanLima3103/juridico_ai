@@ -26,6 +26,7 @@ from app.services.generation_service import (
     montar_resumo_geracao,
     montar_contexto_inteligente,
     normalizar_filtros_listagem,
+    salvar_texto_geracao,
     serializar_filtros_geracao_para_template,
     serializar_ids_documentos,
     validar_dados_geracao,
@@ -603,9 +604,7 @@ async def save_generation_text(generation_id: int, request: Request, db: Session
             status_code=303,
         )
 
-    geracao.generated_text = generated_text
-    db.add(geracao)
-    db.commit()
+    salvar_texto_geracao(db, geracao, generated_text)
 
     return RedirectResponse(
         url=f"/generations/{generation_id}?sucesso={quote('Versão ajustada salva com sucesso.')}",

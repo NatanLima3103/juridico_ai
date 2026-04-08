@@ -34,7 +34,7 @@ SessionLocal = sessionmaker(
 
 Base = declarative_base()
 
-LATEST_SCHEMA_VERSION = 3
+LATEST_SCHEMA_VERSION = 6
 
 
 def _sqlite_column_exists(connection, table_name: str, column_name: str) -> bool:
@@ -212,10 +212,91 @@ def _migration_003_sync_generation_documents(connection) -> None:
     _sincronizar_source_document_ids(connection)
 
 
+def _migration_004_add_versioning_columns(connection) -> None:
+    ajustes = {
+        "documents": {
+            "version": "ALTER TABLE documents ADD COLUMN version INTEGER NOT NULL DEFAULT 1",
+            "updated_at": "ALTER TABLE documents ADD COLUMN updated_at DATETIME",
+        },
+        "generations": {
+            "version": "ALTER TABLE generations ADD COLUMN version INTEGER NOT NULL DEFAULT 1",
+        },
+        "writing_profiles": {
+            "version": "ALTER TABLE writing_profiles ADD COLUMN version INTEGER NOT NULL DEFAULT 1",
+            "updated_at": "ALTER TABLE writing_profiles ADD COLUMN updated_at DATETIME",
+        },
+    }
+
+    inspector = inspect(connection)
+    tabelas_existentes = set(inspector.get_table_names())
+
+    for tabela, colunas in ajustes.items():
+        if tabela not in tabelas_existentes:
+            continue
+
+        for coluna, sql in colunas.items():
+            if not _sqlite_column_exists(connection, tabela, coluna):
+                connection.execute(text(sql))
+
+    connection.execute(
+        text("UPDATE documents SET version = COALESCE(version, 1), updated_at = COALESCE(updated_at, created_at)")
+    )
+    connection.execute(
+        text("UPDATE generations SET version = COALESCE(version, 1)")
+    )
+    connection.execute(
+        text(
+            "UPDATE writing_profiles SET version = COALESCE(version, 1), updated_at = COALESCE(updated_at, created_at)"
+        )
+    )
+
+
+def _migration_005_create_audit_logs(connection) -> None:
+    connection.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id INTEGER PRIMARY KEY,
+                entity_type VARCHAR(50) NOT NULL,
+                entity_id INTEGER NOT NULL,
+                action VARCHAR(50) NOT NULL,
+                entity_version INTEGER NOT NULL DEFAULT 1,
+                payload TEXT NOT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+    )
+
+
+def _migration_006_prepare_users_table(connection) -> None:
+    connection.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY,
+                full_name VARCHAR(150) NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                is_active BOOLEAN NOT NULL DEFAULT 1,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+    )
+    connection.execute(
+        text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email_unique ON users (email)")
+    )
+
+
 SQLITE_MIGRATIONS: list[tuple[int, str, Callable]] = [
     (1, "add_metadata_columns", _migration_001_add_metadata_columns),
     (2, "create_generation_documents", _migration_002_create_generation_documents),
     (3, "sync_generation_documents", _migration_003_sync_generation_documents),
+    (4, "add_versioning_columns", _migration_004_add_versioning_columns),
+    (5, "create_audit_logs", _migration_005_create_audit_logs),
+    (6, "prepare_users_table", _migration_006_prepare_users_table),
 ]
 
 

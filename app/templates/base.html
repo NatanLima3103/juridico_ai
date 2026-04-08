@@ -20,12 +20,23 @@
 
             <nav class="menu">
                 <a href="/">Início</a>
+                {% if not request.session.get("user_id") %}
+                <a href="/auth/register">Cadastro</a>
+                <a href="/auth/login">Login</a>
+                {% endif %}
                 <a href="/documents/upload">Upload</a>
                 <a href="/documents">Documentos</a>
                 <a href="/generations/create">Nova geração</a>
                 <a href="/generations">Gerações</a>
                 <a href="/writing-profiles/create">Novo perfil</a>
                 <a href="/writing-profiles">Perfis</a>
+                {% if request.session.get("user_id") %}
+                <form method="post" action="/auth/logout" class="menu-logout-form">
+                    <button type="submit" class="menu-logout-button">
+                        Sair{% if request.session.get("user_name") %} ({{ request.session.get("user_name") }}){% endif %}
+                    </button>
+                </form>
+                {% endif %}
             </nav>
         </div>
     </header>

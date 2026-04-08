@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Criar Conta - Jurídico AI{% endblock %}
+
+{% block content %}
+<section class="card card-form">
+    <div class="secao-topo">
+        <div>
+            <p class="secao-kicker">Etapa 9.1</p>
+            <h1>Criar conta</h1>
+            <p class="secao-subtitulo">
+                Cadastre um usuário para começar a preparar o sistema para uso multiusuário.
+            </p>
+        </div>
+    </div>
+
+    {% if sucesso %}
+    <div class="mensagem mensagem-sucesso">{{ sucesso }}</div>
+    {% endif %}
+
+    {% if erro %}
+    <div class="mensagem mensagem-erro">{{ erro }}</div>
+    {% endif %}
+
+    <form method="post" action="/auth/register" class="formulario-principal">
+        <div class="campo-formulario">
+            <label for="full_name">Nome completo</label>
+            <input
+                type="text"
+                id="full_name"
+                name="full_name"
+                value="{{ form_data.get('full_name', '') }}"
+                placeholder="Ex.: Ana Martins Pereira"
+                required
+            >
+        </div>
+
+        <div class="campo-formulario">
+            <label for="email">E-mail</label>
+            <input
+                type="email"
+                id="email"
+                name="email"
+                value="{{ form_data.get('email', '') }}"
+                placeholder="voce@exemplo.com"
+                required
+            >
+        </div>
+
+        <div class="campo-formulario">
+            <label for="password">Senha</label>
+            <input
+                type="password"
+                id="password"
+                name="password"
+                placeholder="Mínimo de 8 caracteres"
+                required
+            >
+        </div>
+
+        <div class="campo-formulario">
+            <label for="confirm_password">Confirmar senha</label>
+            <input
+                type="password"
+                id="confirm_password"
+                name="confirm_password"
+                placeholder="Repita a senha informada"
+                required
+            >
+        </div>
+
+        <div class="acoes-formulario">
+            <button type="submit" class="botao">Criar conta</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

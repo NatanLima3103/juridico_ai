@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.models.document import Document
 from app.schemas.document import DocumentCreate
+from app.services.audit_service import registrar_evento_auditoria, serializar_entidade_para_auditoria
 
 
 ORDENACOES_DOCUMENTOS = {
@@ -33,6 +34,15 @@ def criar_documento(db: Session, document_data: DocumentCreate) -> Document:
     db.add(documento)
     db.commit()
     db.refresh(documento)
+    registrar_evento_auditoria(
+        db,
+        entity_type="document",
+        entity_id=documento.id,
+        action="create",
+        entity_version=documento.version,
+        snapshot=serializar_entidade_para_auditoria(documento),
+    )
+    db.commit()
     return documento
 
 
@@ -79,28 +89,57 @@ def atualizar_metadados_documento(
 ) -> Document:
     documento.tags = _normalizar_texto(tags) or None
     documento.status = _normalizar_texto(status) or None
+    documento.version = int(getattr(documento, "version", 1) or 1) + 1
 
     db.add(documento)
     db.commit()
     db.refresh(documento)
+    registrar_evento_auditoria(
+        db,
+        entity_type="document",
+        entity_id=documento.id,
+        action="update_metadata",
+        entity_version=documento.version,
+        snapshot=serializar_entidade_para_auditoria(documento),
+    )
+    db.commit()
     return documento
 
 
 def toggle_favorito_documento(db: Session, documento: Document) -> Document:
     documento.is_favorite = not bool(documento.is_favorite)
+    documento.version = int(getattr(documento, "version", 1) or 1) + 1
 
     db.add(documento)
     db.commit()
     db.refresh(documento)
+    registrar_evento_auditoria(
+        db,
+        entity_type="document",
+        entity_id=documento.id,
+        action="toggle_favorite",
+        entity_version=documento.version,
+        snapshot=serializar_entidade_para_auditoria(documento),
+    )
+    db.commit()
     return documento
 
 
 def excluir_documento(db: Session, documento: Document) -> None:
     caminho = obter_path_documento(documento)
+    snapshot = serializar_entidade_para_auditoria(documento)
 
     if caminho.exists():
         caminho.unlink()
 
+    registrar_evento_auditoria(
+        db,
+        entity_type="document",
+        entity_id=documento.id,
+        action="delete",
+        entity_version=int(getattr(documento, "version", 1) or 1),
+        snapshot=snapshot,
+    )
     db.delete(documento)
     db.commit()
 

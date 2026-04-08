@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Entrar - Jurídico AI{% endblock %}
+
+{% block content %}
+<section class="card card-form">
+    <div class="secao-topo">
+        <div>
+            <p class="secao-kicker">Etapa 9.2</p>
+            <h1>Entrar</h1>
+            <p class="secao-subtitulo">
+                Acesse sua conta para continuar a evolução do sistema multiusuário.
+            </p>
+        </div>
+    </div>
+
+    {% if sucesso %}
+    <div class="mensagem mensagem-sucesso">{{ sucesso }}</div>
+    {% endif %}
+
+    {% if erro %}
+    <div class="mensagem mensagem-erro">{{ erro }}</div>
+    {% endif %}
+
+    <form method="post" action="/auth/login" class="formulario-principal">
+        <div class="campo-formulario">
+            <label for="email">E-mail</label>
+            <input
+                type="email"
+                id="email"
+                name="email"
+                value="{{ form_data.get('email', '') }}"
+                placeholder="voce@exemplo.com"
+                required
+            >
+        </div>
+
+        <div class="campo-formulario">
+            <label for="password">Senha</label>
+            <input
+                type="password"
+                id="password"
+                name="password"
+                placeholder="Digite sua senha"
+                required
+            >
+        </div>
+
+        <div class="acoes-formulario">
+            <button type="submit" class="botao">Entrar</button>
+        </div>
+    </form>
+
+    <div class="card-info">
+        <p>
+            Ainda não tem conta?
+            <a href="/auth/register">Criar cadastro</a>
+        </p>
+    </div>
+</section>
+{% endblock %}

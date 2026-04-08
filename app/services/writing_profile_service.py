@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.writing_profile import WritingProfile
 from app.schemas.writing_profile import WritingProfileCreate
+from app.services.audit_service import registrar_evento_auditoria, serializar_entidade_para_auditoria
 
 
 def _parse_date_input(raw_value: str | None) -> date | None:
@@ -181,6 +182,15 @@ def criar_perfil(db: Session, payload: WritingProfileCreate) -> WritingProfile:
     db.add(perfil)
     db.commit()
     db.refresh(perfil)
+    registrar_evento_auditoria(
+        db,
+        entity_type="writing_profile",
+        entity_id=perfil.id,
+        action="create",
+        entity_version=perfil.version,
+        snapshot=serializar_entidade_para_auditoria(perfil),
+    )
+    db.commit()
     return perfil
 
 
@@ -210,10 +220,20 @@ def atualizar_perfil(
     perfil.recurring_expressions = _normalizar_texto(payload.recurring_expressions)
     perfil.tags = _normalizar_texto(payload.tags) or None
     perfil.status = _normalizar_texto(payload.status) or None
+    perfil.version = int(getattr(perfil, "version", 1) or 1) + 1
 
     db.add(perfil)
     db.commit()
     db.refresh(perfil)
+    registrar_evento_auditoria(
+        db,
+        entity_type="writing_profile",
+        entity_id=perfil.id,
+        action="update",
+        entity_version=perfil.version,
+        snapshot=serializar_entidade_para_auditoria(perfil),
+    )
+    db.commit()
     return perfil
 
 
@@ -256,6 +276,15 @@ def duplicar_perfil(db: Session, profile_id: int) -> WritingProfile | None:
     db.add(novo_perfil)
     db.commit()
     db.refresh(novo_perfil)
+    registrar_evento_auditoria(
+        db,
+        entity_type="writing_profile",
+        entity_id=novo_perfil.id,
+        action="duplicate",
+        entity_version=novo_perfil.version,
+        snapshot=serializar_entidade_para_auditoria(novo_perfil),
+    )
+    db.commit()
     return novo_perfil
 
 
@@ -266,10 +295,20 @@ def toggle_fixacao_perfil(db: Session, profile_id: int) -> WritingProfile | None
         return None
 
     perfil.is_pinned = not bool(perfil.is_pinned)
+    perfil.version = int(getattr(perfil, "version", 1) or 1) + 1
 
     db.add(perfil)
     db.commit()
     db.refresh(perfil)
+    registrar_evento_auditoria(
+        db,
+        entity_type="writing_profile",
+        entity_id=perfil.id,
+        action="toggle_pin",
+        entity_version=perfil.version,
+        snapshot=serializar_entidade_para_auditoria(perfil),
+    )
+    db.commit()
     return perfil
 
 
@@ -280,10 +319,20 @@ def toggle_favorito_perfil(db: Session, profile_id: int) -> WritingProfile | Non
         return None
 
     perfil.is_favorite = not bool(perfil.is_favorite)
+    perfil.version = int(getattr(perfil, "version", 1) or 1) + 1
 
     db.add(perfil)
     db.commit()
     db.refresh(perfil)
+    registrar_evento_auditoria(
+        db,
+        entity_type="writing_profile",
+        entity_id=perfil.id,
+        action="toggle_favorite",
+        entity_version=perfil.version,
+        snapshot=serializar_entidade_para_auditoria(perfil),
+    )
+    db.commit()
     return perfil
 
 
@@ -293,6 +342,14 @@ def excluir_perfil(db: Session, profile_id: int) -> tuple[bool, str]:
     if not perfil:
         return False, "Perfil não encontrado."
 
+    registrar_evento_auditoria(
+        db,
+        entity_type="writing_profile",
+        entity_id=perfil.id,
+        action="delete",
+        entity_version=int(getattr(perfil, "version", 1) or 1),
+        snapshot=serializar_entidade_para_auditoria(perfil),
+    )
     db.delete(perfil)
     db.commit()
     return True, "Perfil excluído com sucesso."

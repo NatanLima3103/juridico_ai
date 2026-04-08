@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.document import Document
 from app.models.generation import Generation
+from app.services.audit_service import registrar_evento_auditoria, serializar_entidade_para_auditoria
 from app.services.llm_service import gerar_texto_juridico_com_fallback
 from app.services.prompt_service import build_advanced_prompt, build_smart_context
 
@@ -456,6 +457,15 @@ def criar_geracao(
     db.add(nova_geracao)
     db.commit()
     db.refresh(nova_geracao)
+    registrar_evento_auditoria(
+        db,
+        entity_type="generation",
+        entity_id=nova_geracao.id,
+        action="create",
+        entity_version=nova_geracao.version,
+        snapshot=serializar_entidade_para_auditoria(nova_geracao),
+    )
+    db.commit()
     return nova_geracao
 
 def atualizar_geracao(
@@ -504,11 +514,21 @@ def atualizar_geracao(
 
     geracao.tags = _normalizar_texto(tags) or None
     geracao.status = _normalizar_texto(status) or None
+    geracao.version = int(getattr(geracao, "version", 1) or 1) + 1
     geracao.updated_at = agora_brasil()
 
     db.add(geracao)
     db.commit()
     db.refresh(geracao)
+    registrar_evento_auditoria(
+        db,
+        entity_type="generation",
+        entity_id=geracao.id,
+        action="update",
+        entity_version=geracao.version,
+        snapshot=serializar_entidade_para_auditoria(geracao),
+    )
+    db.commit()
     return geracao
 
 def buscar_geracao_por_id(db: Session, generation_id: int) -> Generation | None:
@@ -651,24 +671,52 @@ def montar_resumo_geracao(geracao: Generation) -> dict:
 
 def alternar_fixacao_geracao(db: Session, geracao: Generation) -> Generation:
     geracao.is_pinned = not bool(geracao.is_pinned)
+    geracao.version = int(getattr(geracao, "version", 1) or 1) + 1
     geracao.updated_at = agora_brasil()
 
     db.add(geracao)
     db.commit()
     db.refresh(geracao)
+    registrar_evento_auditoria(
+        db,
+        entity_type="generation",
+        entity_id=geracao.id,
+        action="toggle_pin",
+        entity_version=geracao.version,
+        snapshot=serializar_entidade_para_auditoria(geracao),
+    )
+    db.commit()
     return geracao
 
 
 def alternar_favorito_geracao(db: Session, geracao: Generation) -> Generation:
     geracao.is_favorite = not bool(geracao.is_favorite)
+    geracao.version = int(getattr(geracao, "version", 1) or 1) + 1
     geracao.updated_at = agora_brasil()
 
     db.add(geracao)
     db.commit()
     db.refresh(geracao)
+    registrar_evento_auditoria(
+        db,
+        entity_type="generation",
+        entity_id=geracao.id,
+        action="toggle_favorite",
+        entity_version=geracao.version,
+        snapshot=serializar_entidade_para_auditoria(geracao),
+    )
+    db.commit()
     return geracao
 
 def excluir_geracao(db: Session, geracao: Generation) -> None:
+    registrar_evento_auditoria(
+        db,
+        entity_type="generation",
+        entity_id=geracao.id,
+        action="delete",
+        entity_version=int(getattr(geracao, "version", 1) or 1),
+        snapshot=serializar_entidade_para_auditoria(geracao),
+    )
     db.delete(geracao)
     db.commit()
 
@@ -695,7 +743,36 @@ def duplicar_geracao(
     db.add(nova_geracao)
     db.commit()
     db.refresh(nova_geracao)
+    registrar_evento_auditoria(
+        db,
+        entity_type="generation",
+        entity_id=nova_geracao.id,
+        action="duplicate",
+        entity_version=nova_geracao.version,
+        snapshot=serializar_entidade_para_auditoria(nova_geracao),
+    )
+    db.commit()
     return nova_geracao
+
+
+def salvar_texto_geracao(db: Session, geracao: Generation, generated_text: str) -> Generation:
+    geracao.generated_text = _normalizar_texto(generated_text)
+    geracao.version = int(getattr(geracao, "version", 1) or 1) + 1
+    geracao.updated_at = agora_brasil()
+
+    db.add(geracao)
+    db.commit()
+    db.refresh(geracao)
+    registrar_evento_auditoria(
+        db,
+        entity_type="generation",
+        entity_id=geracao.id,
+        action="save_text",
+        entity_version=geracao.version,
+        snapshot=serializar_entidade_para_auditoria(geracao),
+    )
+    db.commit()
+    return geracao
 
 
 def aplicar_template_juridico_pronto(document_type: str) -> dict:

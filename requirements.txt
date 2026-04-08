@@ -6,3 +6,4 @@ sqlalchemy
 python-dotenv
 pypdf
 python-docx
+itsdangerous
