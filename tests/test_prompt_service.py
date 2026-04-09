@@ -1,6 +1,7 @@
 import unittest
+from types import SimpleNamespace
 
-from app.services.prompt_service import build_advanced_prompt
+from app.services.prompt_service import build_advanced_prompt, build_smart_context
 
 
 class PromptServiceTests(unittest.TestCase):
@@ -35,6 +36,46 @@ class PromptServiceTests(unittest.TestCase):
 
         self.assertIn("Adapte a estrutura a natureza da peca informada", prompt["user_prompt"])
         self.assertIn("Evite reproduzir modelos estanques", prompt["user_prompt"])
+
+    def test_build_advanced_prompt_prioritizes_documental_context(self):
+        prompt = self._build_prompt("Peticao inicial")
+
+        self.assertIn(
+            "Use os documentos base como contexto factual prioritario",
+            prompt["user_prompt"],
+        )
+        self.assertIn(
+            "prefira os excertos literais e dados concretos extraidos deles",
+            prompt["user_prompt"],
+        )
+
+    def test_build_smart_context_includes_real_document_excerpt(self):
+        documento = SimpleNamespace(
+            original_filename="contrato-base.pdf",
+            file_type=".pdf",
+            extracted_text=(
+                "Contrato de prestacao de servicos firmado em 10/01/2026 entre as partes.\n\n"
+                "A contratada assumiu a obrigacao de entregar relatorios mensais e suporte tecnico continuo, "
+                "com prazo maximo de resposta de 24 horas para incidentes criticos.\n\n"
+                "Em caso de inadimplemento, incide multa de 10 por cento sobre o valor mensal contratado."
+            ),
+        )
+
+        context = build_smart_context(
+            client_name="Cliente Teste",
+            document_type="Contrato",
+            case_subject="Prestacao de servicos com suporte tecnico",
+            facts="Houve descumprimento contratual.",
+            requests="Aplicacao de multa e rescisao.",
+            legal_basis="Codigo Civil.",
+            writing_profile=None,
+            documentos_selecionados=[documento],
+        )
+
+        self.assertIn("Contexto documental prioritario:", context)
+        self.assertIn("Excerto literal 1:", context)
+        self.assertIn("prazo maximo de resposta de 24 horas", context)
+        self.assertIn("multa de 10 por cento", context)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,8 @@ from typing import Any
 MAX_DOC_SNIPPETS = 3
 MAX_SNIPPET_CHARS = 420
 MAX_CONTEXT_CHARS = 1800
+MAX_DOC_PASSAGES = 2
+MAX_DOC_PASSAGE_CHARS = 700
 
 STOPWORDS = {
     "a", "o", "as", "os", "de", "da", "do", "das", "dos", "e", "em", "no", "na", "nos", "nas",
@@ -78,6 +80,38 @@ def _split_sentences(text: str) -> list[str]:
     return [part.strip() for part in parts if part.strip()]
 
 
+def _split_paragraphs(text: str) -> list[str]:
+    normalized = (text or "").replace("\r\n", "\n")
+    raw_parts = [part.strip() for part in re.split(r"\n\s*\n+", normalized) if part.strip()]
+    paragraphs: list[str] = []
+
+    for part in raw_parts:
+        compact = _normalize_spaces(part)
+        if not compact:
+            continue
+        if len(compact) <= MAX_DOC_PASSAGE_CHARS:
+            paragraphs.append(compact)
+            continue
+
+        sentences = _split_sentences(compact)
+        if not sentences:
+            paragraphs.append(_truncate(compact, MAX_DOC_PASSAGE_CHARS))
+            continue
+
+        current = ""
+        for sentence in sentences:
+            candidate = f"{current} {sentence}".strip()
+            if current and len(candidate) > MAX_DOC_PASSAGE_CHARS:
+                paragraphs.append(current)
+                current = sentence
+            else:
+                current = candidate
+        if current:
+            paragraphs.append(current)
+
+    return paragraphs
+
+
 def _select_relevant_snippets(text: str, keywords: list[str], *, max_snippets: int = MAX_DOC_SNIPPETS) -> list[str]:
     sentences = _split_sentences(text)
     if not sentences:
@@ -102,6 +136,36 @@ def _select_relevant_snippets(text: str, keywords: list[str], *, max_snippets: i
 
     if not chosen:
         chosen.append(_truncate(sentences[0], MAX_SNIPPET_CHARS))
+
+    return chosen
+
+
+def _select_relevant_passages(text: str, keywords: list[str], *, max_passages: int = MAX_DOC_PASSAGES) -> list[str]:
+    paragraphs = _split_paragraphs(text)
+    if not paragraphs:
+        return []
+
+    scored: list[tuple[int, str]] = []
+    for paragraph in paragraphs:
+        score = _score_sentence(paragraph, keywords)
+        if len(paragraph) > 280:
+            score += 2
+        scored.append((score, paragraph))
+
+    scored.sort(key=lambda item: (item[0], len(item[1])), reverse=True)
+
+    chosen: list[str] = []
+    for score, paragraph in scored:
+        if len(chosen) >= max_passages:
+            break
+        if score <= 0 and chosen:
+            continue
+        passage = _truncate(paragraph, MAX_DOC_PASSAGE_CHARS)
+        if passage not in chosen:
+            chosen.append(passage)
+
+    if not chosen:
+        chosen.append(_truncate(paragraphs[0], MAX_DOC_PASSAGE_CHARS))
 
     return chosen
 
@@ -221,13 +285,19 @@ def build_smart_context(
             file_type = getattr(documento, "file_type", "desconhecido")
             extracted_text = getattr(documento, "extracted_text", "") or ""
             snippets = _select_relevant_snippets(extracted_text, keywords)
+            passages = _select_relevant_passages(extracted_text, keywords)
 
             bloco_doc = [
                 f"Documento {index}: {filename}",
                 f"Tipo: {file_type}",
+                f"Tamanho textual aproximado: {len(_normalize_spaces(extracted_text))} caracteres",
             ]
             for snippet_index, snippet in enumerate(snippets, start=1):
                 bloco_doc.append(f"Trecho relevante {snippet_index}: {snippet}")
+            if passages:
+                bloco_doc.append("Contexto documental prioritario:")
+                for passage_index, passage in enumerate(passages, start=1):
+                    bloco_doc.append(f"Excerto literal {passage_index}: {passage}")
             blocks.append("\n".join(bloco_doc))
 
     context = "\n".join(blocks).strip()
@@ -279,11 +349,12 @@ Produzir um texto juridicamente apresentavel, bem organizado e aderente ao assun
 
 [REGRAS DE REDACAO]
 1. Respeite a estrutura natural do tipo de peca.
-2. Use os documentos base apenas como reforco contextual.
+2. Use os documentos base como contexto factual prioritario quando trouxerem informacoes especificas e compativeis com o caso.
 3. Mantenha consistencia entre fatos, fundamentos e pedidos.
 4. Evite linguagem excessivamente generica quando houver contexto suficiente.
 5. Nao invente nomes, datas, provas ou acontecimentos nao informados.
 6. Entregue o texto pronto para revisao humana.
+7. Ao usar os documentos base, prefira os excertos literais e dados concretos extraidos deles, sem copiar trechos irrelevantes.
 
 [DIRETRIZES ESPECIFICAS DO TIPO DE PECA]
 {piece_specific_directives}
