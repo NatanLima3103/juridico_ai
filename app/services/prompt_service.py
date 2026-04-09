@@ -189,6 +189,37 @@ def _build_profile_directives(profile: Any | None) -> str:
     return "\n".join(f"- {item}" for item in directives)
 
 
+def _build_output_style_directives(profile: Any | None) -> str:
+    if not profile:
+        return "\n".join(
+            [
+                "- Utilize linguagem juridica tecnica, clara, profissional e pronta para revisao humana.",
+                "- Mantenha tom formal e objetivo, sem floreios desnecessarios.",
+                "- Use formulas de abertura, desenvolvimento e fechamento compativeis com a pratica forense brasileira.",
+            ]
+        )
+
+    tone = getattr(profile, "tone", "") or "Formal"
+    qualification_style = getattr(profile, "qualification_style", "") or "Nao informada"
+    opening_phrase = getattr(profile, "opening_phrase", "") or "Nao informada"
+    request_intro = getattr(profile, "request_intro", "") or "Nao informada"
+    closing_phrase = getattr(profile, "closing_phrase", "") or "Nao informada"
+    style_notes = getattr(profile, "legal_style_notes", "") or "Nao informado"
+    recurring = getattr(profile, "recurring_expressions", "") or "Nao informado"
+
+    directives = [
+        "Use o perfil de escrita como estilo principal da saida final, e nao apenas como contexto auxiliar.",
+        f"Adote o tom predominante '{tone}' ao longo da redacao.",
+        f"Quando compativel com a peca, siga a qualificacao preferida: {qualification_style}.",
+        f"Quando compativel com a abertura da peca, siga a frase de abertura preferida: {opening_phrase}.",
+        f"Introduza os pedidos, quando existirem, com formula compativel com: {request_intro}.",
+        f"Feche a minuta com formula compativel com: {closing_phrase}.",
+        f"Observe como diretriz prioritaria de redacao: {style_notes}.",
+        f"Use expressoes recorrentes do perfil apenas quando soarem naturais e uteis ao contexto: {recurring}.",
+    ]
+    return "\n".join(f"- {item}" for item in directives)
+
+
 def _build_piece_specific_directives(document_type: str) -> str:
     normalized = _normalize_document_type(document_type)
 
@@ -320,6 +351,7 @@ def build_advanced_prompt(
     style_note = getattr(writing_profile, "legal_style_notes", "") if writing_profile else ""
     recurring = getattr(writing_profile, "recurring_expressions", "") if writing_profile else ""
     piece_specific_directives = _build_piece_specific_directives(document_type)
+    output_style_directives = _build_output_style_directives(writing_profile)
 
     system_prompt = (
         "Voce e um assistente juridico redator. Gere uma minuta juridica em portugues do Brasil, "
@@ -355,6 +387,9 @@ Produzir um texto juridicamente apresentavel, bem organizado e aderente ao assun
 5. Nao invente nomes, datas, provas ou acontecimentos nao informados.
 6. Entregue o texto pronto para revisao humana.
 7. Ao usar os documentos base, prefira os excertos literais e dados concretos extraidos deles, sem copiar trechos irrelevantes.
+
+[ESTILO DE SAIDA]
+{output_style_directives}
 
 [DIRETRIZES ESPECIFICAS DO TIPO DE PECA]
 {piece_specific_directives}

@@ -49,6 +49,36 @@ class PromptServiceTests(unittest.TestCase):
             prompt["user_prompt"],
         )
 
+    def test_build_advanced_prompt_uses_writing_profile_as_output_style(self):
+        profile = SimpleNamespace(
+            profile_name="Contencioso estrategico",
+            tone="Objetivo",
+            qualification_style="{cliente}, ja qualificado nos autos",
+            opening_phrase="vem, com o devido respeito, apresentar a presente manifestacao",
+            request_intro="Diante desse contexto, requer:",
+            closing_phrase="Nesses termos, pede deferimento.",
+            legal_style_notes="Priorizar linguagem tecnica e assertiva.",
+            recurring_expressions="data venia; conforme se observa",
+        )
+
+        prompt = build_advanced_prompt(
+            client_name="Cliente Teste",
+            document_type="Manifestacao",
+            case_subject="Cobranca indevida",
+            facts="O cliente relata cobrancas sucessivas e tentativa previa de solucao.",
+            requests="Cancelamento da cobranca e indenizacao.",
+            legal_basis="Codigo Civil e Codigo de Defesa do Consumidor.",
+            smart_context="[RESUMO DO CASO]\nTeste",
+            writing_profile=profile,
+            documentos_selecionados=[],
+        )
+
+        self.assertIn("[ESTILO DE SAIDA]", prompt["user_prompt"])
+        self.assertIn("Use o perfil de escrita como estilo principal da saida final", prompt["user_prompt"])
+        self.assertIn("frase de abertura preferida", prompt["user_prompt"])
+        self.assertIn("Diante desse contexto, requer:", prompt["user_prompt"])
+        self.assertIn("Nesses termos, pede deferimento.", prompt["user_prompt"])
+
     def test_build_smart_context_includes_real_document_excerpt(self):
         documento = SimpleNamespace(
             original_filename="contrato-base.pdf",

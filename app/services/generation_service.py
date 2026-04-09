@@ -997,6 +997,18 @@ def _montar_qualificacao(profile, client_name: str) -> str:
     return f"{client_name}, já devidamente qualificado(a), vem, respeitosamente, à presença de Vossa Excelência, propor a presente, nos termos a seguir expostos:"
 
 
+def _montar_abertura(profile, qualificacao: str, client_name: str) -> str:
+    qualificacao_limpa = (qualificacao or "").strip()
+
+    if profile and (profile.opening_phrase or "").strip():
+        abertura = profile.opening_phrase.strip().replace("{cliente}", client_name)
+        if qualificacao_limpa:
+            return f"{qualificacao_limpa.rstrip(' .;:,')}, {abertura}"
+        return abertura
+
+    return qualificacao_limpa
+
+
 def _montar_fundamentacao(
     document_type: str,
     case_subject: str,
@@ -1134,6 +1146,7 @@ def _gerar_rascunho_local(
 
     titulo = document_type.upper().strip()
     qualificacao = _montar_qualificacao(writing_profile, client_name)
+    abertura = _montar_abertura(writing_profile, qualificacao, client_name)
     fundamentacao = _montar_fundamentacao(
         document_type=document_type,
         case_subject=case_subject,
@@ -1215,7 +1228,7 @@ V - DAS DISPOSIÇÕES FINAIS
     texto = f"""
 {titulo}
 
-{qualificacao}
+{abertura}
 
 A presente demanda decorre de {assunto_limpo or 'questão jurídica submetida à análise'}, conforme fatos e fundamentos a seguir expostos.
 
