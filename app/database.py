@@ -34,7 +34,7 @@ SessionLocal = sessionmaker(
 
 Base = declarative_base()
 
-LATEST_SCHEMA_VERSION = 8
+LATEST_SCHEMA_VERSION = 11
 
 
 def _sqlite_column_exists(connection, table_name: str, column_name: str) -> bool:
@@ -324,6 +324,71 @@ def _migration_008_link_writing_profiles_to_users(connection) -> None:
         )
 
 
+def _migration_009_link_generations_to_users(connection) -> None:
+    if not _sqlite_column_exists(connection, "generations", "user_id"):
+        connection.execute(text("ALTER TABLE generations ADD COLUMN user_id INTEGER"))
+
+    connection.execute(
+        text("CREATE INDEX IF NOT EXISTS ix_generations_user_id ON generations (user_id)")
+    )
+
+    usuarios = connection.execute(text("SELECT id FROM users ORDER BY id ASC")).fetchall()
+    if len(usuarios) == 1:
+        unico_usuario_id = int(usuarios[0][0])
+        connection.execute(
+            text("UPDATE generations SET user_id = :user_id WHERE user_id IS NULL"),
+            {"user_id": unico_usuario_id},
+        )
+
+
+def _migration_010_link_audit_logs_to_users(connection) -> None:
+    if not _sqlite_column_exists(connection, "audit_logs", "user_id"):
+        connection.execute(text("ALTER TABLE audit_logs ADD COLUMN user_id INTEGER"))
+
+    connection.execute(
+        text("CREATE INDEX IF NOT EXISTS ix_audit_logs_user_id ON audit_logs (user_id)")
+    )
+
+    # Backfill usando o user_id serializado no payload quando existir.
+    registros = connection.execute(text("SELECT id, payload FROM audit_logs WHERE user_id IS NULL")).fetchall()
+    for audit_log_id, payload in registros:
+        if not payload:
+            continue
+        payload_texto = str(payload)
+        marcador = '"user_id": '
+        indice = payload_texto.find(marcador)
+        if indice < 0:
+            continue
+        inicio = indice + len(marcador)
+        fim = inicio
+        while fim < len(payload_texto) and payload_texto[fim].isdigit():
+            fim += 1
+        valor = payload_texto[inicio:fim].strip()
+        if not valor:
+            continue
+        try:
+            user_id = int(valor)
+        except ValueError:
+            continue
+        connection.execute(
+            text("UPDATE audit_logs SET user_id = :user_id WHERE id = :audit_log_id"),
+            {"user_id": user_id, "audit_log_id": audit_log_id},
+        )
+
+
+def _migration_011_add_admin_flag_to_users(connection) -> None:
+    if not _sqlite_column_exists(connection, "users", "is_admin"):
+        connection.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 0"))
+
+    admins = connection.execute(text("SELECT id FROM users WHERE is_admin = 1 LIMIT 1")).fetchall()
+    usuarios = connection.execute(text("SELECT id FROM users ORDER BY created_at ASC, id ASC")).fetchall()
+    if not admins and usuarios:
+        connection.execute(
+            text("UPDATE users SET is_admin = 1 WHERE id = :user_id"),
+            {"user_id": int(usuarios[0][0])},
+        )
+
+
 SQLITE_MIGRATIONS: list[tuple[int, str, Callable]] = [
     (1, "add_metadata_columns", _migration_001_add_metadata_columns),
     (2, "create_generation_documents", _migration_002_create_generation_documents),
@@ -333,6 +398,9 @@ SQLITE_MIGRATIONS: list[tuple[int, str, Callable]] = [
     (6, "prepare_users_table", _migration_006_prepare_users_table),
     (7, "link_documents_to_users", _migration_007_link_documents_to_users),
     (8, "link_writing_profiles_to_users", _migration_008_link_writing_profiles_to_users),
+    (9, "link_generations_to_users", _migration_009_link_generations_to_users),
+    (10, "link_audit_logs_to_users", _migration_010_link_audit_logs_to_users),
+    (11, "add_admin_flag_to_users", _migration_011_add_admin_flag_to_users),
 ]
 
 

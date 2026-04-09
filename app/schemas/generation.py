@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 
 class GenerationBase(BaseModel):
+    user_id: int | None = None
     client_name: str
     document_type: str
     case_subject: str

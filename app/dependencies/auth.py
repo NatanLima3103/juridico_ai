@@ -48,4 +48,20 @@ def get_authenticated_user(
 
     request.session["user_id"] = usuario.id
     request.session["user_name"] = usuario.full_name
+    request.session["is_admin"] = bool(getattr(usuario, "is_admin", False))
+    return usuario
+
+
+def get_admin_user(
+    request: Request,
+    usuario=Depends(get_authenticated_user),
+):
+    if not bool(getattr(usuario, "is_admin", False)):
+        raise HTTPException(
+            status_code=status.HTTP_303_SEE_OTHER,
+            detail="Acesso administrativo necessário.",
+            headers={"Location": "/?erro=Acesso+restrito+%C3%A0+administra%C3%A7%C3%A3o."},
+        )
+
+    request.session["is_admin"] = True
     return usuario

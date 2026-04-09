@@ -202,6 +202,7 @@ def login_user(
 
     request.session["user_id"] = usuario.id
     request.session["user_name"] = usuario.full_name
+    request.session["is_admin"] = bool(usuario.is_admin)
 
     return RedirectResponse(url=next_url, status_code=status.HTTP_303_SEE_OTHER)
 

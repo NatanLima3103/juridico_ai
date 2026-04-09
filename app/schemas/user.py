@@ -12,6 +12,7 @@ class UserRead(BaseModel):
     full_name: str
     email: str
     is_active: bool
+    is_admin: bool
 
     class Config:
         from_attributes = True

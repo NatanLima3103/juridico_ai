@@ -46,6 +46,7 @@ class Generation(Base):
     __tablename__ = "generations"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     client_name = Column(Text, nullable=False)
     document_type = Column(Text, nullable=False, index=True)
     case_subject = Column(Text, nullable=False, index=True)
@@ -78,6 +79,7 @@ class Generation(Base):
         back_populates="generations",
         passive_deletes=True,
     )
+    user = relationship("User", passive_deletes=True)
 
     tags = Column(Text, nullable=True)
     is_pinned = Column(Boolean, default=False, nullable=False)

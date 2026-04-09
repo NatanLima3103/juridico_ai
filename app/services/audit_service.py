@@ -42,13 +42,21 @@ def serializar_entidade_para_auditoria(entity: Any) -> dict[str, Any]:
 def registrar_evento_auditoria(
     db: Session,
     *,
+    user_id: int | None = None,
     entity_type: str,
     entity_id: int,
     action: str,
     entity_version: int,
     snapshot: dict[str, Any],
 ) -> AuditLog:
+    user_id_auditoria = user_id
+    if user_id_auditoria is None:
+        user_id_snapshot = snapshot.get("user_id")
+        if isinstance(user_id_snapshot, int):
+            user_id_auditoria = user_id_snapshot
+
     evento = AuditLog(
+        user_id=user_id_auditoria,
         entity_type=entity_type,
         entity_id=entity_id,
         action=action,

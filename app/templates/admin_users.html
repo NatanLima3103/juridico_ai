@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Usuários - Administração{% endblock %}
+
+{% block content %}
+<section class="card">
+    <div class="cabecalho-pagina">
+        <div>
+            <span class="etiqueta-secao">Área admin</span>
+            <h2>Listagem de usuários</h2>
+            <p class="texto-suave">Gerencie acesso, status e privilégios administrativos com segurança.</p>
+        </div>
+
+        <div class="acoes-topo">
+            <a class="botao botao-secundario" href="/admin">Voltar ao painel</a>
+        </div>
+    </div>
+
+    {% if sucesso %}
+        <div class="alerta alerta-sucesso" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Operação realizada com sucesso</span>
+                <p>{{ sucesso }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
+    {% endif %}
+
+    {% if erro %}
+        <div class="alerta alerta-erro" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Não foi possível concluir a ação</span>
+                <p>{{ erro }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
+    {% endif %}
+
+    <div class="admin-table-wrapper">
+        <table class="tabela-admin">
+            <thead>
+                <tr>
+                    <th>Usuário</th>
+                    <th>Status</th>
+                    <th>Admin</th>
+                    <th>Docs</th>
+                    <th>Perfis</th>
+                    <th>Gerações</th>
+                    <th>Auditoria</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for usuario in usuarios %}
+                    <tr>
+                        <td>
+                            <strong>{{ usuario.full_name }}</strong><br>
+                            <span class="texto-pequeno">{{ usuario.email }}</span><br>
+                            <span class="texto-pequeno">Criado em {{ usuario.created_at.strftime("%d/%m/%Y %H:%M") if usuario.created_at else "-" }}</span>
+                        </td>
+                        <td>
+                            {% if usuario.is_active %}
+                                <span class="badge badge-sucesso">Ativo</span>
+                            {% else %}
+                                <span class="badge badge-erro">Inativo</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if usuario.is_admin %}
+                                <span class="badge badge-neutro">Admin</span>
+                            {% else %}
+                                <span class="badge badge-neutro">Padrão</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ usuario.documentos }}</td>
+                        <td>{{ usuario.perfis }}</td>
+                        <td>{{ usuario.geracoes }}</td>
+                        <td>{{ usuario.auditorias }}</td>
+                        <td>
+                            <div class="admin-acoes-linha">
+                                <form method="post" action="/admin/users/{{ usuario.id }}/toggle-active" data-confirm-action data-confirm-title="Alterar status do usuário" data-confirm-message="Confirme a alteração de status desta conta.">
+                                    <button type="submit" class="botao botao-secundario">
+                                        {% if usuario.is_active %}Desativar{% else %}Ativar{% endif %}
+                                    </button>
+                                </form>
+                                <form method="post" action="/admin/users/{{ usuario.id }}/toggle-admin" data-confirm-action data-confirm-title="Alterar privilégio admin" data-confirm-message="Confirme a alteração do privilégio administrativo desta conta.">
+                                    <button type="submit" class="botao">
+                                        {% if usuario.is_admin %}Remover admin{% else %}Tornar admin{% endif %}
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

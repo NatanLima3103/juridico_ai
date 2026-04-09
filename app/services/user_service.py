@@ -66,12 +66,36 @@ def validar_dados_cadastro(
 
 
 def criar_usuario(db: Session, payload: UserCreate) -> User:
+    total_usuarios = db.query(User).count()
     usuario = User(
         full_name=_normalizar_texto(payload.full_name),
         email=_normalizar_email(payload.email),
         password_hash=hash_password(payload.password),
         is_active=True,
+        is_admin=total_usuarios == 0,
     )
+    db.add(usuario)
+    db.commit()
+    db.refresh(usuario)
+    return usuario
+
+
+def listar_usuarios(db: Session) -> list[User]:
+    return db.query(User).order_by(User.created_at.asc(), User.id.asc()).all()
+
+
+def atualizar_status_usuario(
+    db: Session,
+    usuario: User,
+    *,
+    is_active: bool | None = None,
+    is_admin: bool | None = None,
+) -> User:
+    if is_active is not None:
+        usuario.is_active = bool(is_active)
+    if is_admin is not None:
+        usuario.is_admin = bool(is_admin)
+
     db.add(usuario)
     db.commit()
     db.refresh(usuario)

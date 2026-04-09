@@ -194,7 +194,7 @@ async def list_generations(
         sort_by=sort_by,
     )
 
-    geracoes = listar_geracoes(db, filtros=filtros)
+    geracoes = listar_geracoes(db, usuario.id, filtros=filtros)
     perfis = listar_perfis_escrita(db, usuario.id)
 
     geracoes_template = [montar_resumo_geracao(geracao) for geracao in geracoes]
@@ -248,7 +248,7 @@ async def generation_detail(
     db: Session = Depends(get_db),
     usuario: User = Depends(get_authenticated_user),
 ):
-    geracao = buscar_geracao_por_id(db, generation_id)
+    geracao = buscar_geracao_por_id(db, generation_id, usuario.id)
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
@@ -274,7 +274,7 @@ async def edit_generation_form(
     db: Session = Depends(get_db),
     usuario: User = Depends(get_authenticated_user),
 ):
-    geracao = buscar_geracao_por_id(db, generation_id)
+    geracao = buscar_geracao_por_id(db, generation_id, usuario.id)
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
@@ -313,7 +313,7 @@ async def duplicate_generation_form(
     db: Session = Depends(get_db),
     usuario: User = Depends(get_authenticated_user),
 ):
-    geracao = buscar_geracao_por_id(db, generation_id)
+    geracao = buscar_geracao_por_id(db, generation_id, usuario.id)
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
@@ -458,6 +458,7 @@ async def create_generation(
 
     nova_geracao = criar_geracao(
         db=db,
+        user_id=usuario.id,
         client_name=dados_validados["client_name"],
         document_type=dados_validados["document_type"],
         case_subject=dados_validados["case_subject"],
@@ -501,7 +502,7 @@ async def edit_generation(
     db: Session = Depends(get_db),
     usuario: User = Depends(get_authenticated_user),
 ):
-    geracao = buscar_geracao_por_id(db, generation_id)
+    geracao = buscar_geracao_por_id(db, generation_id, usuario.id)
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
@@ -608,8 +609,13 @@ async def edit_generation(
 
 
 @router.post("/{generation_id}/save-text")
-async def save_generation_text(generation_id: int, request: Request, db: Session = Depends(get_db)):
-    geracao = buscar_geracao_por_id(db, generation_id)
+async def save_generation_text(
+    generation_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
+):
+    geracao = buscar_geracao_por_id(db, generation_id, usuario.id)
 
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
@@ -632,8 +638,12 @@ async def save_generation_text(generation_id: int, request: Request, db: Session
 
 
 @router.post("/{generation_id}/delete")
-async def delete_generation(generation_id: int, db: Session = Depends(get_db)):
-    geracao = buscar_geracao_por_id(db, generation_id)
+async def delete_generation(
+    generation_id: int,
+    db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
+):
+    geracao = buscar_geracao_por_id(db, generation_id, usuario.id)
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
@@ -645,8 +655,13 @@ async def delete_generation(generation_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{generation_id}/toggle-pin")
-async def toggle_pin_generation(generation_id: int, request: Request, db: Session = Depends(get_db)):
-    geracao = buscar_geracao_por_id(db, generation_id)
+async def toggle_pin_generation(
+    generation_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
+):
+    geracao = buscar_geracao_por_id(db, generation_id, usuario.id)
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
@@ -663,8 +678,13 @@ async def toggle_pin_generation(generation_id: int, request: Request, db: Sessio
 
 
 @router.post("/{generation_id}/toggle-favorite")
-async def toggle_favorite_generation(generation_id: int, request: Request, db: Session = Depends(get_db)):
-    geracao = buscar_geracao_por_id(db, generation_id)
+async def toggle_favorite_generation(
+    generation_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
+):
+    geracao = buscar_geracao_por_id(db, generation_id, usuario.id)
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
@@ -773,8 +793,12 @@ async def apply_template_to_generation_form(
 
 
 @router.get("/{generation_id}/download-docx")
-async def download_generation_docx(generation_id: int, db: Session = Depends(get_db)):
-    geracao = buscar_geracao_por_id(db, generation_id)
+async def download_generation_docx(
+    generation_id: int,
+    db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
+):
+    geracao = buscar_geracao_por_id(db, generation_id, usuario.id)
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
@@ -789,8 +813,12 @@ async def download_generation_docx(generation_id: int, db: Session = Depends(get
 
 
 @router.get("/{generation_id}/download-txt")
-async def download_generation_txt(generation_id: int, db: Session = Depends(get_db)):
-    geracao = buscar_geracao_por_id(db, generation_id)
+async def download_generation_txt(
+    generation_id: int,
+    db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
+):
+    geracao = buscar_geracao_por_id(db, generation_id, usuario.id)
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
 

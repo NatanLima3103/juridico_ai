@@ -15,11 +15,23 @@
     </div>
 
     {% if sucesso %}
-    <div class="mensagem mensagem-sucesso">{{ sucesso }}</div>
+    <div class="alerta alerta-sucesso" data-alerta>
+        <div class="alerta-conteudo">
+            <span class="alerta-titulo">Operação realizada com sucesso</span>
+            <p>{{ sucesso }}</p>
+        </div>
+        <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+    </div>
     {% endif %}
 
     {% if erro %}
-    <div class="mensagem mensagem-erro">{{ erro }}</div>
+    <div class="alerta alerta-erro" data-alerta>
+        <div class="alerta-conteudo">
+            <span class="alerta-titulo">Não foi possível entrar</span>
+            <p>{{ erro }}</p>
+        </div>
+        <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+    </div>
     {% endif %}
 
     <form method="post" action="/auth/login" class="formulario-principal">

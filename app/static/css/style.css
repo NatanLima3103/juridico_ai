@@ -225,6 +225,89 @@ button.botao:disabled,
     transform: translateY(-1px);
 }
 
+.admin-grid-resumo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+.admin-grid-duplo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+}
+
+.admin-card-resumo {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 18px;
+}
+
+.admin-card-label {
+    display: block;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.admin-card-resumo strong {
+    display: block;
+    font-size: 30px;
+    color: #0f172a;
+    margin-bottom: 6px;
+}
+
+.admin-card-resumo p {
+    color: #64748b;
+    font-size: 14px;
+}
+
+.admin-subtitulo {
+    margin-bottom: 12px;
+    color: #0f172a;
+}
+
+.admin-table-wrapper {
+    overflow-x: auto;
+}
+
+.tabela-admin {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tabela-admin th,
+.tabela-admin td {
+    text-align: left;
+    padding: 12px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: top;
+}
+
+.tabela-admin th {
+    background: #f8fafc;
+    color: #334155;
+    font-size: 13px;
+}
+
+.admin-acoes-linha {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.admin-acoes-linha form {
+    display: block;
+}
+
+.admin-problemas-bloco + .admin-problemas-bloco {
+    margin-top: 24px;
+}
+
 form {
     display: flex;
     flex-direction: column;

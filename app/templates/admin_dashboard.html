@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block title %}Administração - Jurídico AI{% endblock %}
+
+{% block content %}
+<section class="card">
+    <div class="cabecalho-pagina">
+        <div>
+            <span class="etiqueta-secao">Área admin</span>
+            <h2>Administração do sistema</h2>
+            <p class="texto-suave">
+                Acompanhe usuários, totais globais, uso geral e registros que exigem atenção.
+            </p>
+        </div>
+
+        <div class="acoes-topo">
+            <a class="botao" href="/admin/users">Ver usuários</a>
+        </div>
+    </div>
+
+    {% if sucesso %}
+        <div class="alerta alerta-sucesso" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Operação realizada com sucesso</span>
+                <p>{{ sucesso }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
+    {% endif %}
+
+    {% if erro %}
+        <div class="alerta alerta-erro" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Não foi possível concluir a ação</span>
+                <p>{{ erro }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
+    {% endif %}
+
+    <div class="admin-grid-resumo">
+        <article class="admin-card-resumo">
+            <span class="admin-card-label">Usuários</span>
+            <strong>{{ totais.usuarios }}</strong>
+            <p>{{ totais.usuarios_ativos }} ativos • {{ totais.admins }} admins</p>
+        </article>
+        <article class="admin-card-resumo">
+            <span class="admin-card-label">Documentos</span>
+            <strong>{{ totais.documentos }}</strong>
+            <p>Base documental total do sistema</p>
+        </article>
+        <article class="admin-card-resumo">
+            <span class="admin-card-label">Perfis</span>
+            <strong>{{ totais.perfis }}</strong>
+            <p>Perfis de escrita cadastrados</p>
+        </article>
+        <article class="admin-card-resumo">
+            <span class="admin-card-label">Gerações</span>
+            <strong>{{ totais.geracoes }}</strong>
+            <p>Minutas geradas até agora</p>
+        </article>
+        <article class="admin-card-resumo">
+            <span class="admin-card-label">Auditoria</span>
+            <strong>{{ totais.auditorias }}</strong>
+            <p>Eventos rastreados</p>
+        </article>
+        <article class="admin-card-resumo">
+            <span class="admin-card-label">Problemas</span>
+            <strong>{{ totais_problematicos }}</strong>
+            <p>Registros que merecem revisão</p>
+        </article>
+    </div>
+</section>
+
+<section class="card">
+    <div class="cabecalho-pagina">
+        <div>
+            <span class="etiqueta-secao">Métricas básicas</span>
+            <h2>Atividade recente</h2>
+            <p class="texto-suave">Leitura rápida de crescimento, uso e operações executadas.</p>
+        </div>
+    </div>
+
+    <div class="admin-grid-resumo">
+        <article class="admin-card-resumo">
+            <span class="admin-card-label">Cadastros em 30 dias</span>
+            <strong>{{ metricas.cadastros_30_dias }}</strong>
+        </article>
+        <article class="admin-card-resumo">
+            <span class="admin-card-label">Uploads em 7 dias</span>
+            <strong>{{ metricas.uploads_7_dias }}</strong>
+        </article>
+        <article class="admin-card-resumo">
+            <span class="admin-card-label">Gerações em 7 dias</span>
+            <strong>{{ metricas.geracoes_7_dias }}</strong>
+        </article>
+    </div>
+
+    <div class="admin-table-wrapper">
+        <table class="tabela-admin">
+            <thead>
+                <tr>
+                    <th>Ação auditada</th>
+                    <th>Total nos últimos 7 dias</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if metricas.acoes_auditoria_7_dias %}
+                    {% for item in metricas.acoes_auditoria_7_dias %}
+                        <tr>
+                            <td>{{ item.acao }}</td>
+                            <td>{{ item.total }}</td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="2">Nenhuma atividade auditada recente.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="card">
+    <div class="cabecalho-pagina">
+        <div>
+            <span class="etiqueta-secao">Uso geral</span>
+            <h2>Acompanhar uso do sistema</h2>
+            <p class="texto-suave">Resumo dos usuários com maior volume e dos eventos mais recentes.</p>
+        </div>
+    </div>
+
+    <div class="admin-grid-duplo">
+        <div>
+            <h3 class="admin-subtitulo">Usuários e volume</h3>
+            <div class="admin-table-wrapper">
+                <table class="tabela-admin">
+                    <thead>
+                        <tr>
+                            <th>Usuário</th>
+                            <th>Docs</th>
+                            <th>Perfis</th>
+                            <th>Gerações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for usuario in uso_geral.usuarios %}
+                            <tr>
+                                <td>{{ usuario.full_name }}<br><span class="texto-pequeno">{{ usuario.email }}</span></td>
+                                <td>{{ usuario.documentos }}</td>
+                                <td>{{ usuario.perfis }}</td>
+                                <td>{{ usuario.geracoes }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div>
+            <h3 class="admin-subtitulo">Eventos recentes</h3>
+            <div class="admin-table-wrapper">
+                <table class="tabela-admin">
+                    <thead>
+                        <tr>
+                            <th>Quando</th>
+                            <th>Entidade</th>
+                            <th>Ação</th>
+                            <th>User ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if uso_geral.eventos_recentes %}
+                            {% for evento in uso_geral.eventos_recentes %}
+                                <tr>
+                                    <td>{{ evento.created_at.strftime("%d/%m/%Y %H:%M") if evento.created_at else "-" }}</td>
+                                    <td>{{ evento.entity_type }} #{{ evento.entity_id }}</td>
+                                    <td>{{ evento.action }}</td>
+                                    <td>{{ evento.user_id or "-" }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4">Nenhum evento recente.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="card">
+    <div class="cabecalho-pagina">
+        <div>
+            <span class="etiqueta-secao">Registros problemáticos</span>
+            <h2>Gestão de inconsistências</h2>
+            <p class="texto-suave">Itens sem usuário vinculado ou com arquivo ausente podem ser removidos com segurança.</p>
+        </div>
+    </div>
+
+    {% for chave, itens in problematicos.items() %}
+        <div class="admin-problemas-bloco">
+            <h3 class="admin-subtitulo">{{ chave.replace("_", " ").title() }}</h3>
+            <div class="admin-table-wrapper">
+                <table class="tabela-admin">
+                    <thead>
+                        <tr>
+                            <th>Registro</th>
+                            <th>User ID</th>
+                            <th>Problemas</th>
+                            <th>Ação segura</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if itens %}
+                            {% for item in itens %}
+                                <tr>
+                                    <td>{{ item.label }}<br><span class="texto-pequeno">#{{ item.id }}</span></td>
+                                    <td>{{ item.user_id or "-" }}</td>
+                                    <td>{{ item.problemas | join(", ") }}</td>
+                                    <td>
+                                        <form method="post" action="/admin/problem-records/{{ item.entity_type }}/{{ item.id }}/delete" data-confirm-action data-confirm-title="Remover registro problemático" data-confirm-message="Essa ação removerá definitivamente o registro inconsistente. Deseja continuar?">
+                                            <button type="submit" class="botao-perigo">Remover</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4">Nenhum problema encontrado nessa categoria.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endfor %}
+</section>
+{% endblock %}

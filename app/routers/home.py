@@ -23,7 +23,7 @@ def home_page(
 ):
     total_documents = db.query(Document).filter(Document.user_id == usuario.id).count()
     total_profiles = db.query(WritingProfile).filter(WritingProfile.user_id == usuario.id).count()
-    total_generations = db.query(Generation).count()
+    total_generations = db.query(Generation).filter(Generation.user_id == usuario.id).count()
 
     recent_documents = (
         db.query(Document)
@@ -43,13 +43,14 @@ def home_page(
 
     recent_generations = (
         db.query(Generation)
+        .filter(Generation.user_id == usuario.id)
         .order_by(Generation.is_pinned.desc(), Generation.updated_at.desc(), Generation.id.desc())
         .limit(5)
         .all()
     )
 
     generation_types = []
-    for generation in db.query(Generation).all():
+    for generation in db.query(Generation).filter(Generation.user_id == usuario.id).all():
         tipo = (generation.document_type or "Não informado").strip()
         generation_types.append(tipo or "Não informado")
 
