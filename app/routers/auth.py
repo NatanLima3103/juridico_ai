@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
+from app.core.config import SESSION_COOKIE_NAME
 from app.database import get_db
 from app.routers.common import templates
 from app.schemas.user import UserCreate
@@ -149,6 +150,9 @@ def login_user(
 @router.post("/logout")
 def logout_user(request: Request):
     request.session.clear()
-    response = RedirectResponse(url="/auth/login?sucesso=Sessão encerrada com sucesso.", status_code=status.HTTP_303_SEE_OTHER)
-    response.delete_cookie("juridico_ai_user_name")
+    response = RedirectResponse(
+        url="/auth/login?sucesso=Sess%C3%A3o+encerrada+com+sucesso.",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+    response.delete_cookie(SESSION_COOKIE_NAME)
     return response

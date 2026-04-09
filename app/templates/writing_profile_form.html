@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}
-    {% if profile %}Editar perfil de escrita{% else %}Novo perfil de escrita{% endif %}
+    {% if modo_edicao %}Editar perfil de escrita{% else %}Novo perfil de escrita{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -10,7 +10,7 @@
         <div>
             <span class="etiqueta-secao">Perfis de escrita</span>
             <h2>
-                {% if profile %}
+                {% if modo_edicao %}
                     Editar perfil de escrita
                 {% else %}
                     Novo perfil de escrita
@@ -41,7 +41,7 @@
 
     <form
         method="post"
-        action="{% if profile %}/writing-profiles/{{ profile.id }}/edit{% else %}/writing-profiles/create{% endif %}"
+        action="{% if modo_edicao %}/writing-profiles/{{ perfil_id }}/edit{% else %}/writing-profiles/create{% endif %}"
         class="formulario-geracao"
         data-loading-form
         data-loading-message="Salvando perfil de escrita..."
@@ -55,7 +55,7 @@
                     id="profile_name"
                     name="profile_name"
                     required
-                    value="{% if profile %}{{ profile.profile_name }}{% elif form_data %}{{ form_data.profile_name }}{% endif %}"
+                    value="{{ form_data.profile_name or '' }}"
                     placeholder="Ex.: Cível formal"
                 >
             </div>
@@ -67,7 +67,7 @@
                     id="tone"
                     name="tone"
                     required
-                    value="{% if profile %}{{ profile.tone }}{% elif form_data %}{{ form_data.tone }}{% else %}Formal{% endif %}"
+                    value="{{ form_data.tone or 'Formal' }}"
                     placeholder="Ex.: Formal, técnico, objetivo"
                 >
             </div>
@@ -78,7 +78,7 @@
                     type="text"
                     id="lawyer_name"
                     name="lawyer_name"
-                    value="{% if profile %}{{ profile.lawyer_name or '' }}{% elif form_data %}{{ form_data.lawyer_name or '' }}{% endif %}"
+                    value="{{ form_data.lawyer_name or '' }}"
                     placeholder="Ex.: Natan Jonatan de Lima"
                 >
             </div>
@@ -89,7 +89,7 @@
                     type="text"
                     id="office_name"
                     name="office_name"
-                    value="{% if profile %}{{ profile.office_name or '' }}{% elif form_data %}{{ form_data.office_name or '' }}{% endif %}"
+                    value="{{ form_data.office_name or '' }}"
                     placeholder="Ex.: Santos e Silveiro"
                 >
             </div>
@@ -100,7 +100,7 @@
                     type="text"
                     id="status"
                     name="status"
-                    value="{% if profile %}{{ profile.status or '' }}{% elif form_data %}{{ form_data.status or '' }}{% endif %}"
+                    value="{{ form_data.status or '' }}"
                     placeholder="Ex.: pronto, em revisão, modelo principal"
                 >
             </div>
@@ -111,7 +111,7 @@
                     type="text"
                     id="tags"
                     name="tags"
-                    value="{% if profile %}{{ profile.tags or '' }}{% elif form_data %}{{ form_data.tags or '' }}{% endif %}"
+                    value="{{ form_data.tags or '' }}"
                     placeholder="Ex.: consumidor, cível, trabalhista, premium"
                 >
             </div>
@@ -122,7 +122,7 @@
                         type="checkbox"
                         name="is_favorite"
                         value="true"
-                        {% if profile and profile.is_favorite %}checked{% elif form_data and form_data.is_favorite %}checked{% endif %}
+                        {% if form_data and form_data.is_favorite %}checked{% endif %}
                     >
                     Marcar este perfil como favorito
                 </label>
@@ -135,7 +135,7 @@
                     name="qualification_style"
                     rows="3"
                     placeholder="Ex.: já devidamente qualificado(a) nos autos..."
-                >{% if profile %}{{ profile.qualification_style or '' }}{% elif form_data %}{{ form_data.qualification_style or '' }}{% endif %}</textarea>
+                >{{ form_data.qualification_style or '' }}</textarea>
             </div>
 
             <div class="campo-completo">
@@ -145,7 +145,7 @@
                     name="opening_phrase"
                     rows="3"
                     placeholder="Ex.: vem, respeitosamente, à presença de Vossa Excelência..."
-                >{% if profile %}{{ profile.opening_phrase or '' }}{% elif form_data %}{{ form_data.opening_phrase or '' }}{% endif %}</textarea>
+                >{{ form_data.opening_phrase or '' }}</textarea>
             </div>
 
             <div class="campo-completo">
@@ -155,7 +155,7 @@
                     name="request_intro"
                     rows="3"
                     placeholder="Ex.: Diante do exposto, requer:"
-                >{% if profile %}{{ profile.request_intro or '' }}{% elif form_data %}{{ form_data.request_intro or '' }}{% endif %}</textarea>
+                >{{ form_data.request_intro or '' }}</textarea>
             </div>
 
             <div class="campo-completo">
@@ -165,7 +165,7 @@
                     name="closing_phrase"
                     rows="3"
                     placeholder="Ex.: Termos em que, pede deferimento."
-                >{% if profile %}{{ profile.closing_phrase or '' }}{% elif form_data %}{{ form_data.closing_phrase or '' }}{% endif %}</textarea>
+                >{{ form_data.closing_phrase or '' }}</textarea>
             </div>
 
             <div class="campo-completo">
@@ -175,7 +175,7 @@
                     name="legal_style_notes"
                     rows="4"
                     placeholder="Ex.: Utilizar linguagem técnica, formal, objetiva..."
-                >{% if profile %}{{ profile.legal_style_notes or '' }}{% elif form_data %}{{ form_data.legal_style_notes or '' }}{% endif %}</textarea>
+                >{{ form_data.legal_style_notes or '' }}</textarea>
             </div>
 
             <div class="campo-completo">
@@ -185,7 +185,7 @@
                     name="recurring_expressions"
                     rows="4"
                     placeholder="Ex.: data venia; conforme entendimento jurisprudencial..."
-                >{% if profile %}{{ profile.recurring_expressions or '' }}{% elif form_data %}{{ form_data.recurring_expressions or '' }}{% endif %}</textarea>
+                >{{ form_data.recurring_expressions or '' }}</textarea>
             </div>
         </div>
 
@@ -197,7 +197,7 @@
 
             <button type="submit" class="botao">
                 <span class="icone-botao" aria-hidden="true">💾</span>
-                {% if profile %}Salvar alterações{% else %}Criar perfil{% endif %}
+                {% if modo_edicao %}Salvar alterações{% else %}Criar perfil{% endif %}
             </button>
         </div>
     </form>

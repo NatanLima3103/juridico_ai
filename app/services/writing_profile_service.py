@@ -120,6 +120,7 @@ def validar_dados_perfil(
     legal_style_notes: str = "",
     recurring_expressions: str = "",
     tags: str = "",
+    is_favorite: bool = False,
     status: str = "",
 ) -> dict[str, str]:
     profile_name = _normalizar_texto(profile_name)
@@ -157,6 +158,7 @@ def validar_dados_perfil(
         "legal_style_notes": legal_style_notes,
         "recurring_expressions": recurring_expressions,
         "tags": tags,
+        "is_favorite": bool(is_favorite),
         "status": status,
     }
 

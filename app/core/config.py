@@ -10,6 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 APP_NAME = os.getenv("APP_NAME", "Juridico AI")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./juridico_ai.db")
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme")
+SESSION_COOKIE_NAME = os.getenv("SESSION_COOKIE_NAME", "session")
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "storage/uploads")
 GENERATIONS_DIR = os.getenv("GENERATIONS_DIR", "storage/generations")

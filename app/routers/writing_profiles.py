@@ -73,10 +73,12 @@ def listar_perfis_page(
         {
             "request": request,
             "perfis": perfis_resumo,
+            "profiles": perfis_resumo,
             "sucesso": request.query_params.get("sucesso"),
             "erro": request.query_params.get("erro"),
             "filtros": filtros,
             "tons_disponiveis": tons_disponiveis,
+            "tones": tons_disponiveis,
             "ordenacoes": ordenacoes,
             "total_resultados": len(perfis_resumo),
             "total_filtros_ativos": total_filtros_ativos,
@@ -152,6 +154,7 @@ def criar_perfil_page(
     legal_style_notes: str = Form(""),
     recurring_expressions: str = Form(""),
     tags: str = Form(""),
+    is_favorite: bool = Form(False),
     status_value: str = Form("", alias="status"),
     db: Session = Depends(get_db),
 ):
@@ -168,6 +171,7 @@ def criar_perfil_page(
             legal_style_notes=legal_style_notes,
             recurring_expressions=recurring_expressions,
             tags=tags,
+            is_favorite=is_favorite,
             status=status_value,
         )
 
@@ -197,6 +201,7 @@ def criar_perfil_page(
                     "legal_style_notes": legal_style_notes,
                     "recurring_expressions": recurring_expressions,
                     "tags": tags,
+                    "is_favorite": is_favorite,
                     "status": status_value,
                 },
                 "modo_edicao": False,
@@ -237,6 +242,7 @@ def exibir_formulario_edicao_perfil(
                 "legal_style_notes": perfil.legal_style_notes or "",
                 "recurring_expressions": perfil.recurring_expressions or "",
                 "tags": perfil.tags or "",
+                "is_favorite": bool(perfil.is_favorite),
                 "status": perfil.status or "",
             },
             "modo_edicao": True,
@@ -260,6 +266,7 @@ def editar_perfil_page(
     legal_style_notes: str = Form(""),
     recurring_expressions: str = Form(""),
     tags: str = Form(""),
+    is_favorite: bool = Form(False),
     status_value: str = Form("", alias="status"),
     db: Session = Depends(get_db),
 ):
@@ -284,6 +291,7 @@ def editar_perfil_page(
             legal_style_notes=legal_style_notes,
             recurring_expressions=recurring_expressions,
             tags=tags,
+            is_favorite=is_favorite,
             status=status_value,
         )
 
@@ -313,6 +321,7 @@ def editar_perfil_page(
                     "legal_style_notes": legal_style_notes,
                     "recurring_expressions": recurring_expressions,
                     "tags": tags,
+                    "is_favorite": is_favorite,
                     "status": status_value,
                 },
                 "modo_edicao": True,
