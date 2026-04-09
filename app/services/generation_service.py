@@ -16,8 +16,8 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.document import Document
 from app.models.generation import Generation
 from app.models.writing_profile import WritingProfile
+from app.services.ai_generation_service import AIGenerationResult, gerar_resultado_juridico_com_fallback
 from app.services.audit_service import registrar_evento_auditoria, serializar_entidade_para_auditoria
-from app.services.llm_service import gerar_texto_juridico_com_fallback
 from app.services.prompt_service import build_advanced_prompt, build_smart_context
 
 
@@ -416,6 +416,11 @@ def criar_geracao(
     legal_basis: str,
     context_used: str,
     generated_text: str,
+    generation_strategy: str = "rule_based",
+    llm_provider: str | None = None,
+    llm_model: str | None = None,
+    llm_response_id: str | None = None,
+    llm_error: str | None = None,
     writing_profile_id: int | None = None,
     source_document_ids: str | None = None,
     tags: str | None = None,
@@ -457,6 +462,11 @@ def criar_geracao(
         legal_basis=_normalizar_texto(legal_basis),
         context_used=_normalizar_texto(context_used),
         generated_text=_normalizar_texto(generated_text),
+        generation_strategy=_normalizar_texto(generation_strategy) or "rule_based",
+        llm_provider=_normalizar_texto(llm_provider) or None,
+        llm_model=_normalizar_texto(llm_model) or None,
+        llm_response_id=_normalizar_texto(llm_response_id) or None,
+        llm_error=_normalizar_texto(llm_error) or None,
         writing_profile_id=writing_profile_id,
         source_document_ids=serializar_ids_documentos([documento.id for documento in documentos_relacionados]),
         tags=_normalizar_texto(tags) or None,
@@ -491,6 +501,11 @@ def atualizar_geracao(
     legal_basis: str,
     context_used: str,
     generated_text: str,
+    generation_strategy: str = "rule_based",
+    llm_provider: str | None = None,
+    llm_model: str | None = None,
+    llm_response_id: str | None = None,
+    llm_error: str | None = None,
     writing_profile_id: int | None = None,
     source_document_ids: str | None = None,
     tags: str | None = None,
@@ -529,6 +544,11 @@ def atualizar_geracao(
     geracao.legal_basis = _normalizar_texto(legal_basis)
     geracao.context_used = _normalizar_texto(context_used)
     geracao.generated_text = _normalizar_texto(generated_text)
+    geracao.generation_strategy = _normalizar_texto(generation_strategy) or "rule_based"
+    geracao.llm_provider = _normalizar_texto(llm_provider) or None
+    geracao.llm_model = _normalizar_texto(llm_model) or None
+    geracao.llm_response_id = _normalizar_texto(llm_response_id) or None
+    geracao.llm_error = _normalizar_texto(llm_error) or None
     geracao.writing_profile_id = writing_profile_id
     geracao.documents = documentos_relacionados
     geracao.source_document_ids = serializar_ids_documentos([documento.id for documento in documentos_relacionados])
@@ -680,6 +700,11 @@ def montar_resumo_geracao(geracao: Generation) -> dict:
         "legal_basis": geracao.legal_basis,
         "context_used": geracao.context_used,
         "generated_text": geracao.generated_text,
+        "generation_strategy": getattr(geracao, "generation_strategy", "rule_based") or "rule_based",
+        "llm_provider": getattr(geracao, "llm_provider", None),
+        "llm_model": getattr(geracao, "llm_model", None),
+        "llm_response_id": getattr(geracao, "llm_response_id", None),
+        "llm_error": getattr(geracao, "llm_error", None),
         "source_document_ids": geracao.source_document_ids,
         "writing_profile_id": geracao.writing_profile_id,
         "writing_profile_name": perfil.profile_name if perfil else "Sem perfil",
@@ -1228,6 +1253,30 @@ def gerar_rascunho_juridico(
     writing_profile=None,
     documentos_selecionados: list | None = None,
 ) -> str:
+    return gerar_rascunho_juridico_com_metadata(
+        client_name=client_name,
+        document_type=document_type,
+        case_subject=case_subject,
+        facts=facts,
+        requests=requests,
+        legal_basis=legal_basis,
+        context_used=context_used,
+        writing_profile=writing_profile,
+        documentos_selecionados=documentos_selecionados,
+    ).text
+
+
+def gerar_rascunho_juridico_com_metadata(
+    client_name: str,
+    document_type: str,
+    case_subject: str,
+    facts: str,
+    requests: str,
+    legal_basis: str,
+    context_used: str,
+    writing_profile=None,
+    documentos_selecionados: list | None = None,
+) -> AIGenerationResult:
     prompt_payload = build_advanced_prompt(
         client_name=client_name,
         document_type=document_type,
@@ -1240,7 +1289,7 @@ def gerar_rascunho_juridico(
         documentos_selecionados=documentos_selecionados or [],
     )
 
-    return gerar_texto_juridico_com_fallback(
+    return gerar_resultado_juridico_com_fallback(
         prompt_payload=prompt_payload,
         fallback_generator=lambda: _gerar_rascunho_local(
             client_name=client_name,

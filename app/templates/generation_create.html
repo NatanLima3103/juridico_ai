@@ -61,6 +61,14 @@
         </div>
     {% endif %}
 
+    <div class="contexto-ajuda" style="margin-bottom: 18px;">
+        {% if ai_configured %}
+            Integracao de IA ativa com OpenAI. As novas geracoes tentarao usar o modelo <strong>{{ ai_model }}</strong> antes do fallback local.
+        {% else %}
+            Integracao de IA ainda nao configurada. Enquanto a variavel <code>OPENAI_API_KEY</code> nao estiver definida, a geracao seguira no modo local.
+        {% endif %}
+    </div>
+
     <form
         method="post"
         action="/generations/apply-template"

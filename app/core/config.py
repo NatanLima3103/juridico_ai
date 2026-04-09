@@ -12,6 +12,10 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./juridico_ai.db")
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme")
 SESSION_COOKIE_NAME = os.getenv("SESSION_COOKIE_NAME", "session")
 PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS = int(os.getenv("PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS", "3600"))
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini").strip() or "gpt-5-mini"
+OPENAI_REASONING_EFFORT = os.getenv("OPENAI_REASONING_EFFORT", "").strip()
+OPENAI_MAX_OUTPUT_TOKENS = int(os.getenv("OPENAI_MAX_OUTPUT_TOKENS", "2200"))
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "storage/uploads")
 GENERATIONS_DIR = os.getenv("GENERATIONS_DIR", "storage/generations")

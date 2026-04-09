@@ -73,10 +73,28 @@
             </span>
         </div>
 
-        <div class="info-box info-box-largo">
-            <span class="info-label">Assunto do caso</span>
-            <span class="info-value">{{ geracao.case_subject }}</span>
+        <div class="info-box">
+            <span class="info-label">EstratÃ©gia de geraÃ§Ã£o</span>
+            <span class="info-value">
+                {% if geracao.generation_strategy == "ai_openai" %}
+                    IA OpenAI
+                {% else %}
+                    Regra local
+                {% endif %}
+            </span>
         </div>
+
+            <div class="info-box">
+                <span class="info-label">Modelo IA</span>
+                <span class="info-value">
+                    {{ geracao.llm_model or "Nao utilizado" }}
+                </span>
+            </div>
+
+            <div class="info-box info-box-largo">
+                <span class="info-label">Assunto do caso</span>
+                <span class="info-value">{{ geracao.case_subject }}</span>
+            </div>
     </div>
 
     <section class="bloco-informativo">

@@ -103,6 +103,8 @@ class GenerationsOwnershipTests(unittest.TestCase):
             self.assertIsNotNone(geracao)
             self.assertEqual(geracao.user_id, usuario.id)
             self.assertEqual(geracao.client_name, "Cliente Teste")
+            self.assertEqual(geracao.generation_strategy, "rule_based")
+            self.assertIsNone(geracao.llm_provider)
 
             auditoria = db.query(AuditLog).filter(AuditLog.entity_type == "generation", AuditLog.entity_id == geracao.id).first()
             self.assertIsNotNone(auditoria)

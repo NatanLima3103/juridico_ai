@@ -4,10 +4,12 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session
 
+from app.core.config import OPENAI_MODEL
 from app.database import get_db
 from app.dependencies.auth import get_authenticated_user
 from app.models.user import User
 from app.routers.common import templates
+from app.services.ai_generation_service import openai_disponivel
 from app.services.document_service import listar_documentos, listar_documentos_por_ids
 from app.services.generation_service import (
     TIPOS_DE_DOCUMENTO,
@@ -19,8 +21,8 @@ from app.services.generation_service import (
     criar_geracao,
     excluir_geracao,
     gerar_docx_da_geracao,
+    gerar_rascunho_juridico_com_metadata,
     gerar_txt_da_geracao,
-    gerar_rascunho_juridico,
     coletar_ids_inteiros_unicos,
     contar_filtros_ativos_geracoes,
     listar_geracoes,
@@ -146,6 +148,8 @@ def _render_generation_form(
             "duplicate_mode": duplicate_mode,
             "duplicate_source_id": duplicate_source_id,
             "templates_prontos": listar_templates_juridicos_prontos(),
+            "ai_configured": openai_disponivel(),
+            "ai_model": OPENAI_MODEL,
             "sucesso": request.query_params.get("sucesso"),
             "erro": request.query_params.get("erro"),
         },
@@ -444,7 +448,7 @@ async def create_generation(
         documentos_selecionados=documentos_selecionados,
     )
 
-    generated_text = gerar_rascunho_juridico(
+    generation_result = gerar_rascunho_juridico_com_metadata(
         client_name=dados_validados["client_name"],
         document_type=dados_validados["document_type"],
         case_subject=dados_validados["case_subject"],
@@ -466,7 +470,12 @@ async def create_generation(
         requests=dados_validados["requests"],
         legal_basis=dados_validados["legal_basis"],
         context_used=context_used,
-        generated_text=generated_text,
+        generated_text=generation_result.text,
+        generation_strategy=generation_result.generation_strategy,
+        llm_provider=generation_result.llm_provider,
+        llm_model=generation_result.llm_model,
+        llm_response_id=generation_result.llm_response_id,
+        llm_error=generation_result.llm_error,
         writing_profile_id=selected_profile_id,
         source_document_ids=serializar_ids_documentos(selected_document_ids),
         tags=tags,
@@ -573,7 +582,7 @@ async def edit_generation(
         documentos_selecionados=documentos_selecionados,
     )
 
-    generated_text = gerar_rascunho_juridico(
+    generation_result = gerar_rascunho_juridico_com_metadata(
         client_name=dados_validados["client_name"],
         document_type=dados_validados["document_type"],
         case_subject=dados_validados["case_subject"],
@@ -595,7 +604,12 @@ async def edit_generation(
         requests=dados_validados["requests"],
         legal_basis=dados_validados["legal_basis"],
         context_used=context_used,
-        generated_text=generated_text,
+        generated_text=generation_result.text,
+        generation_strategy=generation_result.generation_strategy,
+        llm_provider=generation_result.llm_provider,
+        llm_model=generation_result.llm_model,
+        llm_response_id=generation_result.llm_response_id,
+        llm_error=generation_result.llm_error,
         writing_profile_id=selected_profile_id,
         source_document_ids=serializar_ids_documentos(selected_document_ids),
         tags=tags,

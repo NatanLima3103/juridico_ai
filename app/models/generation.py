@@ -55,6 +55,11 @@ class Generation(Base):
     legal_basis = Column(Text, nullable=True)
     context_used = Column(Text, nullable=False)
     generated_text = Column(Text, nullable=False)
+    generation_strategy = Column(String(50), nullable=False, default="rule_based")
+    llm_provider = Column(String(50), nullable=True)
+    llm_model = Column(String(100), nullable=True)
+    llm_response_id = Column(String(100), nullable=True)
+    llm_error = Column(Text, nullable=True)
 
     # Mantido temporariamente como texto para compatibilidade com bancos já existentes.
     # A relação oficial com documentos agora é feita por generation_documents.

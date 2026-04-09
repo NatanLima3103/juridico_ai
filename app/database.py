@@ -34,7 +34,7 @@ SessionLocal = sessionmaker(
 
 Base = declarative_base()
 
-LATEST_SCHEMA_VERSION = 11
+LATEST_SCHEMA_VERSION = 12
 
 
 def _sqlite_column_exists(connection, table_name: str, column_name: str) -> bool:
@@ -389,6 +389,29 @@ def _migration_011_add_admin_flag_to_users(connection) -> None:
         )
 
 
+def _migration_012_add_llm_metadata_to_generations(connection) -> None:
+    ajustes = {
+        "generation_strategy": "ALTER TABLE generations ADD COLUMN generation_strategy VARCHAR(50) NOT NULL DEFAULT 'rule_based'",
+        "llm_provider": "ALTER TABLE generations ADD COLUMN llm_provider VARCHAR(50)",
+        "llm_model": "ALTER TABLE generations ADD COLUMN llm_model VARCHAR(100)",
+        "llm_response_id": "ALTER TABLE generations ADD COLUMN llm_response_id VARCHAR(100)",
+        "llm_error": "ALTER TABLE generations ADD COLUMN llm_error TEXT",
+    }
+
+    for coluna, sql in ajustes.items():
+        if not _sqlite_column_exists(connection, "generations", coluna):
+            connection.execute(text(sql))
+
+    connection.execute(
+        text(
+            """
+            UPDATE generations
+            SET generation_strategy = COALESCE(NULLIF(generation_strategy, ''), 'rule_based')
+            """
+        )
+    )
+
+
 SQLITE_MIGRATIONS: list[tuple[int, str, Callable]] = [
     (1, "add_metadata_columns", _migration_001_add_metadata_columns),
     (2, "create_generation_documents", _migration_002_create_generation_documents),
@@ -401,6 +424,7 @@ SQLITE_MIGRATIONS: list[tuple[int, str, Callable]] = [
     (9, "link_generations_to_users", _migration_009_link_generations_to_users),
     (10, "link_audit_logs_to_users", _migration_010_link_audit_logs_to_users),
     (11, "add_admin_flag_to_users", _migration_011_add_admin_flag_to_users),
+    (12, "add_llm_metadata_to_generations", _migration_012_add_llm_metadata_to_generations),
 ]
 
 

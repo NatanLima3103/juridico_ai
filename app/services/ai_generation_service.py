@@ -9,14 +9,11 @@ from app.core.config import (
     OPENAI_MODEL,
     OPENAI_REASONING_EFFORT,
 )
-
-
-class LLMServiceError(Exception):
-    pass
+from app.services.llm_service import LLMServiceError, gerar_texto_juridico_com_fallback
 
 
 @dataclass
-class LLMGenerationResult:
+class AIGenerationResult:
     text: str
     generation_strategy: str
     llm_provider: str | None = None
@@ -47,7 +44,7 @@ def _montar_parametros_openai(prompt_payload: dict) -> dict:
     return parametros
 
 
-def _gerar_texto_com_openai(prompt_payload: dict) -> LLMGenerationResult:
+def _gerar_texto_com_openai(prompt_payload: dict) -> AIGenerationResult:
     try:
         from openai import OpenAI
     except ImportError as exc:
@@ -66,7 +63,7 @@ def _gerar_texto_com_openai(prompt_payload: dict) -> LLMGenerationResult:
     if not texto:
         raise LLMServiceError("A OpenAI respondeu sem texto utilizavel para a minuta.")
 
-    return LLMGenerationResult(
+    return AIGenerationResult(
         text=texto,
         generation_strategy="ai_openai",
         llm_provider="openai",
@@ -76,24 +73,35 @@ def _gerar_texto_com_openai(prompt_payload: dict) -> LLMGenerationResult:
     )
 
 
-def gerar_texto_juridico_com_fallback(
+def gerar_resultado_juridico_com_fallback(
     *,
     prompt_payload: dict,
     fallback_generator: Callable[[], str],
-) -> str:
-    """
-    Camada preparada para futura integração com IA real.
+) -> AIGenerationResult:
+    fallback_text = _normalizar_texto_saida(
+        gerar_texto_juridico_com_fallback(
+            prompt_payload={"system_prompt": "", "user_prompt": ""},
+            fallback_generator=fallback_generator,
+        )
+    )
 
-    Hoje, o projeto ainda usa a geração local como fallback principal.
-    Quando a integração com um provedor real for adicionada, a troca deverá
-    acontecer aqui, preservando o restante do fluxo da aplicação.
-    """
+    if not openai_disponivel():
+        return AIGenerationResult(
+            text=fallback_text,
+            generation_strategy="rule_based",
+            llm_error="OPENAI_API_KEY nao configurada.",
+        )
+
     if not isinstance(prompt_payload, dict):
-        raise LLMServiceError("Payload de prompt inválido para a camada de IA.")
+        raise LLMServiceError("Payload de prompt invalido para a camada de IA.")
 
-    fallback_text = fallback_generator()
-
-    if not fallback_text or not str(fallback_text).strip():
-        raise LLMServiceError("A geração fallback retornou texto vazio.")
-
-    return str(fallback_text).strip()
+    try:
+        return _gerar_texto_com_openai(prompt_payload)
+    except LLMServiceError as exc:
+        return AIGenerationResult(
+            text=fallback_text,
+            generation_strategy="rule_based",
+            llm_provider="openai",
+            llm_model=OPENAI_MODEL,
+            llm_error=str(exc),
+        )
