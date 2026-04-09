@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies.auth import get_authenticated_user
+from app.models.user import User
 from app.routers.common import templates
 from app.services.document_service import listar_documentos, listar_documentos_por_ids
 from app.services.generation_service import (
@@ -166,6 +167,7 @@ async def list_generations(
     sucesso: str | None = None,
     erro: str | None = None,
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
     termo_busca = (search or search_term or "").strip()
 
@@ -193,7 +195,7 @@ async def list_generations(
     )
 
     geracoes = listar_geracoes(db, filtros=filtros)
-    perfis = listar_perfis_escrita(db)
+    perfis = listar_perfis_escrita(db, usuario.id)
 
     geracoes_template = [montar_resumo_geracao(geracao) for geracao in geracoes]
     filtros_template = serializar_filtros_geracao_para_template(filtros)
@@ -221,9 +223,10 @@ async def list_generations(
 async def create_generation_form(
     request: Request,
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
-    documentos = listar_documentos(db)
-    perfis = listar_perfis_escrita(db)
+    documentos = listar_documentos(db, usuario.id)
+    perfis = listar_perfis_escrita(db, usuario.id)
 
     return _render_generation_form(
         request,
@@ -243,13 +246,14 @@ async def generation_detail(
     sucesso: str | None = None,
     erro: str | None = None,
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
     geracao = buscar_geracao_por_id(db, generation_id)
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
     documento_ids = geracao.document_ids
-    documentos_base = listar_documentos_por_ids(db, documento_ids)
+    documentos_base = listar_documentos_por_ids(db, documento_ids, usuario.id)
 
     return templates.TemplateResponse(
         "generation_detail.html",
@@ -268,13 +272,14 @@ async def edit_generation_form(
     generation_id: int,
     request: Request,
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
     geracao = buscar_geracao_por_id(db, generation_id)
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
-    documentos = listar_documentos(db)
-    perfis = listar_perfis_escrita(db)
+    documentos = listar_documentos(db, usuario.id)
+    perfis = listar_perfis_escrita(db, usuario.id)
 
     form_data = {
         "client_name": geracao.client_name,
@@ -306,13 +311,14 @@ async def duplicate_generation_form(
     generation_id: int,
     request: Request,
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
     geracao = buscar_geracao_por_id(db, generation_id)
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
-    documentos = listar_documentos(db)
-    perfis = listar_perfis_escrita(db)
+    documentos = listar_documentos(db, usuario.id)
+    perfis = listar_perfis_escrita(db, usuario.id)
 
     form_data = {
         "client_name": geracao.client_name,
@@ -356,9 +362,10 @@ async def create_generation(
     duplicate_mode: str | None = Form(None),
     duplicate_source_id: str | None = Form(None),
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
-    documentos = listar_documentos(db)
-    perfis = listar_perfis_escrita(db)
+    documentos = listar_documentos(db, usuario.id)
+    perfis = listar_perfis_escrita(db, usuario.id)
 
     selected_document_ids = coletar_ids_inteiros_unicos(document_ids)
 
@@ -417,11 +424,14 @@ async def create_generation(
             duplicate_source_id=duplicate_source_id_int,
         )
 
-    documentos_selecionados = listar_documentos_por_ids(db, selected_document_ids)
+    documentos_selecionados = listar_documentos_por_ids(db, selected_document_ids, usuario.id)
+    selected_document_ids = [documento.id for documento in documentos_selecionados]
 
     perfil_escrita = None
     if selected_profile_id is not None:
-        perfil_escrita = buscar_perfil_por_id(db, selected_profile_id)
+        perfil_escrita = buscar_perfil_por_id(db, selected_profile_id, usuario.id)
+        if not perfil_escrita:
+            selected_profile_id = None
 
     context_used = montar_contexto_inteligente(
         client_name=dados_validados["client_name"],
@@ -489,13 +499,14 @@ async def edit_generation(
     document_ids: list[str] | None = Form(None),
     writing_profile_id: str | None = Form(None),
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
     geracao = buscar_geracao_por_id(db, generation_id)
     if not geracao:
         raise HTTPException(status_code=404, detail="Geração não encontrada.")
 
-    documentos = listar_documentos(db)
-    perfis = listar_perfis_escrita(db)
+    documentos = listar_documentos(db, usuario.id)
+    perfis = listar_perfis_escrita(db, usuario.id)
 
     selected_document_ids = coletar_ids_inteiros_unicos(document_ids)
 
@@ -541,11 +552,14 @@ async def edit_generation(
             geracao=geracao,
         )
 
-    documentos_selecionados = listar_documentos_por_ids(db, selected_document_ids)
+    documentos_selecionados = listar_documentos_por_ids(db, selected_document_ids, usuario.id)
+    selected_document_ids = [documento.id for documento in documentos_selecionados]
 
     perfil_escrita = None
     if selected_profile_id is not None:
-        perfil_escrita = buscar_perfil_por_id(db, selected_profile_id)
+        perfil_escrita = buscar_perfil_por_id(db, selected_profile_id, usuario.id)
+        if not perfil_escrita:
+            selected_profile_id = None
 
     context_used = montar_contexto_inteligente(
         client_name=dados_validados["client_name"],
@@ -683,9 +697,10 @@ async def apply_template_to_generation_form(
     duplicate_mode: str | None = Form(None),
     duplicate_source_id: str | None = Form(None),
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
-    documentos = listar_documentos(db)
-    perfis = listar_perfis_escrita(db)
+    documentos = listar_documentos(db, usuario.id)
+    perfis = listar_perfis_escrita(db, usuario.id)
 
     selected_document_ids = coletar_ids_inteiros_unicos(document_ids)
 

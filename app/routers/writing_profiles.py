@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies.auth import get_authenticated_user
+from app.models.user import User
 from app.routers.common import templates
 from app.schemas.writing_profile import WritingProfileCreate
 from app.services.generation_service import resumir_texto
@@ -45,6 +46,7 @@ def listar_perfis_page(
     created_to: str = Query(""),
     sort_by: str = Query("created_desc"),
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
     filtros = normalizar_filtros_perfis(
         search=search,
@@ -57,8 +59,8 @@ def listar_perfis_page(
         sort_by=sort_by,
     )
 
-    perfis = listar_perfis_filtrados(db, filtros)
-    tons_disponiveis = obter_tons_disponiveis(db)
+    perfis = listar_perfis_filtrados(db, usuario.id, filtros)
+    tons_disponiveis = obter_tons_disponiveis(db, usuario.id)
     ordenacoes = obter_ordenacoes_perfis()
     total_filtros_ativos = contar_filtros_ativos_perfis(filtros)
 
@@ -92,8 +94,8 @@ def listar_perfis_page(
 
 
 @router.post("/{profile_id}/toggle-pin")
-def toggle_pin_profile(profile_id: int, request: Request, db: Session = Depends(get_db)):
-    perfil = toggle_fixacao_perfil(db, profile_id)
+def toggle_pin_profile(profile_id: int, request: Request, db: Session = Depends(get_db), usuario: User = Depends(get_authenticated_user)):
+    perfil = toggle_fixacao_perfil(db, profile_id, usuario.id)
 
     if not perfil:
         return RedirectResponse(
@@ -112,8 +114,8 @@ def toggle_pin_profile(profile_id: int, request: Request, db: Session = Depends(
 
 
 @router.post("/{profile_id}/toggle-favorite")
-def toggle_favorite_profile(profile_id: int, request: Request, db: Session = Depends(get_db)):
-    perfil = toggle_favorito_perfil(db, profile_id)
+def toggle_favorite_profile(profile_id: int, request: Request, db: Session = Depends(get_db), usuario: User = Depends(get_authenticated_user)):
+    perfil = toggle_favorito_perfil(db, profile_id, usuario.id)
 
     if not perfil:
         return RedirectResponse(
@@ -162,6 +164,7 @@ def criar_perfil_page(
     is_favorite: bool = Form(False),
     status_value: str = Form("", alias="status"),
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
     try:
         dados = validar_dados_perfil(
@@ -180,7 +183,7 @@ def criar_perfil_page(
             status=status_value,
         )
 
-        payload = WritingProfileCreate(**dados)
+        payload = WritingProfileCreate(user_id=usuario.id, **dados)
         criar_perfil(db, payload)
 
         return RedirectResponse(
@@ -221,8 +224,9 @@ def exibir_formulario_edicao_perfil(
     profile_id: int,
     request: Request,
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
-    perfil = buscar_perfil_por_id(db, profile_id)
+    perfil = buscar_perfil_por_id(db, profile_id, usuario.id)
 
     if not perfil:
         return RedirectResponse(
@@ -274,8 +278,9 @@ def editar_perfil_page(
     is_favorite: bool = Form(False),
     status_value: str = Form("", alias="status"),
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
-    perfil = buscar_perfil_por_id(db, profile_id)
+    perfil = buscar_perfil_por_id(db, profile_id, usuario.id)
 
     if not perfil:
         return RedirectResponse(
@@ -300,8 +305,8 @@ def editar_perfil_page(
             status=status_value,
         )
 
-        payload = WritingProfileCreate(**dados)
-        atualizar_perfil(db, profile_id, payload)
+        payload = WritingProfileCreate(user_id=usuario.id, **dados)
+        atualizar_perfil(db, profile_id, usuario.id, payload)
 
         return RedirectResponse(
             url="/writing-profiles?sucesso=Perfil atualizado com sucesso.",
@@ -337,8 +342,8 @@ def editar_perfil_page(
 
 
 @router.post("/{profile_id}/duplicate")
-def duplicar_perfil_page(profile_id: int, db: Session = Depends(get_db)):
-    novo_perfil = duplicar_perfil(db, profile_id)
+def duplicar_perfil_page(profile_id: int, db: Session = Depends(get_db), usuario: User = Depends(get_authenticated_user)):
+    novo_perfil = duplicar_perfil(db, profile_id, usuario.id)
 
     if not novo_perfil:
         return RedirectResponse(
@@ -353,8 +358,8 @@ def duplicar_perfil_page(profile_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{profile_id}/delete")
-def excluir_perfil_page(profile_id: int, db: Session = Depends(get_db)):
-    sucesso, mensagem = excluir_perfil(db, profile_id)
+def excluir_perfil_page(profile_id: int, db: Session = Depends(get_db), usuario: User = Depends(get_authenticated_user)):
+    sucesso, mensagem = excluir_perfil(db, profile_id, usuario.id)
 
     if not sucesso:
         return RedirectResponse(

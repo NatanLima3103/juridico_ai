@@ -6,7 +6,7 @@ except ImportError:
     ZoneInfo = None
     ZoneInfoNotFoundError = Exception
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -28,6 +28,7 @@ class WritingProfile(Base):
     __tablename__ = "writing_profiles"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     profile_name = Column(String(150), nullable=False, index=True)
     lawyer_name = Column(String(150), nullable=True)
     office_name = Column(String(200), nullable=True)
@@ -80,6 +81,7 @@ class WritingProfile(Base):
         back_populates="writing_profile",
         passive_deletes=True,
     )
+    user = relationship("User", passive_deletes=True)
 
     def __repr__(self) -> str:
         return f"<WritingProfile id={self.id} profile_name='{self.profile_name}'>"

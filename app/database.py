@@ -34,7 +34,7 @@ SessionLocal = sessionmaker(
 
 Base = declarative_base()
 
-LATEST_SCHEMA_VERSION = 6
+LATEST_SCHEMA_VERSION = 8
 
 
 def _sqlite_column_exists(connection, table_name: str, column_name: str) -> bool:
@@ -290,6 +290,40 @@ def _migration_006_prepare_users_table(connection) -> None:
     )
 
 
+def _migration_007_link_documents_to_users(connection) -> None:
+    if not _sqlite_column_exists(connection, "documents", "user_id"):
+        connection.execute(text("ALTER TABLE documents ADD COLUMN user_id INTEGER"))
+
+    connection.execute(
+        text("CREATE INDEX IF NOT EXISTS ix_documents_user_id ON documents (user_id)")
+    )
+
+    usuarios = connection.execute(text("SELECT id FROM users ORDER BY id ASC")).fetchall()
+    if len(usuarios) == 1:
+        unico_usuario_id = int(usuarios[0][0])
+        connection.execute(
+            text("UPDATE documents SET user_id = :user_id WHERE user_id IS NULL"),
+            {"user_id": unico_usuario_id},
+        )
+
+
+def _migration_008_link_writing_profiles_to_users(connection) -> None:
+    if not _sqlite_column_exists(connection, "writing_profiles", "user_id"):
+        connection.execute(text("ALTER TABLE writing_profiles ADD COLUMN user_id INTEGER"))
+
+    connection.execute(
+        text("CREATE INDEX IF NOT EXISTS ix_writing_profiles_user_id ON writing_profiles (user_id)")
+    )
+
+    usuarios = connection.execute(text("SELECT id FROM users ORDER BY id ASC")).fetchall()
+    if len(usuarios) == 1:
+        unico_usuario_id = int(usuarios[0][0])
+        connection.execute(
+            text("UPDATE writing_profiles SET user_id = :user_id WHERE user_id IS NULL"),
+            {"user_id": unico_usuario_id},
+        )
+
+
 SQLITE_MIGRATIONS: list[tuple[int, str, Callable]] = [
     (1, "add_metadata_columns", _migration_001_add_metadata_columns),
     (2, "create_generation_documents", _migration_002_create_generation_documents),
@@ -297,6 +331,8 @@ SQLITE_MIGRATIONS: list[tuple[int, str, Callable]] = [
     (4, "add_versioning_columns", _migration_004_add_versioning_columns),
     (5, "create_audit_logs", _migration_005_create_audit_logs),
     (6, "prepare_users_table", _migration_006_prepare_users_table),
+    (7, "link_documents_to_users", _migration_007_link_documents_to_users),
+    (8, "link_writing_profiles_to_users", _migration_008_link_writing_profiles_to_users),
 ]
 
 

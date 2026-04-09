@@ -9,6 +9,7 @@ class DocumentBase(BaseModel):
     file_path: str
     file_type: str
     extracted_text: str
+    user_id: int | None = None
     tags: str | None = None
     is_favorite: bool = False
     status: str | None = None

@@ -27,6 +27,7 @@ from app.services.document_service import (
 )
 from app.services.file_service import salvar_arquivo_upload
 from app.services.text_extractor import extrair_texto_arquivo
+from app.models.user import User
 
 router = APIRouter(
     prefix="/documents",
@@ -56,6 +57,7 @@ async def upload_document(
     request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
     try:
         saved_path = await salvar_arquivo_upload(file)
@@ -65,6 +67,7 @@ async def upload_document(
             original_filename=file.filename,
             saved_path=saved_path,
             extracted_text=extracted_text,
+            user_id=usuario.id,
         )
         documento = criar_documento(db, document_data)
 
@@ -134,8 +137,9 @@ def documents_list(
     q: str = Query(""),
     sort: str = Query("recentes"),
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
-    documentos = listar_documentos(db)
+    documentos = listar_documentos(db, usuario.id)
 
     documentos_view = []
     for documento in documentos:
@@ -224,8 +228,9 @@ def documents_list(
 def delete_document(
     document_id: int,
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
-    documento = buscar_documento_por_id(db, document_id)
+    documento = buscar_documento_por_id(db, document_id, usuario.id)
 
     if not documento:
         return RedirectResponse(
@@ -252,8 +257,9 @@ def document_detail(
     document_id: int,
     request: Request,
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
-    documento = buscar_documento_por_id(db, document_id)
+    documento = buscar_documento_por_id(db, document_id, usuario.id)
 
     if not documento:
         raise HTTPException(status_code=404, detail="Documento não encontrado.")
@@ -294,8 +300,9 @@ def toggle_document_favorite(
     document_id: int,
     request: Request,
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
-    documento = buscar_documento_por_id(db, document_id)
+    documento = buscar_documento_por_id(db, document_id, usuario.id)
 
     if not documento:
         return RedirectResponse(
@@ -322,8 +329,9 @@ def update_document_metadata(
     tags: str = Form(""),
     status_value: str = Form("", alias="status"),
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
-    documento = buscar_documento_por_id(db, document_id)
+    documento = buscar_documento_por_id(db, document_id, usuario.id)
 
     if not documento:
         return RedirectResponse(
@@ -351,8 +359,9 @@ def update_document_metadata(
 def download_document(
     document_id: int,
     db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
 ):
-    documento = buscar_documento_por_id(db, document_id)
+    documento = buscar_documento_por_id(db, document_id, usuario.id)
 
     if not documento:
         raise HTTPException(status_code=404, detail="Documento não encontrado.")

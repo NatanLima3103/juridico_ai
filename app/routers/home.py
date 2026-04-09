@@ -8,6 +8,7 @@ from app.database import get_db
 from app.dependencies.auth import get_authenticated_user
 from app.models.document import Document
 from app.models.generation import Generation
+from app.models.user import User
 from app.models.writing_profile import WritingProfile
 from app.routers.common import templates
 
@@ -18,14 +19,15 @@ router = APIRouter()
 def home_page(
     request: Request,
     db: Session = Depends(get_db),
-    _usuario=Depends(get_authenticated_user),
+    usuario: User = Depends(get_authenticated_user),
 ):
-    total_documents = db.query(Document).count()
-    total_profiles = db.query(WritingProfile).count()
+    total_documents = db.query(Document).filter(Document.user_id == usuario.id).count()
+    total_profiles = db.query(WritingProfile).filter(WritingProfile.user_id == usuario.id).count()
     total_generations = db.query(Generation).count()
 
     recent_documents = (
         db.query(Document)
+        .filter(Document.user_id == usuario.id)
         .order_by(Document.created_at.desc(), Document.id.desc())
         .limit(4)
         .all()
@@ -33,6 +35,7 @@ def home_page(
 
     recent_profiles = (
         db.query(WritingProfile)
+        .filter(WritingProfile.user_id == usuario.id)
         .order_by(WritingProfile.is_pinned.desc(), WritingProfile.created_at.desc(), WritingProfile.id.desc())
         .limit(4)
         .all()

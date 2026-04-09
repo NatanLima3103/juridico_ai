@@ -91,9 +91,10 @@ def contar_filtros_ativos_perfis(filtros: dict[str, Any] | None) -> int:
     return total
 
 
-def obter_tons_disponiveis(db: Session) -> list[str]:
+def obter_tons_disponiveis(db: Session, user_id: int) -> list[str]:
     resultados = (
         db.query(WritingProfile.tone)
+        .filter(WritingProfile.user_id == user_id)
         .filter(WritingProfile.tone.isnot(None))
         .order_by(WritingProfile.tone.asc())
         .all()
@@ -165,6 +166,7 @@ def validar_dados_perfil(
 
 def criar_perfil(db: Session, payload: WritingProfileCreate) -> WritingProfile:
     perfil = WritingProfile(
+        user_id=payload.user_id,
         profile_name=_normalizar_texto(payload.profile_name),
         lawyer_name=_normalizar_texto(payload.lawyer_name),
         office_name=_normalizar_texto(payload.office_name),
@@ -196,16 +198,17 @@ def criar_perfil(db: Session, payload: WritingProfileCreate) -> WritingProfile:
     return perfil
 
 
-def buscar_perfil_por_id(db: Session, profile_id: int) -> WritingProfile | None:
-    return db.query(WritingProfile).filter(WritingProfile.id == profile_id).first()
+def buscar_perfil_por_id(db: Session, profile_id: int, user_id: int) -> WritingProfile | None:
+    return db.query(WritingProfile).filter(WritingProfile.id == profile_id, WritingProfile.user_id == user_id).first()
 
 
 def atualizar_perfil(
     db: Session,
     profile_id: int,
+    user_id: int,
     payload: WritingProfileCreate,
 ) -> WritingProfile | None:
-    perfil = buscar_perfil_por_id(db, profile_id)
+    perfil = buscar_perfil_por_id(db, profile_id, user_id)
 
     if not perfil:
         return None
@@ -239,26 +242,30 @@ def atualizar_perfil(
     return perfil
 
 
-def _gerar_nome_duplicado(db: Session, nome_original: str) -> str:
+def _gerar_nome_duplicado(db: Session, nome_original: str, user_id: int) -> str:
     nome_base = _normalizar_texto(nome_original) or "Perfil sem nome"
     candidato = f"{nome_base} (cópia)"
     contador = 2
 
-    while db.query(WritingProfile).filter(WritingProfile.profile_name == candidato).first():
+    while db.query(WritingProfile).filter(
+        WritingProfile.user_id == user_id,
+        WritingProfile.profile_name == candidato,
+    ).first():
         candidato = f"{nome_base} (cópia {contador})"
         contador += 1
 
     return candidato
 
 
-def duplicar_perfil(db: Session, profile_id: int) -> WritingProfile | None:
-    perfil_origem = buscar_perfil_por_id(db, profile_id)
+def duplicar_perfil(db: Session, profile_id: int, user_id: int) -> WritingProfile | None:
+    perfil_origem = buscar_perfil_por_id(db, profile_id, user_id)
 
     if not perfil_origem:
         return None
 
     novo_perfil = WritingProfile(
-        profile_name=_gerar_nome_duplicado(db, perfil_origem.profile_name),
+        user_id=user_id,
+        profile_name=_gerar_nome_duplicado(db, perfil_origem.profile_name, user_id),
         lawyer_name=_normalizar_texto(perfil_origem.lawyer_name),
         office_name=_normalizar_texto(perfil_origem.office_name),
         tone=_normalizar_texto(perfil_origem.tone) or "Formal",
@@ -290,8 +297,8 @@ def duplicar_perfil(db: Session, profile_id: int) -> WritingProfile | None:
     return novo_perfil
 
 
-def toggle_fixacao_perfil(db: Session, profile_id: int) -> WritingProfile | None:
-    perfil = buscar_perfil_por_id(db, profile_id)
+def toggle_fixacao_perfil(db: Session, profile_id: int, user_id: int) -> WritingProfile | None:
+    perfil = buscar_perfil_por_id(db, profile_id, user_id)
 
     if not perfil:
         return None
@@ -314,8 +321,8 @@ def toggle_fixacao_perfil(db: Session, profile_id: int) -> WritingProfile | None
     return perfil
 
 
-def toggle_favorito_perfil(db: Session, profile_id: int) -> WritingProfile | None:
-    perfil = buscar_perfil_por_id(db, profile_id)
+def toggle_favorito_perfil(db: Session, profile_id: int, user_id: int) -> WritingProfile | None:
+    perfil = buscar_perfil_por_id(db, profile_id, user_id)
 
     if not perfil:
         return None
@@ -338,8 +345,8 @@ def toggle_favorito_perfil(db: Session, profile_id: int) -> WritingProfile | Non
     return perfil
 
 
-def excluir_perfil(db: Session, profile_id: int) -> tuple[bool, str]:
-    perfil = buscar_perfil_por_id(db, profile_id)
+def excluir_perfil(db: Session, profile_id: int, user_id: int) -> tuple[bool, str]:
+    perfil = buscar_perfil_por_id(db, profile_id, user_id)
 
     if not perfil:
         return False, "Perfil não encontrado."
@@ -359,11 +366,12 @@ def excluir_perfil(db: Session, profile_id: int) -> tuple[bool, str]:
 
 def listar_perfis_filtrados(
     db: Session,
+    user_id: int,
     filtros: dict[str, Any] | None = None,
 ) -> list[WritingProfile]:
     filtros = filtros or {}
 
-    query = db.query(WritingProfile)
+    query = db.query(WritingProfile).filter(WritingProfile.user_id == user_id)
 
     search = _normalizar_texto(filtros.get("search"))
     if search:
@@ -436,16 +444,17 @@ def listar_perfis_filtrados(
     return query.all()
 
 
-def listar_perfis_escrita(db: Session) -> list[WritingProfile]:
+def listar_perfis_escrita(db: Session, user_id: int) -> list[WritingProfile]:
     return (
         db.query(WritingProfile)
+        .filter(WritingProfile.user_id == user_id)
         .order_by(WritingProfile.is_pinned.desc(), WritingProfile.profile_name.asc())
         .all()
     )
 
 
-def listar_perfis(db: Session) -> list[WritingProfile]:
-    return listar_perfis_escrita(db)
+def listar_perfis(db: Session, user_id: int) -> list[WritingProfile]:
+    return listar_perfis_escrita(db, user_id)
 
 
 def montar_resumo_perfil(perfil: WritingProfile) -> dict[str, Any]:

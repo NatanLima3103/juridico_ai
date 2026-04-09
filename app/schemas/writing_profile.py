@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class WritingProfileCreate(BaseModel):
+    user_id: Optional[int] = None
     profile_name: str = Field(..., min_length=3, max_length=150)
     lawyer_name: Optional[str] = Field(default=None, max_length=150)
     office_name: Optional[str] = Field(default=None, max_length=200)

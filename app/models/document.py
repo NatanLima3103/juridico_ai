@@ -6,7 +6,7 @@ except ImportError:
     ZoneInfo = None
     ZoneInfoNotFoundError = Exception
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -34,6 +34,7 @@ class Document(Base):
     file_path = Column(String(500), nullable=False)
     file_type = Column(String(20), nullable=False, index=True)
     extracted_text = Column(Text, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
 
     tags = Column(Text, nullable=True)
     is_favorite = Column(Boolean, default=False, nullable=False)
@@ -49,6 +50,7 @@ class Document(Base):
         back_populates="documents",
         passive_deletes=True,
     )
+    user = relationship("User", passive_deletes=True)
 
     def __repr__(self) -> str:
         return f"<Document id={self.id} original_filename='{self.original_filename}'>"

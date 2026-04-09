@@ -27,6 +27,7 @@ def criar_documento(db: Session, document_data: DocumentCreate) -> Document:
         file_path=document_data.file_path,
         file_type=document_data.file_type,
         extracted_text=document_data.extracted_text,
+        user_id=document_data.user_id,
         tags=_normalizar_texto(document_data.tags) or None,
         is_favorite=bool(document_data.is_favorite),
         status=_normalizar_texto(document_data.status) or None,
@@ -46,21 +47,27 @@ def criar_documento(db: Session, document_data: DocumentCreate) -> Document:
     return documento
 
 
-def listar_documentos(db: Session) -> list[Document]:
+def listar_documentos(db: Session, user_id: int) -> list[Document]:
     return (
         db.query(Document)
+        .filter(Document.user_id == user_id)
         .order_by(Document.is_favorite.desc(), Document.created_at.desc(), Document.id.desc())
         .all()
     )
 
 
-def listar_documentos_por_ids(db: Session, document_ids: list[int]) -> list[Document]:
-    if not document_ids:
+def listar_documentos_por_ids(db: Session, document_ids: list[int], user_id: int) -> list[Document]:
+    ids_unicos = []
+    for document_id in document_ids:
+        if document_id not in ids_unicos:
+            ids_unicos.append(document_id)
+
+    if not ids_unicos:
         return []
 
     documentos = (
         db.query(Document)
-        .filter(Document.id.in_(document_ids))
+        .filter(Document.user_id == user_id, Document.id.in_(ids_unicos))
         .order_by(Document.created_at.desc())
         .all()
     )
@@ -69,15 +76,15 @@ def listar_documentos_por_ids(db: Session, document_ids: list[int]) -> list[Docu
 
     documentos_ordenados = [
         documentos_por_id[document_id]
-        for document_id in document_ids
+        for document_id in ids_unicos
         if document_id in documentos_por_id
     ]
 
     return documentos_ordenados
 
 
-def buscar_documento_por_id(db: Session, document_id: int) -> Document | None:
-    return db.query(Document).filter(Document.id == document_id).first()
+def buscar_documento_por_id(db: Session, document_id: int, user_id: int) -> Document | None:
+    return db.query(Document).filter(Document.id == document_id, Document.user_id == user_id).first()
 
 
 def atualizar_metadados_documento(
@@ -148,6 +155,7 @@ def montar_dados_documento(
     original_filename: str,
     saved_path: Path,
     extracted_text: str,
+    user_id: int,
 ) -> DocumentCreate:
     return DocumentCreate(
         original_filename=original_filename,
@@ -155,6 +163,7 @@ def montar_dados_documento(
         file_path=str(saved_path),
         file_type=saved_path.suffix.lower(),
         extracted_text=normalizar_texto_extraido(extracted_text),
+        user_id=user_id,
         tags=None,
         is_favorite=False,
         status=None,

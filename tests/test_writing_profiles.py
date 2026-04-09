@@ -10,6 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import SECRET_KEY, SESSION_COOKIE_NAME, STATIC_DIR
 from app.database import Base, get_db
+from app.models.writing_profile import WritingProfile
 from app.routers import auth, writing_profiles
 from app.schemas.user import UserCreate
 from app.services.user_service import criar_usuario
@@ -47,24 +48,26 @@ def create_writing_profiles_test_client() -> tuple[TestClient, sessionmaker]:
     return TestClient(app), testing_session_local
 
 
-def authenticate_test_client(client: TestClient, testing_session_local: sessionmaker) -> None:
+def create_user_for_test(testing_session_local: sessionmaker, *, full_name: str, email: str):
     db = testing_session_local()
     try:
-        criar_usuario(
+        return criar_usuario(
             db,
             UserCreate(
-                full_name="Maria Silva",
-                email="maria@example.com",
+                full_name=full_name,
+                email=email,
                 password="senha1234",
             ),
         )
     finally:
         db.close()
 
+
+def authenticate_test_client(client: TestClient, testing_session_local: sessionmaker, *, email: str = "maria@example.com") -> None:
     response = client.post(
         "/auth/login",
         data={
-            "email": "maria@example.com",
+            "email": email,
             "password": "senha1234",
             "next": "/writing-profiles",
         },
@@ -76,6 +79,7 @@ def authenticate_test_client(client: TestClient, testing_session_local: sessionm
 class WritingProfilesTests(unittest.TestCase):
     def test_create_profile_persists_record_and_favorite_flag(self):
         client, testing_session_local = create_writing_profiles_test_client()
+        create_user_for_test(testing_session_local, full_name="Maria Silva", email="maria@example.com")
         authenticate_test_client(client, testing_session_local)
 
         response = client.post(
@@ -103,16 +107,18 @@ class WritingProfilesTests(unittest.TestCase):
 
         db = testing_session_local()
         try:
-            perfil = buscar_perfil_por_id(db, 1)
+            perfil = buscar_perfil_por_id(db, 1, 1)
             self.assertIsNotNone(perfil)
             self.assertEqual(perfil.profile_name, "Civel Formal")
             self.assertTrue(perfil.is_favorite)
             self.assertEqual(perfil.status, "ativo")
+            self.assertEqual(perfil.user_id, 1)
         finally:
             db.close()
 
     def test_list_page_renders_saved_profile(self):
         client, testing_session_local = create_writing_profiles_test_client()
+        create_user_for_test(testing_session_local, full_name="Maria Silva", email="maria@example.com")
         authenticate_test_client(client, testing_session_local)
 
         create_response = client.post(
@@ -132,6 +138,65 @@ class WritingProfilesTests(unittest.TestCase):
         self.assertIn("1 resultado(s)", list_response.text)
         self.assertIn("Trabalhista Objetivo", list_response.text)
         self.assertNotIn("Nenhum perfil encontrado", list_response.text)
+
+    def test_list_page_hides_profiles_from_other_users(self):
+        client, testing_session_local = create_writing_profiles_test_client()
+        usuario_1 = create_user_for_test(testing_session_local, full_name="Maria Silva", email="maria@example.com")
+        usuario_2 = create_user_for_test(testing_session_local, full_name="Ana Souza", email="ana@example.com")
+
+        db = testing_session_local()
+        try:
+            db.add(
+                WritingProfile(
+                    user_id=usuario_1.id,
+                    profile_name="Perfil Maria",
+                    tone="Formal",
+                )
+            )
+            db.add(
+                WritingProfile(
+                    user_id=usuario_2.id,
+                    profile_name="Perfil Ana",
+                    tone="Objetivo",
+                )
+            )
+            db.commit()
+        finally:
+            db.close()
+
+        authenticate_test_client(client, testing_session_local)
+
+        response = client.get("/writing-profiles")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Perfil Maria", response.text)
+        self.assertNotIn("Perfil Ana", response.text)
+
+    def test_edit_page_blocks_profile_from_other_user(self):
+        client, testing_session_local = create_writing_profiles_test_client()
+        create_user_for_test(testing_session_local, full_name="Maria Silva", email="maria@example.com")
+        usuario_2 = create_user_for_test(testing_session_local, full_name="Ana Souza", email="ana@example.com")
+
+        db = testing_session_local()
+        try:
+            perfil = WritingProfile(
+                user_id=usuario_2.id,
+                profile_name="Perfil Ana",
+                tone="Objetivo",
+            )
+            db.add(perfil)
+            db.commit()
+            db.refresh(perfil)
+            perfil_id = perfil.id
+        finally:
+            db.close()
+
+        authenticate_test_client(client, testing_session_local)
+
+        response = client.get(f"/writing-profiles/{perfil_id}/edit", follow_redirects=False)
+
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/writing-profiles?erro=Perfil+n%C3%A3o+encontrado.")
 
 
 if __name__ == "__main__":
