@@ -54,6 +54,13 @@
 
     <div class="card-info">
         <p>
+            Esqueceu sua senha?
+            <a href="/auth/forgot-password">Recuperar acesso</a>
+        </p>
+    </div>
+
+    <div class="card-info">
+        <p>
             Ainda não tem conta?
             <a href="/auth/register{% if next and next != '/' %}?next={{ next | urlencode }}{% endif %}">Criar cadastro</a>
         </p>

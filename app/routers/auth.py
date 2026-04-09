@@ -9,9 +9,14 @@ from app.database import get_db
 from app.routers.common import templates
 from app.schemas.user import UserCreate
 from app.services.user_service import (
+    atualizar_senha_usuario,
     autenticar_usuario,
     buscar_usuario_por_email,
     criar_usuario,
+    gerar_token_recuperacao_senha,
+    validar_redefinicao_senha,
+    validar_solicitacao_recuperacao_senha,
+    validar_token_recuperacao_senha,
     validar_dados_cadastro,
     validar_dados_login,
 )
@@ -68,6 +73,25 @@ def login_form(request: Request):
             "sucesso": request.query_params.get("sucesso"),
             "form_data": {},
             "next": _normalizar_destino_pos_login(request.query_params.get("next")),
+        },
+    )
+
+
+@router.get("/forgot-password", response_class=HTMLResponse)
+def forgot_password_form(request: Request):
+    redirect_response = _redirect_if_authenticated(request)
+    if redirect_response:
+        return redirect_response
+
+    return templates.TemplateResponse(
+        "forgot_password.html",
+        {
+            "request": request,
+            "title": "Recuperar senha",
+            "erro": None,
+            "sucesso": None,
+            "form_data": {},
+            "reset_link": None,
         },
     )
 
@@ -180,6 +204,138 @@ def login_user(
     request.session["user_name"] = usuario.full_name
 
     return RedirectResponse(url=next_url, status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/forgot-password", response_class=HTMLResponse)
+def forgot_password_user(
+    request: Request,
+    email: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    redirect_response = _redirect_if_authenticated(request)
+    if redirect_response:
+        return redirect_response
+
+    form_data = {"email": email}
+
+    try:
+        dados = validar_solicitacao_recuperacao_senha(email=email)
+    except ValueError as exc:
+        return templates.TemplateResponse(
+            "forgot_password.html",
+            {
+                "request": request,
+                "title": "Recuperar senha",
+                "erro": str(exc),
+                "sucesso": None,
+                "form_data": form_data,
+                "reset_link": None,
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    usuario = buscar_usuario_por_email(db, dados["email"])
+    reset_link = None
+    if usuario and bool(usuario.is_active):
+        token = gerar_token_recuperacao_senha(usuario)
+        reset_link = str(request.url_for("reset_password_form", token=token))
+
+    return templates.TemplateResponse(
+        "forgot_password.html",
+        {
+            "request": request,
+            "title": "Recuperar senha",
+            "erro": None,
+            "sucesso": "Se o e-mail estiver cadastrado, um link de recuperação foi gerado.",
+            "form_data": form_data,
+            "reset_link": reset_link,
+        },
+    )
+
+
+@router.get("/reset-password/{token}", response_class=HTMLResponse, name="reset_password_form")
+def reset_password_form(request: Request, token: str, db: Session = Depends(get_db)):
+    redirect_response = _redirect_if_authenticated(request)
+    if redirect_response:
+        return redirect_response
+
+    usuario = validar_token_recuperacao_senha(db, token)
+    if not usuario:
+        return templates.TemplateResponse(
+            "reset_password.html",
+            {
+                "request": request,
+                "title": "Redefinir senha",
+                "erro": "O link de recuperação é inválido ou expirou.",
+                "sucesso": None,
+                "token": token,
+                "token_valido": False,
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    return templates.TemplateResponse(
+        "reset_password.html",
+        {
+            "request": request,
+            "title": "Redefinir senha",
+            "erro": None,
+            "sucesso": None,
+            "token": token,
+            "token_valido": True,
+        },
+    )
+
+
+@router.post("/reset-password/{token}", response_class=HTMLResponse)
+def reset_password_user(
+    request: Request,
+    token: str,
+    password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    redirect_response = _redirect_if_authenticated(request)
+    if redirect_response:
+        return redirect_response
+
+    usuario = validar_token_recuperacao_senha(db, token)
+    if not usuario:
+        return templates.TemplateResponse(
+            "reset_password.html",
+            {
+                "request": request,
+                "title": "Redefinir senha",
+                "erro": "O link de recuperação é inválido ou expirou.",
+                "sucesso": None,
+                "token": token,
+                "token_valido": False,
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        dados = validar_redefinicao_senha(password=password, confirm_password=confirm_password)
+    except ValueError as exc:
+        return templates.TemplateResponse(
+            "reset_password.html",
+            {
+                "request": request,
+                "title": "Redefinir senha",
+                "erro": str(exc),
+                "sucesso": None,
+                "token": token,
+                "token_valido": True,
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    atualizar_senha_usuario(db, usuario, dados["password"])
+
+    return RedirectResponse(
+        url=f"/auth/login?sucesso={quote('Senha redefinida com sucesso. Faça seu login.')}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
 
 
 @router.post("/logout")

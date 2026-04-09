@@ -1,8 +1,13 @@
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy.orm import Session
 
+from app.core.config import PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS, SECRET_KEY
 from app.core.security import hash_password, verify_password
 from app.models.user import User
 from app.schemas.user import UserCreate
+
+
+PASSWORD_RESET_SALT = "password-reset"
 
 
 def _normalizar_texto(valor: str | None) -> str:
@@ -98,4 +103,73 @@ def autenticar_usuario(db: Session, *, email: str, password: str) -> User | None
         return None
     if not verify_password(password, usuario.password_hash):
         return None
+    return usuario
+
+
+def validar_solicitacao_recuperacao_senha(*, email: str) -> dict[str, str]:
+    email = _normalizar_email(email)
+
+    if not email:
+        raise ValueError("Informe seu e-mail.")
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise ValueError("Informe um e-mail válido.")
+
+    return {"email": email}
+
+
+def validar_redefinicao_senha(*, password: str, confirm_password: str) -> dict[str, str]:
+    password = (password or "").strip()
+    confirm_password = (confirm_password or "").strip()
+
+    if not password:
+        raise ValueError("Informe uma nova senha.")
+    if len(password) < 8:
+        raise ValueError("A nova senha deve ter pelo menos 8 caracteres.")
+    if password != confirm_password:
+        raise ValueError("A confirmação de senha não confere.")
+
+    return {"password": password}
+
+
+def _get_password_reset_serializer() -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(SECRET_KEY, salt=PASSWORD_RESET_SALT)
+
+
+def gerar_token_recuperacao_senha(usuario: User) -> str:
+    serializer = _get_password_reset_serializer()
+    return serializer.dumps(
+        {
+            "user_id": usuario.id,
+            "password_hash": usuario.password_hash,
+        }
+    )
+
+
+def validar_token_recuperacao_senha(db: Session, token: str) -> User | None:
+    serializer = _get_password_reset_serializer()
+
+    try:
+        data = serializer.loads(token, max_age=PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS)
+    except (BadSignature, SignatureExpired):
+        return None
+
+    user_id = data.get("user_id")
+    password_hash = data.get("password_hash")
+
+    if not user_id or not password_hash:
+        return None
+
+    usuario = buscar_usuario_por_id(db, int(user_id))
+    if not usuario or not bool(usuario.is_active):
+        return None
+    if usuario.password_hash != password_hash:
+        return None
+    return usuario
+
+
+def atualizar_senha_usuario(db: Session, usuario: User, nova_senha: str) -> User:
+    usuario.password_hash = hash_password(nova_senha)
+    db.add(usuario)
+    db.commit()
+    db.refresh(usuario)
     return usuario
