@@ -196,6 +196,8 @@ def _build_output_style_directives(profile: Any | None) -> str:
                 "- Utilize linguagem juridica tecnica, clara, profissional e pronta para revisao humana.",
                 "- Mantenha tom formal e objetivo, sem floreios desnecessarios.",
                 "- Use formulas de abertura, desenvolvimento e fechamento compativeis com a pratica forense brasileira.",
+                "- Prefira periodos com fluidez natural, variando conectivos e evitando repeticoes mecanicas.",
+                "- Soe como texto juridico efetivamente redigido por profissional, e nao como esquema ou modelo engessado.",
             ]
         )
 
@@ -216,6 +218,8 @@ def _build_output_style_directives(profile: Any | None) -> str:
         f"Feche a minuta com formula compativel com: {closing_phrase}.",
         f"Observe como diretriz prioritaria de redacao: {style_notes}.",
         f"Use expressoes recorrentes do perfil apenas quando soarem naturais e uteis ao contexto: {recurring}.",
+        "Prefira periodos com fluidez natural, variando conectivos e evitando repeticoes mecanicas.",
+        "Soe como texto juridico efetivamente redigido por profissional, e nao como esquema ou modelo engessado.",
     ]
     return "\n".join(f"- {item}" for item in directives)
 
@@ -358,7 +362,9 @@ def build_advanced_prompt(
         "com estrutura compativel com o tipo de peca solicitado, redacao profissional, objetividade, "
         "coerencia interna e fidelidade ao contexto informado. Nao invente fatos. Nao cite jurisprudencia "
         "ou artigos especificos se eles nao tiverem sido informados. Quando a base juridica estiver generica, "
-        "mantenha a redacao util e prudente, indicando fundamentos em tese, sem afirmar existencia de prova inexistente."
+        "mantenha a redacao util e prudente, indicando fundamentos em tese, sem afirmar existencia de prova inexistente. "
+        "Escreva com naturalidade, evitando tom roboticamente padronizado, repeticoes vazias e frases de modelo que "
+        "comprometam a leitura fluida da minuta."
     )
 
     user_prompt = f"""
@@ -387,6 +393,8 @@ Produzir um texto juridicamente apresentavel, bem organizado e aderente ao assun
 5. Nao invente nomes, datas, provas ou acontecimentos nao informados.
 6. Entregue o texto pronto para revisao humana.
 7. Ao usar os documentos base, prefira os excertos literais e dados concretos extraidos deles, sem copiar trechos irrelevantes.
+8. Evite expressoes excessivamente formularias, repeticoes de "a presente" e construcoes que soem como texto artificial.
+9. Priorize transicoes naturais entre paragrafos e secoes, preservando sobriedade e precisao tecnica.
 
 [ESTILO DE SAIDA]
 {output_style_directives}

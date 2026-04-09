@@ -49,6 +49,15 @@ class PromptServiceTests(unittest.TestCase):
             prompt["user_prompt"],
         )
 
+    def test_build_advanced_prompt_includes_naturalness_guidance(self):
+        prompt = self._build_prompt("Peticao inicial")
+
+        self.assertIn("Escreva com naturalidade", prompt["system_prompt"])
+        self.assertIn("evitando tom roboticamente padronizado", prompt["system_prompt"])
+        self.assertIn("evitando repeticoes mecanicas", prompt["user_prompt"])
+        self.assertIn("Evite expressoes excessivamente formularias", prompt["user_prompt"])
+        self.assertIn("Priorize transicoes naturais entre paragrafos e secoes", prompt["user_prompt"])
+
     def test_build_advanced_prompt_uses_writing_profile_as_output_style(self):
         profile = SimpleNamespace(
             profile_name="Contencioso estrategico",

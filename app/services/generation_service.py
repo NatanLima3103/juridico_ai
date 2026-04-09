@@ -968,6 +968,92 @@ def _bulletizar_texto(texto: str) -> str:
     return "\n".join(bullets)
 
 
+def _contar_letras_maiusculas(texto: str) -> int:
+    return sum(1 for caractere in (texto or "") if caractere.isalpha() and caractere.isupper())
+
+
+def _trecho_documental_irrelevante(texto: str) -> bool:
+    trecho = " ".join((texto or "").split())
+    if not trecho:
+        return True
+
+    trecho_l = trecho.lower()
+    marcadores_irrelevantes = [
+        "<digite",
+        "autoatendimento",
+        "foro",
+        "juizado especial",
+        "modelo",
+        "minuta",
+    ]
+    if any(marcador in trecho_l for marcador in marcadores_irrelevantes):
+        return True
+
+    if "<" in trecho or ">" in trecho:
+        return True
+
+    letras = sum(1 for caractere in trecho if caractere.isalpha())
+    if letras and (_contar_letras_maiusculas(trecho) / letras) > 0.55:
+        return True
+
+    return False
+
+
+def _texto_de_perfil_invalido(texto: str) -> bool:
+    trecho = " ".join((texto or "").split())
+    if not trecho:
+        return True
+
+    trecho_l = trecho.lower()
+    marcadores_invalidos = [
+        "...",
+        "…",
+        "<digite",
+        "<cliente",
+        "vossa...",
+        "requer-se...",
+        "pede deferimento...",
+    ]
+    if any(marcador in trecho_l for marcador in marcadores_invalidos):
+        return True
+
+    return False
+
+
+def _montar_intro_contextual(document_type: str, case_subject: str) -> str:
+    assunto_limpo = _limpar_pontuacao_final(case_subject)
+    assunto_padrao = assunto_limpo or "questão jurídica submetida à análise"
+    tipo = _tipo_normalizado(document_type)
+
+    if tipo == "petição inicial":
+        return f"Trata-se de demanda relacionada a {assunto_padrao}, conforme se passa a expor."
+    if tipo == "contestação":
+        return (
+            f"A controvérsia em exame versa sobre {assunto_padrao}, a partir dos elementos trazidos aos autos."
+        )
+    if tipo == "réplica":
+        return (
+            f"A presente manifestação volta-se ao enfrentamento dos argumentos defensivos relacionados a {assunto_padrao}."
+        )
+    if tipo == "manifestação":
+        return (
+            f"A manifestação a seguir trata de {assunto_padrao}, em atenção ao contexto processual apresentado."
+        )
+    if tipo == "parecer jurídico":
+        return (
+            f"Submete-se à análise a questão relativa a {assunto_padrao}, à luz dos elementos informados."
+        )
+    if tipo == "notificação extrajudicial":
+        return (
+            f"A presente notificação tem por finalidade tratar de {assunto_padrao}, conforme os fatos expostos a seguir."
+        )
+    if tipo == "recurso":
+        return (
+            f"O presente recurso impugna a decisão relacionada a {assunto_padrao}, pelos fundamentos expostos a seguir."
+        )
+    return f"A demanda decorre de {assunto_padrao}, conforme os fatos e fundamentos expostos a seguir."
+
+
 def _coletar_trechos_documentais(documentos_selecionados: list | None, limite: int = 3) -> list[str]:
     if not documentos_selecionados:
         return []
@@ -983,30 +1069,60 @@ def _coletar_trechos_documentais(documentos_selecionados: list | None, limite: i
             continue
 
         frase = _primeira_frase(base, 220)
-        if frase:
+        if frase and not _trecho_documental_irrelevante(frase):
             trechos.append(f"- {nome_arquivo}: {frase}")
 
     return trechos
 
 
-def _montar_qualificacao(profile, client_name: str) -> str:
+def _montar_qualificacao(profile, client_name: str, document_type: str) -> str:
     if profile and (profile.qualification_style or "").strip():
         estilo = profile.qualification_style.strip()
-        return estilo.replace("{cliente}", client_name)
+        if not _texto_de_perfil_invalido(estilo):
+            return estilo.replace("{cliente}", client_name)
 
-    return f"{client_name}, já devidamente qualificado(a), vem, respeitosamente, à presença de Vossa Excelência, propor a presente, nos termos a seguir expostos:"
+    tipo = _tipo_normalizado(document_type)
+    if tipo == "parecer jurídico":
+        return f"Solicita-se análise jurídica em nome de {client_name}, considerando os elementos apresentados."
+    if tipo == "contrato":
+        return ""
+    return f"{client_name}, já qualificado(a), vem, respeitosamente, à presença de Vossa Excelência,"
 
 
-def _montar_abertura(profile, qualificacao: str, client_name: str) -> str:
+def _montar_abertura_padrao(document_type: str) -> str:
+    tipo = _tipo_normalizado(document_type)
+
+    if tipo == "petição inicial":
+        return "ajuizar a presente ação, pelos fatos e fundamentos a seguir expostos."
+    if tipo == "contestação":
+        return "apresentar contestação, pelos fatos e fundamentos a seguir expostos."
+    if tipo == "réplica":
+        return "apresentar réplica, em face da contestação, pelos fundamentos a seguir expostos."
+    if tipo == "manifestação":
+        return "apresentar a presente manifestação, pelos fundamentos a seguir expostos."
+    if tipo == "parecer jurídico":
+        return ""
+    if tipo == "notificação extrajudicial":
+        return "apresentar a presente notificação extrajudicial, nos termos a seguir expostos."
+    if tipo == "recurso":
+        return "interpor o presente recurso, com as razões a seguir expostas."
+    return "apresentar a presente peça, pelos fatos e fundamentos a seguir expostos."
+
+
+def _montar_abertura(profile, qualificacao: str, client_name: str, document_type: str) -> str:
     qualificacao_limpa = (qualificacao or "").strip()
 
     if profile and (profile.opening_phrase or "").strip():
         abertura = profile.opening_phrase.strip().replace("{cliente}", client_name)
-        if qualificacao_limpa:
-            return f"{qualificacao_limpa.rstrip(' .;:,')}, {abertura}"
-        return abertura
+        if not _texto_de_perfil_invalido(abertura):
+            if qualificacao_limpa:
+                return f"{qualificacao_limpa.rstrip(' .;:,')}, {abertura}"
+            return abertura
 
-    return qualificacao_limpa
+    abertura_padrao = _montar_abertura_padrao(document_type)
+    if qualificacao_limpa and abertura_padrao:
+        return f"{qualificacao_limpa.rstrip(' .;:,')}, {abertura_padrao}"
+    return qualificacao_limpa or abertura_padrao
 
 
 def _montar_fundamentacao(
@@ -1049,24 +1165,23 @@ def _montar_fundamentacao(
 
     if base_juridica:
         partes.append(
-            "A pretensão deduzida encontra amparo, em tese, nos seguintes fundamentos jurídicos:\n\n"
+            "A pretensão deduzida encontra respaldo, em tese, nos seguintes fundamentos jurídicos:\n\n"
             f"{base_juridica}"
         )
     else:
         partes.append(
-            "A pretensão deduzida encontra amparo, em tese, na legislação aplicável ao caso concreto, "
-            "nos princípios da boa-fé, da razoabilidade, da efetividade da tutela jurisdicional e nas "
-            "demais normas pertinentes à controvérsia apresentada."
+            "A análise jurídica do caso deve observar a legislação aplicável, os princípios da boa-fé, "
+            "da razoabilidade e da efetividade da tutela jurisdicional, além das normas pertinentes à controvérsia apresentada."
         )
 
     if assunto:
         partes.append(
-            f"Em especial, o enquadramento jurídico deve considerar a controvérsia relacionada a {assunto}, "
-            "com análise da responsabilidade aplicável, da adequação da medida pretendida e da coerência entre fatos, fundamentos e pedidos."
+            f"Considerando a controvérsia relacionada a {assunto}, cumpre examinar a responsabilidade aplicável, "
+            "a adequação da medida pretendida e a coerência entre os fatos narrados e as providências requeridas."
         )
 
     if trechos_documentais:
-        partes.append("Os documentos base selecionados reforçam, em síntese, os seguintes elementos contextuais:")
+        partes.append("Os documentos selecionados corroboram, em síntese, os seguintes elementos do caso:")
         partes.extend(trechos_documentais)
 
     return "\n\n".join(partes)
@@ -1077,8 +1192,10 @@ def _montar_pedidos(document_type: str, requests: str, profile=None) -> str:
     introducao = ""
 
     if profile and (profile.request_intro or "").strip():
-        introducao = profile.request_intro.strip()
-    else:
+        introducao_perfil = profile.request_intro.strip()
+        if not _texto_de_perfil_invalido(introducao_perfil):
+            introducao = introducao_perfil
+    if not introducao:
         tipo = _tipo_normalizado(document_type)
         if tipo == "contestação":
             introducao = "Diante do exposto, requer:"
@@ -1105,7 +1222,9 @@ def _montar_pedidos(document_type: str, requests: str, profile=None) -> str:
 
 def _montar_fechamento(document_type: str, profile=None) -> str:
     if profile and (profile.closing_phrase or "").strip():
-        return profile.closing_phrase.strip()
+        fechamento_perfil = profile.closing_phrase.strip()
+        if not _texto_de_perfil_invalido(fechamento_perfil):
+            return fechamento_perfil
 
     tipo = _tipo_normalizado(document_type)
     if tipo == "parecer jurídico":
@@ -1114,7 +1233,7 @@ def _montar_fechamento(document_type: str, profile=None) -> str:
         return "Por estarem justas e contratadas, as partes firmam a presente minuta para os devidos fins."
     if tipo == "notificação extrajudicial":
         return "Sem mais para o momento, aguarda-se o cumprimento da providência ora exigida."
-    return "Termos em que,\nPede deferimento."
+    return "Nesses termos,\nPede deferimento."
 
 
 def _montar_assinatura(profile) -> str:
@@ -1145,8 +1264,8 @@ def _gerar_rascunho_local(
     tipo_normalizado = _tipo_normalizado(document_type)
 
     titulo = document_type.upper().strip()
-    qualificacao = _montar_qualificacao(writing_profile, client_name)
-    abertura = _montar_abertura(writing_profile, qualificacao, client_name)
+    qualificacao = _montar_qualificacao(writing_profile, client_name, document_type)
+    abertura = _montar_abertura(writing_profile, qualificacao, client_name, document_type)
     fundamentacao = _montar_fundamentacao(
         document_type=document_type,
         case_subject=case_subject,
@@ -1159,6 +1278,7 @@ def _gerar_rascunho_local(
 
     assunto_limpo = _limpar_pontuacao_final(case_subject)
     fatos_iniciais = (facts or "").strip()
+    introducao_contextual = _montar_intro_contextual(document_type, case_subject)
 
     if tipo_normalizado == "contrato":
         texto = f"""
@@ -1230,7 +1350,7 @@ V - DAS DISPOSIÇÕES FINAIS
 
 {abertura}
 
-A presente demanda decorre de {assunto_limpo or 'questão jurídica submetida à análise'}, conforme fatos e fundamentos a seguir expostos.
+{introducao_contextual}
 
 {titulo_fatos}
 
