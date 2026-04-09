@@ -9,10 +9,10 @@ MAX_CONTEXT_CHARS = 1800
 
 STOPWORDS = {
     "a", "o", "as", "os", "de", "da", "do", "das", "dos", "e", "em", "no", "na", "nos", "nas",
-    "para", "por", "com", "sem", "um", "uma", "uns", "umas", "ao", "aos", "à", "às", "que", "se",
-    "já", "foi", "são", "ser", "como", "mais", "menos", "sobre", "entre", "após", "antes", "contra",
-    "parte", "autor", "autora", "réu", "ré", "caso", "fatos", "pedido", "pedidos", "jurídica",
-    "juridica", "documento", "documentos", "minuta", "processo", "ação", "acao", "presente", "respectivamente",
+    "para", "por", "com", "sem", "um", "uma", "uns", "umas", "ao", "aos", "a", "as", "que", "se",
+    "ja", "foi", "sao", "ser", "como", "mais", "menos", "sobre", "entre", "apos", "antes", "contra",
+    "parte", "autor", "autora", "reu", "re", "caso", "fatos", "pedido", "pedidos", "juridica",
+    "documento", "documentos", "minuta", "processo", "acao", "presente", "respectivamente",
 }
 
 
@@ -27,9 +27,28 @@ def _truncate(text: str, limit: int) -> str:
     return clean[:limit].rstrip() + "..."
 
 
+def _normalize_document_type(value: str) -> str:
+    normalized = _normalize_spaces(value).lower()
+    replacements = str.maketrans({
+        "á": "a",
+        "à": "a",
+        "ã": "a",
+        "â": "a",
+        "é": "e",
+        "ê": "e",
+        "í": "i",
+        "ó": "o",
+        "ô": "o",
+        "õ": "o",
+        "ú": "u",
+        "ç": "c",
+    })
+    return normalized.translate(replacements)
+
+
 def _extract_keywords(*parts: str) -> list[str]:
-    text = " ".join(_normalize_spaces(part).lower() for part in parts if part)
-    raw_tokens = re.findall(r"[a-zà-ú0-9]{4,}", text, flags=re.IGNORECASE)
+    text = " ".join(_normalize_document_type(part) for part in parts if part)
+    raw_tokens = re.findall(r"[a-z0-9]{4,}", text, flags=re.IGNORECASE)
 
     keywords: list[str] = []
     for token in raw_tokens:
@@ -41,7 +60,7 @@ def _extract_keywords(*parts: str) -> list[str]:
 
 
 def _score_sentence(sentence: str, keywords: list[str]) -> int:
-    sentence_l = sentence.lower()
+    sentence_l = _normalize_document_type(sentence)
     score = 0
     for keyword in keywords:
         if keyword in sentence_l:
@@ -89,21 +108,76 @@ def _select_relevant_snippets(text: str, keywords: list[str], *, max_snippets: i
 
 def _build_profile_directives(profile: Any | None) -> str:
     if not profile:
-        return "Nenhum perfil de escrita selecionado. Utilize linguagem jurídica técnica, clara e profissional."
+        return "Nenhum perfil de escrita selecionado. Utilize linguagem juridica tecnica, clara e profissional."
 
     directives = [
         f"Nome do perfil: {getattr(profile, 'profile_name', '') or 'Sem nome'}",
         f"Tom predominante: {getattr(profile, 'tone', '') or 'Formal'}",
-        f"Advogado responsável: {getattr(profile, 'lawyer_name', '') or 'Não informado'}",
-        f"Escritório: {getattr(profile, 'office_name', '') or 'Não informado'}",
-        f"Qualificação preferida: {getattr(profile, 'qualification_style', '') or 'Não informada'}",
-        f"Abertura preferida: {getattr(profile, 'opening_phrase', '') or 'Não informada'}",
-        f"Introdução dos pedidos: {getattr(profile, 'request_intro', '') or 'Não informada'}",
-        f"Fechamento preferido: {getattr(profile, 'closing_phrase', '') or 'Não informado'}",
-        f"Observações de estilo: {getattr(profile, 'legal_style_notes', '') or 'Não informado'}",
-        f"Expressões recorrentes: {getattr(profile, 'recurring_expressions', '') or 'Não informado'}",
+        f"Advogado responsavel: {getattr(profile, 'lawyer_name', '') or 'Nao informado'}",
+        f"Escritorio: {getattr(profile, 'office_name', '') or 'Nao informado'}",
+        f"Qualificacao preferida: {getattr(profile, 'qualification_style', '') or 'Nao informada'}",
+        f"Abertura preferida: {getattr(profile, 'opening_phrase', '') or 'Nao informada'}",
+        f"Introducao dos pedidos: {getattr(profile, 'request_intro', '') or 'Nao informada'}",
+        f"Fechamento preferido: {getattr(profile, 'closing_phrase', '') or 'Nao informado'}",
+        f"Observacoes de estilo: {getattr(profile, 'legal_style_notes', '') or 'Nao informado'}",
+        f"Expressoes recorrentes: {getattr(profile, 'recurring_expressions', '') or 'Nao informado'}",
     ]
     return "\n".join(f"- {item}" for item in directives)
+
+
+def _build_piece_specific_directives(document_type: str) -> str:
+    normalized = _normalize_document_type(document_type)
+
+    directives_map = {
+        "peticao inicial": [
+            "Organize a minuta com introducao compativel, fatos, fundamentos, pedidos e fechamento.",
+            "Explicite a pretensao principal e, quando fizer sentido, pedidos acessorios e requerimentos de prova.",
+            "Se houver urgencia indicada no contexto, trate a tutela provisoria com cautela e apenas se houver suporte fatico.",
+        ],
+        "contestacao": [
+            "Estruture a defesa com sintese da demanda, preliminares apenas se houver base no contexto, merito e requerimentos finais.",
+            "Priorize impugnacao especifica dos fatos, documentos e pedidos da parte autora, evitando negativas genericas.",
+            "Se o contexto nao trouxer elemento para preliminar processual, concentre a redacao no merito defensivo.",
+        ],
+        "replica": [
+            "Estruture a peca para responder a contestacao, enfrentando preliminares, prejudiciais e argumentos defensivos relevantes.",
+            "Reforce a coerencia com a narrativa da inicial sem repetir trechos desnecessariamente.",
+            "Mostre por que os argumentos da parte contraria nao afastam os fatos, fundamentos e pedidos ja formulados.",
+        ],
+        "manifestacao": [
+            "Delimite com objetividade qual fato processual, documento, decisao ou andamento esta sendo enfrentado.",
+            "Evite introducoes longas e conduza a peca para a providencia processual concreta pretendida.",
+            "Mantenha a redacao focada no ponto controvertido e no pedido imediato ao juizo.",
+        ],
+        "parecer juridico": [
+            "Estruture o texto em relatorio, analise juridica e conclusao, com natureza consultiva e tecnica.",
+            "Apresente riscos, alternativas, condicionantes e grau de viabilidade sem tom de peticao judicial.",
+            "Na conclusao, indique orientacao pratica objetiva e ressalve dependencias faticas quando necessario.",
+        ],
+        "contrato": [
+            "Redija em formato contratual, com clausulas claras, numeradas e voltadas a executabilidade do ajuste.",
+            "Inclua objeto, obrigacoes, prazo, remuneracao, rescisao, penalidades e foro apenas conforme compativeis com o contexto.",
+            "Nao use linguagem de peticao ao juizo; trate as partes como contratantes e preserve clareza operacional.",
+        ],
+        "notificacao extrajudicial": [
+            "Adote tom formal, direto e persuasivo, com narrativa objetiva do inadimplemento ou da irregularidade.",
+            "Indique a providencia exigida, o prazo aplicavel se houver base no contexto e as consequencias do descumprimento.",
+            "Evite pedidos tipicos de peca judicial e mantenha a finalidade de comunicacao formal e constituicao em mora.",
+        ],
+        "recurso": [
+            "Estruture o texto com sintese da decisao recorrida, admissibilidade quando pertinente, razoes recursais e pedidos.",
+            "Ataque especificamente os fundamentos da decisao, destacando erro de fato, de direito ou de valoracao probatoria quando houver suporte.",
+            "Mencione efeitos recursais apenas se fizerem sentido diante do contexto apresentado.",
+        ],
+    }
+
+    directives = directives_map.get(normalized, [
+        "Adapte a estrutura a natureza da peca informada, com secoes coerentes e compativeis com a finalidade pratica do documento.",
+        "Se o tipo de peca for incomum ou generico, privilegie clareza estrutural, fidelidade ao contexto e utilidade para revisao humana.",
+        "Evite reproduzir modelos estanques quando o contexto apontar uma necessidade documental diferente.",
+    ])
+
+    return "\n".join(f"- {directive}" for directive in directives)
 
 
 def build_smart_context(
@@ -123,15 +197,15 @@ def build_smart_context(
     blocks: list[str] = []
     blocks.append("[RESUMO DO CASO]")
     blocks.append(f"Cliente: {client_name}")
-    blocks.append(f"Tipo de peça: {document_type}")
+    blocks.append(f"Tipo de peca: {document_type}")
     blocks.append(f"Assunto central: {_truncate(case_subject, 220)}")
     blocks.append(f"Fatos essenciais: {_truncate(facts, 480)}")
     blocks.append(f"Pedidos principais: {_truncate(requests, 320)}")
     blocks.append(
-        "Fundamentação inicial: " + (
+        "Fundamentacao inicial: " + (
             _truncate(legal_basis, 320)
             if legal_basis.strip()
-            else "Não informada pelo usuário; aprofundar conforme o caso."
+            else "Nao informada pelo usuario; aprofundar conforme o caso."
         )
     )
 
@@ -175,21 +249,22 @@ def build_advanced_prompt(
     document_count = len(documentos_selecionados or [])
     style_note = getattr(writing_profile, "legal_style_notes", "") if writing_profile else ""
     recurring = getattr(writing_profile, "recurring_expressions", "") if writing_profile else ""
+    piece_specific_directives = _build_piece_specific_directives(document_type)
 
     system_prompt = (
-        "Você é um assistente jurídico redator. Gere uma minuta jurídica em português do Brasil, "
-        "com estrutura compatível com o tipo de peça solicitado, redação profissional, objetividade, "
-        "coerência interna e fidelidade ao contexto informado. Não invente fatos. Não cite jurisprudência "
-        "ou artigos específicos se eles não tiverem sido informados. Quando a base jurídica estiver genérica, "
-        "mantenha a redação útil e prudente, indicando fundamentos em tese, sem afirmar existência de prova inexistente."
+        "Voce e um assistente juridico redator. Gere uma minuta juridica em portugues do Brasil, "
+        "com estrutura compativel com o tipo de peca solicitado, redacao profissional, objetividade, "
+        "coerencia interna e fidelidade ao contexto informado. Nao invente fatos. Nao cite jurisprudencia "
+        "ou artigos especificos se eles nao tiverem sido informados. Quando a base juridica estiver generica, "
+        "mantenha a redacao util e prudente, indicando fundamentos em tese, sem afirmar existencia de prova inexistente."
     )
 
     user_prompt = f"""
 [TAREFA]
-Redigir uma minuta jurídica do tipo "{document_type}" para o cliente "{client_name}".
+Redigir uma minuta juridica do tipo "{document_type}" para o cliente "{client_name}".
 
 [OBJETIVO]
-Produzir um texto juridicamente apresentável, bem organizado e aderente ao assunto "{case_subject}".
+Produzir um texto juridicamente apresentavel, bem organizado e aderente ao assunto "{case_subject}".
 
 [ENTRADAS PRINCIPAIS]
 - Cliente: {client_name}
@@ -197,18 +272,21 @@ Produzir um texto juridicamente apresentável, bem organizado e aderente ao assu
 - Assunto: {case_subject}
 - Fatos: {facts}
 - Pedidos: {requests}
-- Fundamentação jurídica inicial: {legal_basis or 'Não informada'}
+- Fundamentacao juridica inicial: {legal_basis or 'Nao informada'}
 - Quantidade de documentos base: {document_count}
-- Observações de estilo prioritárias: {style_note or 'Manter estilo jurídico formal e claro.'}
-- Expressões recorrentes preferenciais: {recurring or 'Usar somente quando fizer sentido ao contexto.'}
+- Observacoes de estilo prioritarias: {style_note or 'Manter estilo juridico formal e claro.'}
+- Expressoes recorrentes preferenciais: {recurring or 'Usar somente quando fizer sentido ao contexto.'}
 
-[REGRAS DE REDAÇÃO]
-1. Respeite a estrutura natural do tipo de peça.
-2. Use os documentos base apenas como reforço contextual.
-3. Mantenha consistência entre fatos, fundamentos e pedidos.
-4. Evite linguagem excessivamente genérica quando houver contexto suficiente.
-5. Não invente nomes, datas, provas ou acontecimentos não informados.
-6. Entregue o texto pronto para revisão humana.
+[REGRAS DE REDACAO]
+1. Respeite a estrutura natural do tipo de peca.
+2. Use os documentos base apenas como reforco contextual.
+3. Mantenha consistencia entre fatos, fundamentos e pedidos.
+4. Evite linguagem excessivamente generica quando houver contexto suficiente.
+5. Nao invente nomes, datas, provas ou acontecimentos nao informados.
+6. Entregue o texto pronto para revisao humana.
+
+[DIRETRIZES ESPECIFICAS DO TIPO DE PECA]
+{piece_specific_directives}
 
 [CONTEXTO INTELIGENTE]
 {smart_context}
