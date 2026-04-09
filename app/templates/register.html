@@ -73,5 +73,12 @@
             <button type="submit" class="botao">Criar conta</button>
         </div>
     </form>
+
+    <div class="card-info">
+        <p>
+            Já tem conta?
+            <a href="/auth/login{% if next and next != '/' %}?next={{ next | urlencode }}{% endif %}">Entrar</a>
+        </p>
+    </div>
 </section>
 {% endblock %}

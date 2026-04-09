@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies.auth import get_authenticated_user
 from app.routers.common import templates
 from app.services.document_service import listar_documentos, listar_documentos_por_ids
 from app.services.generation_service import (
@@ -36,7 +37,11 @@ from app.services.writing_profile_service import (
     listar_perfis_escrita,
 )
 
-router = APIRouter(prefix="/generations", tags=["generations"])
+router = APIRouter(
+    prefix="/generations",
+    tags=["generations"],
+    dependencies=[Depends(get_authenticated_user)],
+)
 
 
 ORDENACOES_GERACOES = {

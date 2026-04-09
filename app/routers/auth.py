@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -17,30 +19,55 @@ from app.services.user_service import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _normalizar_destino_pos_login(destino: str | None) -> str:
+    destino_limpo = (destino or "").strip()
+    if not destino_limpo.startswith("/"):
+        return "/"
+    if destino_limpo.startswith("//"):
+        return "/"
+    return destino_limpo
+
+
+def _redirect_if_authenticated(request: Request) -> RedirectResponse | None:
+    if request.session.get("user_id"):
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    return None
+
+
 @router.get("/register", response_class=HTMLResponse)
 def register_form(request: Request):
+    redirect_response = _redirect_if_authenticated(request)
+    if redirect_response:
+        return redirect_response
+
     return templates.TemplateResponse(
         "register.html",
         {
             "request": request,
             "title": "Criar conta",
-            "erro": None,
+            "erro": request.query_params.get("erro"),
             "sucesso": request.query_params.get("sucesso"),
             "form_data": {},
+            "next": _normalizar_destino_pos_login(request.query_params.get("next")),
         },
     )
 
 
 @router.get("/login", response_class=HTMLResponse)
 def login_form(request: Request):
+    redirect_response = _redirect_if_authenticated(request)
+    if redirect_response:
+        return redirect_response
+
     return templates.TemplateResponse(
         "login.html",
         {
             "request": request,
             "title": "Entrar",
-            "erro": None,
+            "erro": request.query_params.get("erro"),
             "sucesso": request.query_params.get("sucesso"),
             "form_data": {},
+            "next": _normalizar_destino_pos_login(request.query_params.get("next")),
         },
     )
 
@@ -106,11 +133,17 @@ def login_user(
     request: Request,
     email: str = Form(...),
     password: str = Form(...),
+    next_url: str = Form("/", alias="next"),
     db: Session = Depends(get_db),
 ):
+    redirect_response = _redirect_if_authenticated(request)
+    if redirect_response:
+        return redirect_response
+
     form_data = {
         "email": email,
     }
+    next_url = _normalizar_destino_pos_login(next_url)
 
     try:
         dados = validar_dados_login(email=email, password=password)
@@ -123,6 +156,7 @@ def login_user(
                 "erro": str(exc),
                 "sucesso": None,
                 "form_data": form_data,
+                "next": next_url,
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
@@ -137,6 +171,7 @@ def login_user(
                 "erro": "E-mail ou senha inválidos.",
                 "sucesso": None,
                 "form_data": form_data,
+                "next": next_url,
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
@@ -144,7 +179,7 @@ def login_user(
     request.session["user_id"] = usuario.id
     request.session["user_name"] = usuario.full_name
 
-    return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url=next_url, status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/logout")

@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies.auth import get_authenticated_user
 from app.routers.common import templates
 from app.schemas.writing_profile import WritingProfileCreate
 from app.services.generation_service import resumir_texto
@@ -25,7 +26,11 @@ from app.services.writing_profile_service import (
     validar_dados_perfil,
 )
 
-router = APIRouter(prefix="/writing-profiles", tags=["writing_profiles"])
+router = APIRouter(
+    prefix="/writing-profiles",
+    tags=["writing_profiles"],
+    dependencies=[Depends(get_authenticated_user)],
+)
 
 
 @router.get("")

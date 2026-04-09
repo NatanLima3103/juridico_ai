@@ -10,7 +10,9 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import SECRET_KEY, SESSION_COOKIE_NAME, STATIC_DIR
 from app.database import Base, get_db
-from app.routers import writing_profiles
+from app.routers import auth, writing_profiles
+from app.schemas.user import UserCreate
+from app.services.user_service import criar_usuario
 from app.services.writing_profile_service import buscar_perfil_por_id
 
 
@@ -31,6 +33,7 @@ def create_writing_profiles_test_client() -> tuple[TestClient, sessionmaker]:
         session_cookie=SESSION_COOKIE_NAME,
     )
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    app.include_router(auth.router)
     app.include_router(writing_profiles.router)
 
     def override_get_db():
@@ -44,9 +47,36 @@ def create_writing_profiles_test_client() -> tuple[TestClient, sessionmaker]:
     return TestClient(app), testing_session_local
 
 
+def authenticate_test_client(client: TestClient, testing_session_local: sessionmaker) -> None:
+    db = testing_session_local()
+    try:
+        criar_usuario(
+            db,
+            UserCreate(
+                full_name="Maria Silva",
+                email="maria@example.com",
+                password="senha1234",
+            ),
+        )
+    finally:
+        db.close()
+
+    response = client.post(
+        "/auth/login",
+        data={
+            "email": "maria@example.com",
+            "password": "senha1234",
+            "next": "/writing-profiles",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+
 class WritingProfilesTests(unittest.TestCase):
     def test_create_profile_persists_record_and_favorite_flag(self):
         client, testing_session_local = create_writing_profiles_test_client()
+        authenticate_test_client(client, testing_session_local)
 
         response = client.post(
             "/writing-profiles/create",
@@ -82,7 +112,8 @@ class WritingProfilesTests(unittest.TestCase):
             db.close()
 
     def test_list_page_renders_saved_profile(self):
-        client, _ = create_writing_profiles_test_client()
+        client, testing_session_local = create_writing_profiles_test_client()
+        authenticate_test_client(client, testing_session_local)
 
         create_response = client.post(
             "/writing-profiles/create",

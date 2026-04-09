@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies.auth import get_authenticated_user
 from app.models.document import Document
 from app.models.generation import Generation
 from app.models.writing_profile import WritingProfile
@@ -14,7 +15,11 @@ router = APIRouter()
 
 
 @router.get("/", response_class=HTMLResponse)
-def home_page(request: Request, db: Session = Depends(get_db)):
+def home_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    _usuario=Depends(get_authenticated_user),
+):
     total_documents = db.query(Document).count()
     total_profiles = db.query(WritingProfile).count()
     total_generations = db.query(Generation).count()

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import MAX_UPLOAD_SIZE_MB
 from app.database import get_db
+from app.dependencies.auth import get_authenticated_user
 from app.routers.common import templates
 from app.services.document_service import (
     ORDENACOES_DOCUMENTOS,
@@ -27,7 +28,11 @@ from app.services.document_service import (
 from app.services.file_service import salvar_arquivo_upload
 from app.services.text_extractor import extrair_texto_arquivo
 
-router = APIRouter(prefix="/documents", tags=["documents"])
+router = APIRouter(
+    prefix="/documents",
+    tags=["documents"],
+    dependencies=[Depends(get_authenticated_user)],
+)
 
 
 @router.get("/upload", response_class=HTMLResponse)

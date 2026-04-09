@@ -23,6 +23,7 @@
     {% endif %}
 
     <form method="post" action="/auth/login" class="formulario-principal">
+        <input type="hidden" name="next" value="{{ next or '/' }}">
         <div class="campo-formulario">
             <label for="email">E-mail</label>
             <input
@@ -54,7 +55,7 @@
     <div class="card-info">
         <p>
             Ainda não tem conta?
-            <a href="/auth/register">Criar cadastro</a>
+            <a href="/auth/register{% if next and next != '/' %}?next={{ next | urlencode }}{% endif %}">Criar cadastro</a>
         </p>
     </div>
 </section>
