@@ -279,6 +279,99 @@ def _build_piece_specific_directives(document_type: str) -> str:
     return "\n".join(f"- {directive}" for directive in directives)
 
 
+def _build_legal_coherence_directives(
+    document_type: str,
+    facts: str,
+    requests: str,
+    legal_basis: str,
+) -> str:
+    normalized = _normalize_document_type(document_type)
+    facts_summary = _truncate(facts, 180) or "Nao informado."
+    requests_summary = _truncate(requests, 180) or "Nao informado."
+    legal_basis_summary = _truncate(legal_basis, 160) if (legal_basis or "").strip() else ""
+
+    directives = [
+        "Extraia dos fatos a tese central do caso e faca com que fundamentos e pedidos sirvam a essa mesma linha argumentativa.",
+        f"Nucleo fatico a preservar: {facts_summary}",
+        f"Resultado pratico pretendido: {requests_summary}",
+    ]
+
+    if legal_basis_summary:
+        directives.append(
+            f"Base juridica inicial a ser usada como eixo de sustentacao, sem extrapolar o que foi informado: {legal_basis_summary}"
+        )
+    else:
+        directives.append(
+            "Sem base juridica detalhada, mantenha fundamentacao prudente e em tese, sem inventar artigos, precedentes ou provas."
+        )
+
+    if normalized == "peticao inicial":
+        directives.extend(
+            [
+                "Conecte cada pedido aos fatos que o justificam e aos fundamentos juridicos correspondentes.",
+                "Nao adote linguagem defensiva nem formule teses de improcedencia.",
+            ]
+        )
+    elif normalized == "contestacao":
+        directives.extend(
+            [
+                "Organize a defesa para mostrar por que os fatos narrados pela parte adversa nao sustentam os pedidos formulados.",
+                "Nao trate a pretensao da parte re como se fosse pedido de procedencia; preserve a logica defensiva de rejeicao ou improcedencia.",
+            ]
+        )
+    elif normalized == "replica":
+        directives.extend(
+            [
+                "Mantenha aderencia aos fatos e pedidos da inicial, enfrentando apenas os pontos defensivos que possam enfraquece-los.",
+                "Evite criar fundamentos novos desconectados da narrativa ja afirmada pela parte autora.",
+            ]
+        )
+    elif normalized == "manifestacao":
+        directives.extend(
+            [
+                "Delimite um ponto processual especifico e mantenha fatos, fundamento e requerimento voltados a essa providencia imediata.",
+                "Evite ampliar a controversia para temas que nao sejam necessarios ao ato processual em questao.",
+            ]
+        )
+    elif normalized == "parecer juridico":
+        directives.extend(
+            [
+                "Converta os pedidos em conclusoes, riscos, alternativas ou recomendacoes praticas, sem redacao de peticao judicial.",
+                "A conclusao consultiva deve decorrer da analise dos fatos e das condicionantes juridicas efetivamente informadas.",
+            ]
+        )
+    elif normalized == "contrato":
+        directives.extend(
+            [
+                "Transforme a finalidade pratica informada em clausulas coerentes entre objeto, obrigacoes, prazo, pagamento e rescisao.",
+                "Nao use estrutura de litigio nem pedidos ao juizo; preserve coerencia negocial e executabilidade contratual.",
+            ]
+        )
+    elif normalized == "notificacao extrajudicial":
+        directives.extend(
+            [
+                "Mantenha sequencia logica entre inadimplemento narrado, providencia exigida, prazo e consequencias do descumprimento.",
+                "Nao redija como peticao inicial ou contestacao; a coerencia deve ser de cobranca formal e constituicao em mora.",
+            ]
+        )
+    elif normalized == "recurso":
+        directives.extend(
+            [
+                "Vincule cada razao recursal a erro especifico da decisao recorrida, evitando repeticao solta da narrativa anterior.",
+                "Os pedidos recursais devem decorrer diretamente dos vicios apontados na decisao impugnada.",
+            ]
+        )
+    else:
+        directives.extend(
+            [
+                "Adote a coerencia interna propria da peca escolhida, evitando misturar estrutura de consulta, litigio, defesa e contrato.",
+                "Revise se a conclusao final decorre dos fatos narrados e do papel processual assumido pela parte.",
+            ]
+        )
+
+    return "\n".join(f"- {directive}" for directive in directives)
+
+
 def build_smart_context(
     *,
     client_name: str,
@@ -356,6 +449,12 @@ def build_advanced_prompt(
     recurring = getattr(writing_profile, "recurring_expressions", "") if writing_profile else ""
     piece_specific_directives = _build_piece_specific_directives(document_type)
     output_style_directives = _build_output_style_directives(writing_profile)
+    legal_coherence_directives = _build_legal_coherence_directives(
+        document_type=document_type,
+        facts=facts,
+        requests=requests,
+        legal_basis=legal_basis,
+    )
 
     system_prompt = (
         "Voce e um assistente juridico redator. Gere uma minuta juridica em portugues do Brasil, "
@@ -401,6 +500,9 @@ Produzir um texto juridicamente apresentavel, bem organizado e aderente ao assun
 
 [DIRETRIZES ESPECIFICAS DO TIPO DE PECA]
 {piece_specific_directives}
+
+[MATRIZ DE COERENCIA JURIDICA]
+{legal_coherence_directives}
 
 [CONTEXTO INTELIGENTE]
 {smart_context}

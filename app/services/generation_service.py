@@ -1,5 +1,6 @@
 from datetime import date, datetime, time, timedelta
 from io import BytesIO
+import unicodedata
 
 try:
     from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -921,6 +922,46 @@ def _tipo_normalizado(document_type: str) -> str:
     return (document_type or "").strip().lower()
 
 
+def _tipo_semantico_normalizado(document_type: str) -> str:
+    texto = _tipo_normalizado(document_type)
+    for origem, destino in {
+        "Ã¡": "a",
+        "Ã ": "a",
+        "Ã£": "a",
+        "Ã¢": "a",
+        "Ã©": "e",
+        "Ãª": "e",
+        "Ã­": "i",
+        "Ã³": "o",
+        "Ã´": "o",
+        "Ãµ": "o",
+        "Ãº": "u",
+        "Ã§": "c",
+    }.items():
+        texto = texto.replace(origem, destino)
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(caractere for caractere in texto if not unicodedata.combining(caractere))
+
+    if "peti" in texto and "inicial" in texto:
+        return "peticao inicial"
+    if "contest" in texto:
+        return "contestacao"
+    if "replic" in texto:
+        return "replica"
+    if "manifest" in texto:
+        return "manifestacao"
+    if "parecer" in texto:
+        return "parecer juridico"
+    if "contrat" in texto:
+        return "contrato"
+    if "notific" in texto and "extrajud" in texto:
+        return "notificacao extrajudicial"
+    if "recurso" in texto:
+        return "recurso"
+
+    return texto
+
+
 def _limpar_pontuacao_final(texto: str) -> str:
     return (texto or "").strip().rstrip(".;:,")
 
@@ -1075,6 +1116,76 @@ def _coletar_trechos_documentais(documentos_selecionados: list | None, limite: i
     return trechos
 
 
+def _montar_paragrafo_coerencia_juridica(
+    document_type: str,
+    facts: str,
+    requests: str,
+    legal_basis: str,
+) -> str:
+    tipo = _tipo_semantico_normalizado(document_type)
+    fato_central = _primeira_frase(facts, 180)
+    pedido_central = _primeira_frase(" ".join(_texto_em_linhas(requests)) or requests, 180)
+    base_informada = bool((legal_basis or "").strip())
+
+    if tipo == "peticao inicial":
+        return (
+            "A coerencia juridica da minuta exige que a narrativa dos fatos evidencie a causa de pedir e sustente, de "
+            "modo convergente, a tutela postulada, de forma que cada pedido decorra dos eventos narrados e da base "
+            "juridica indicada."
+        )
+    if tipo == "contestacao":
+        return (
+            "A linha defensiva deve guardar correspondencia com a versao fatico-juridica apresentada pela parte re, "
+            "demonstrando por que a narrativa adversa nao autoriza o acolhimento dos pedidos e por que a conclusao "
+            "processual coerente e a rejeicao da pretensao deduzida."
+        )
+    if tipo == "replica":
+        return (
+            "A replica deve permanecer coerente com a narrativa ja afirmada pela parte autora, enfrentando os "
+            "argumentos defensivos apenas na medida em que busquem enfraquecer os fatos, fundamentos e pedidos "
+            "originariamente formulados."
+        )
+    if tipo == "manifestacao":
+        return (
+            "A coerencia da manifestacao depende da delimitacao precisa do ponto processual enfrentado, mantendo "
+            "fatos, fundamentos e requerimento final concentrados na providencia imediata submetida ao juizo."
+        )
+    if tipo == "parecer juridico":
+        return (
+            "A coerencia consultiva impone que a conclusao decorra dos fatos examinados e da base juridica disponivel, "
+            "convertendo a pretensao pratica em orientacao tecnica, riscos e recomendacoes, e nao em pedidos tipicos "
+            "de peca judicial."
+        )
+    if tipo == "contrato":
+        return (
+            "A coerencia contratual exige compatibilidade entre objeto, obrigacoes, alocacao de riscos, pagamento, "
+            "prazo e rescisao, para que as clausulas traduzam de forma executavel a finalidade pratica informada."
+        )
+    if tipo == "notificacao extrajudicial":
+        return (
+            "A notificacao deve manter encadeamento logico entre o inadimplemento narrado, a providencia exigida, o "
+            "prazo conferido e as consequencias do descumprimento, sem migrar para linguagem propria de peticao."
+        )
+    if tipo == "recurso":
+        return (
+            "A coerencia recursal depende da vinculacao entre os erros atribuidos a decisao recorrida, os fundamentos "
+            "de reforma ou anulacao e os pedidos recursais efetivamente formulados."
+        )
+
+    partes = [
+        "A coerencia juridica da minuta recomenda alinhamento continuo entre o nucleo fatico exposto, a fundamentacao adotada e a providencia final pretendida."
+    ]
+    if fato_central:
+        partes.append(f"Fato central considerado: {fato_central}")
+    if pedido_central:
+        partes.append(f"Providencia principal pretendida: {pedido_central}")
+    if not base_informada:
+        partes.append(
+            "Como a base juridica foi apresentada de forma generica ou ausente, a redacao deve permanecer prudente e aderente ao que efetivamente foi narrado."
+        )
+    return " ".join(partes)
+
+
 def _montar_qualificacao(profile, client_name: str, document_type: str) -> str:
     if profile and (profile.qualification_style or "").strip():
         estilo = profile.qualification_style.strip()
@@ -1128,6 +1239,8 @@ def _montar_abertura(profile, qualificacao: str, client_name: str, document_type
 def _montar_fundamentacao(
     document_type: str,
     case_subject: str,
+    facts: str,
+    requests: str,
     legal_basis: str,
     documentos_selecionados: list | None = None,
 ) -> str:
@@ -1159,6 +1272,15 @@ def _montar_fundamentacao(
             partes.append("Os documentos base reforçam os seguintes pontos relevantes:")
             partes.extend(trechos_documentais)
 
+        partes.append(
+            _montar_paragrafo_coerencia_juridica(
+                document_type=document_type,
+                facts=facts,
+                requests=requests,
+                legal_basis=base_juridica,
+            )
+        )
+
         return "\n\n".join(partes)
 
     partes = []
@@ -1183,6 +1305,15 @@ def _montar_fundamentacao(
     if trechos_documentais:
         partes.append("Os documentos selecionados corroboram, em síntese, os seguintes elementos do caso:")
         partes.extend(trechos_documentais)
+
+    partes.append(
+        _montar_paragrafo_coerencia_juridica(
+            document_type=document_type,
+            facts=facts,
+            requests=requests,
+            legal_basis=base_juridica,
+        )
+    )
 
     return "\n\n".join(partes)
 
@@ -1269,6 +1400,8 @@ def _gerar_rascunho_local(
     fundamentacao = _montar_fundamentacao(
         document_type=document_type,
         case_subject=case_subject,
+        facts=facts,
+        requests=requests,
         legal_basis=legal_basis,
         documentos_selecionados=documentos_selecionados,
     )

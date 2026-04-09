@@ -49,6 +49,19 @@ class PromptServiceTests(unittest.TestCase):
             prompt["user_prompt"],
         )
 
+    def test_build_advanced_prompt_includes_legal_coherence_matrix_for_contestacao(self):
+        prompt = self._build_prompt("Contestacao")
+
+        self.assertIn("[MATRIZ DE COERENCIA JURIDICA]", prompt["user_prompt"])
+        self.assertIn("tese central do caso", prompt["user_prompt"])
+        self.assertIn("preserve a logica defensiva de rejeicao ou improcedencia", prompt["user_prompt"])
+
+    def test_build_advanced_prompt_includes_consultive_coherence_for_parecer(self):
+        prompt = self._build_prompt("Parecer juridico")
+
+        self.assertIn("Converta os pedidos em conclusoes, riscos, alternativas ou recomendacoes praticas", prompt["user_prompt"])
+        self.assertIn("A conclusao consultiva deve decorrer da analise dos fatos", prompt["user_prompt"])
+
     def test_build_advanced_prompt_includes_naturalness_guidance(self):
         prompt = self._build_prompt("Peticao inicial")
 

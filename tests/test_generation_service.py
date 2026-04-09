@@ -152,6 +152,40 @@ class GenerationServiceStyleTests(unittest.TestCase):
         self.assertNotIn("requer-se...", texto)
         self.assertNotIn("pede deferimento...", texto)
 
+    def test_local_draft_adds_defensive_coherence_for_contestacao(self):
+        with patch.object(ai_generation_service, "OPENAI_API_KEY", ""):
+            texto = gerar_rascunho_juridico(
+                client_name="Cliente Teste",
+                document_type="ContestaÃ§Ã£o",
+                case_subject="cobranÃ§a indevida",
+                facts="A parte rÃ© impugna a narrativa apresentada na inicial.",
+                requests="ImprocedÃªncia dos pedidos.",
+                legal_basis="CPC e CÃ³digo Civil.",
+                context_used="[RESUMO DO CASO]\nTeste",
+                writing_profile=None,
+                documentos_selecionados=[],
+            )
+
+        self.assertIn("A linha defensiva deve guardar correspondencia", texto)
+        self.assertIn("rejeicao da pretensao deduzida", texto)
+
+    def test_local_draft_refines_parecer_with_consultive_coherence(self):
+        with patch.object(ai_generation_service, "OPENAI_API_KEY", ""):
+            texto = gerar_rascunho_juridico(
+                client_name="Cliente Teste",
+                document_type="Parecer jurÃ­dico",
+                case_subject="viabilidade de rescisao contratual",
+                facts="A consulente pretende avaliar os riscos da ruptura antecipada do ajuste.",
+                requests="Analise da viabilidade da medida e orientacao pratica.",
+                legal_basis="Codigo Civil e principios da boa-fe objetiva.",
+                context_used="[RESUMO DO CASO]\nTeste",
+                writing_profile=None,
+                documentos_selecionados=[],
+            )
+
+        self.assertIn("A coerencia consultiva impone que a conclusao decorra dos fatos examinados", texto)
+        self.assertIn("orientacao tecnica, riscos e recomendacoes", texto)
+
 
 if __name__ == "__main__":
     unittest.main()
