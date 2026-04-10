@@ -10,6 +10,7 @@ from app.models.audit_log import AuditLog
 from app.models.document import Document
 from app.models.generation import Generation
 from app.models.user import User
+from app.services.plan_service import obter_plano_usuario
 from app.models.writing_profile import WritingProfile
 from app.services.user_service import atualizar_status_usuario, buscar_usuario_por_id, listar_usuarios
 
@@ -75,6 +76,7 @@ def listar_usuarios_admin(db: Session) -> list[dict[str, Any]]:
 
     usuarios_resumo: list[dict[str, Any]] = []
     for usuario in usuarios:
+        plano = obter_plano_usuario(usuario)
         usuarios_resumo.append(
             {
                 "id": usuario.id,
@@ -82,7 +84,8 @@ def listar_usuarios_admin(db: Session) -> list[dict[str, Any]]:
                 "email": usuario.email,
                 "is_active": bool(usuario.is_active),
                 "is_admin": bool(usuario.is_admin),
-                "plan_slug": getattr(usuario, "plan_slug", "free") or "free",
+                "plan_slug": plano.slug,
+                "plan_name": plano.name,
                 "created_at": usuario.created_at,
                 "documentos": int(documentos_por_usuario.get(usuario.id, 0) or 0),
                 "perfis": int(perfis_por_usuario.get(usuario.id, 0) or 0),

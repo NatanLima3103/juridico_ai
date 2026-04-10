@@ -76,7 +76,7 @@
             {% if plan_usage.can_create_generation %}
                 Restam {{ plan_usage.remaining_generations }} geracao(oes) ate o limite mensal.
             {% else %}
-                Limite mensal atingido; novas geracoes ficam disponiveis {{ plan_usage.reset_label }}.
+                Limite mensal atingido; novas geracoes ficam disponiveis {{ plan_usage.reset_label }}. Considere migrar para o Plano Pro quando disponivel.
             {% endif %}
         </div>
     {% endif %}

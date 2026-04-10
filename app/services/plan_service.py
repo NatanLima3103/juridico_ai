@@ -11,12 +11,13 @@ except ImportError:
 
 from sqlalchemy.orm import Session
 
-from app.core.config import FREE_PLAN_MONTHLY_GENERATION_LIMIT
+from app.core.config import FREE_PLAN_MONTHLY_GENERATION_LIMIT, PRO_PLAN_MONTHLY_GENERATION_LIMIT
 from app.models.generation import Generation
 from app.models.user import User
 
 
 FREE_PLAN_SLUG = "free"
+PRO_PLAN_SLUG = "pro"
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,8 +44,16 @@ FREE_PLAN = PlanDefinition(
     description="Inclui geracoes mensais limitadas para validar o produto antes de contratar um plano pago.",
 )
 
+PRO_PLAN = PlanDefinition(
+    slug=PRO_PLAN_SLUG,
+    name="Plano Pro",
+    monthly_generation_limit=PRO_PLAN_MONTHLY_GENERATION_LIMIT,
+    description="Plano pago para uso recorrente, com limite mensal ampliado de geracoes juridicas.",
+)
+
 PLAN_DEFINITIONS = {
     FREE_PLAN.slug: FREE_PLAN,
+    PRO_PLAN.slug: PRO_PLAN,
 }
 
 
@@ -118,3 +127,7 @@ def montar_mensagem_limite_plano(usage: PlanUsage) -> str:
         f"{usage.used_generations}/{usage.plan.monthly_generation_limit} geracoes neste mes. "
         f"O limite reinicia {usage.reset_label}."
     )
+
+
+def listar_planos_disponiveis() -> list[PlanDefinition]:
+    return [FREE_PLAN, PRO_PLAN]

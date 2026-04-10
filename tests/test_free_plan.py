@@ -15,7 +15,7 @@ from app.database import Base, get_db
 from app.models.generation import Generation
 from app.routers import auth, generations
 from app.schemas.user import UserCreate
-from app.services.plan_service import FREE_PLAN, obter_uso_plano_usuario
+from app.services.plan_service import FREE_PLAN, PRO_PLAN, listar_planos_disponiveis, obter_uso_plano_usuario
 from app.services.user_service import criar_usuario
 
 
@@ -154,6 +154,39 @@ class FreePlanTests(unittest.TestCase):
         self.assertIn("Plano gratuito", response.text)
         self.assertIn("limite", response.text.lower())
         gerar_mock.assert_not_called()
+
+    def test_paid_plan_is_defined_with_expanded_generation_limit(self):
+        planos = listar_planos_disponiveis()
+
+        self.assertIn(FREE_PLAN, planos)
+        self.assertIn(PRO_PLAN, planos)
+        self.assertEqual(PRO_PLAN.slug, "pro")
+        self.assertGreater(PRO_PLAN.monthly_generation_limit, FREE_PLAN.monthly_generation_limit)
+
+    def test_paid_plan_uses_its_own_monthly_limit(self):
+        _, testing_session_local = create_free_plan_test_client()
+        usuario = criar_usuario_teste(testing_session_local, email="pro@example.com")
+        referencia = datetime(2026, 4, 10, 12, 0, 0)
+
+        db = testing_session_local()
+        try:
+            usuario_db = db.merge(usuario)
+            usuario_db.plan_slug = "pro"
+            for _ in range(FREE_PLAN.monthly_generation_limit):
+                criar_geracao_teste(db, user_id=usuario_db.id, created_at=referencia)
+            db.commit()
+
+            usage = obter_uso_plano_usuario(db, usuario_db, referencia=referencia)
+        finally:
+            db.close()
+
+        self.assertEqual(usage.plan.slug, "pro")
+        self.assertEqual(usage.used_generations, FREE_PLAN.monthly_generation_limit)
+        self.assertEqual(
+            usage.remaining_generations,
+            PRO_PLAN.monthly_generation_limit - FREE_PLAN.monthly_generation_limit,
+        )
+        self.assertTrue(usage.can_create_generation)
 
 
 if __name__ == "__main__":
