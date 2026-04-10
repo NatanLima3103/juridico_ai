@@ -16,6 +16,12 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini").strip() or "gpt-5-mini"
 OPENAI_REASONING_EFFORT = os.getenv("OPENAI_REASONING_EFFORT", "").strip()
 OPENAI_MAX_OUTPUT_TOKENS = int(os.getenv("OPENAI_MAX_OUTPUT_TOKENS", "2200"))
+OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small").strip() or "text-embedding-3-small"
+
+RAG_CHUNK_SIZE = int(os.getenv("RAG_CHUNK_SIZE", "800"))
+RAG_CHUNK_OVERLAP = int(os.getenv("RAG_CHUNK_OVERLAP", "120"))
+RAG_TOP_K = int(os.getenv("RAG_TOP_K", "4"))
+RAG_VECTOR_DIMENSION = int(os.getenv("RAG_VECTOR_DIMENSION", "128"))
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "storage/uploads")
 GENERATIONS_DIR = os.getenv("GENERATIONS_DIR", "storage/generations")
