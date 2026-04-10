@@ -82,6 +82,7 @@ def listar_usuarios_admin(db: Session) -> list[dict[str, Any]]:
                 "email": usuario.email,
                 "is_active": bool(usuario.is_active),
                 "is_admin": bool(usuario.is_admin),
+                "plan_slug": getattr(usuario, "plan_slug", "free") or "free",
                 "created_at": usuario.created_at,
                 "documentos": int(documentos_por_usuario.get(usuario.id, 0) or 0),
                 "perfis": int(perfis_por_usuario.get(usuario.id, 0) or 0),

@@ -42,6 +42,7 @@
                 <tr>
                     <th>Usuário</th>
                     <th>Status</th>
+                    <th>Plano</th>
                     <th>Admin</th>
                     <th>Docs</th>
                     <th>Perfis</th>
@@ -64,6 +65,11 @@
                             {% else %}
                                 <span class="badge badge-erro">Inativo</span>
                             {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge badge-neutro">
+                                {{ "Gratuito" if usuario.plan_slug == "free" else usuario.plan_slug }}
+                            </span>
                         </td>
                         <td>
                             {% if usuario.is_admin %}

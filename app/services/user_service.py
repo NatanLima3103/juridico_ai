@@ -73,6 +73,7 @@ def criar_usuario(db: Session, payload: UserCreate) -> User:
         password_hash=hash_password(payload.password),
         is_active=True,
         is_admin=total_usuarios == 0,
+        plan_slug="free",
     )
     db.add(usuario)
     db.commit()

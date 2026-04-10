@@ -34,7 +34,7 @@ SessionLocal = sessionmaker(
 
 Base = declarative_base()
 
-LATEST_SCHEMA_VERSION = 12
+LATEST_SCHEMA_VERSION = 13
 
 
 def _sqlite_column_exists(connection, table_name: str, column_name: str) -> bool:
@@ -412,6 +412,14 @@ def _migration_012_add_llm_metadata_to_generations(connection) -> None:
     )
 
 
+def _migration_013_add_user_plan_slug(connection) -> None:
+    if not _sqlite_column_exists(connection, "users", "plan_slug"):
+        connection.execute(text("ALTER TABLE users ADD COLUMN plan_slug VARCHAR(50) NOT NULL DEFAULT 'free'"))
+
+    connection.execute(text("UPDATE users SET plan_slug = COALESCE(NULLIF(plan_slug, ''), 'free')"))
+    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_users_plan_slug ON users (plan_slug)"))
+
+
 SQLITE_MIGRATIONS: list[tuple[int, str, Callable]] = [
     (1, "add_metadata_columns", _migration_001_add_metadata_columns),
     (2, "create_generation_documents", _migration_002_create_generation_documents),
@@ -425,6 +433,7 @@ SQLITE_MIGRATIONS: list[tuple[int, str, Callable]] = [
     (10, "link_audit_logs_to_users", _migration_010_link_audit_logs_to_users),
     (11, "add_admin_flag_to_users", _migration_011_add_admin_flag_to_users),
     (12, "add_llm_metadata_to_generations", _migration_012_add_llm_metadata_to_generations),
+    (13, "add_user_plan_slug", _migration_013_add_user_plan_slug),
 ]
 
 

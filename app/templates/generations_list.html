@@ -41,6 +41,18 @@
     </div>
     {% endif %}
 
+    {% if plan_usage %}
+    <div class="contexto-ajuda" style="margin-bottom: 18px;">
+        <strong>{{ plan_usage.plan.name }}:</strong>
+        {{ plan_usage.used_generations }}/{{ plan_usage.plan.monthly_generation_limit }} geracao(oes) usadas neste mes.
+        {% if plan_usage.can_create_generation %}
+            Restam {{ plan_usage.remaining_generations }} geracao(oes) no ciclo gratuito atual.
+        {% else %}
+            Limite mensal atingido; novas geracoes ficam disponiveis {{ plan_usage.reset_label }}.
+        {% endif %}
+    </div>
+    {% endif %}
+
     <section class="bloco-informativo bloco-filtros-avancados">
         <div class="bloco-informativo-topo bloco-informativo-topo-entre-linhas">
             <div>

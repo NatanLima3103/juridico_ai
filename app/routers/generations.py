@@ -35,6 +35,7 @@ from app.services.generation_service import (
     serializar_ids_documentos,
     validar_dados_geracao,
 )
+from app.services.plan_service import montar_mensagem_limite_plano, obter_uso_plano_usuario
 from app.services.writing_profile_service import (
     buscar_perfil_por_id,
     listar_perfis_escrita,
@@ -99,6 +100,7 @@ def _render_generation_form(
     geracao=None,
     duplicate_mode: bool = False,
     duplicate_source_id: int | None = None,
+    plan_usage=None,
 ):
     form_data = form_data or {}
     selected_document_ids = selected_document_ids or []
@@ -150,6 +152,7 @@ def _render_generation_form(
             "templates_prontos": listar_templates_juridicos_prontos(),
             "ai_configured": openai_disponivel(),
             "ai_model": OPENAI_MODEL,
+            "plan_usage": plan_usage,
             "sucesso": request.query_params.get("sucesso"),
             "erro": request.query_params.get("erro"),
         },
@@ -205,6 +208,7 @@ async def list_generations(
     filtros_template = serializar_filtros_geracao_para_template(filtros)
     total_resultados = len(geracoes_template)
     total_filtros_ativos = contar_filtros_ativos_geracoes(filtros)
+    plan_usage = obter_uso_plano_usuario(db, usuario)
 
     return templates.TemplateResponse(
         "generations_list.html",
@@ -217,6 +221,7 @@ async def list_generations(
             "ordenacoes": ORDENACOES_GERACOES,
             "total_resultados": total_resultados,
             "total_filtros_ativos": total_filtros_ativos,
+            "plan_usage": plan_usage,
             "sucesso": sucesso,
             "erro": erro,
         },
@@ -231,6 +236,7 @@ async def create_generation_form(
 ):
     documentos = listar_documentos(db, usuario.id)
     perfis = listar_perfis_escrita(db, usuario.id)
+    plan_usage = obter_uso_plano_usuario(db, usuario)
 
     return _render_generation_form(
         request,
@@ -240,6 +246,7 @@ async def create_generation_form(
         form_data={},
         selected_document_ids=[],
         selected_profile_id=None,
+        plan_usage=plan_usage,
     )
 
 
@@ -284,6 +291,7 @@ async def edit_generation_form(
 
     documentos = listar_documentos(db, usuario.id)
     perfis = listar_perfis_escrita(db, usuario.id)
+    plan_usage = obter_uso_plano_usuario(db, usuario)
 
     form_data = {
         "client_name": geracao.client_name,
@@ -307,6 +315,7 @@ async def edit_generation_form(
         selected_profile_id=geracao.writing_profile_id,
         modo_edicao=True,
         geracao=geracao,
+        plan_usage=plan_usage,
     )
 
 
@@ -323,6 +332,7 @@ async def duplicate_generation_form(
 
     documentos = listar_documentos(db, usuario.id)
     perfis = listar_perfis_escrita(db, usuario.id)
+    plan_usage = obter_uso_plano_usuario(db, usuario)
 
     form_data = {
         "client_name": geracao.client_name,
@@ -346,6 +356,7 @@ async def duplicate_generation_form(
         selected_profile_id=geracao.writing_profile_id,
         duplicate_mode=True,
         duplicate_source_id=geracao.id,
+        plan_usage=plan_usage,
     )
 
 
@@ -370,6 +381,7 @@ async def create_generation(
 ):
     documentos = listar_documentos(db, usuario.id)
     perfis = listar_perfis_escrita(db, usuario.id)
+    plan_usage = obter_uso_plano_usuario(db, usuario)
 
     selected_document_ids = coletar_ids_inteiros_unicos(document_ids)
 
@@ -426,6 +438,24 @@ async def create_generation(
             geracao=None,
             duplicate_mode=duplicate_mode_bool,
             duplicate_source_id=duplicate_source_id_int,
+            plan_usage=plan_usage,
+        )
+
+    if not plan_usage.can_create_generation:
+        return _render_generation_form(
+            request,
+            documentos=documentos,
+            perfis=perfis,
+            tipos_de_documento=TIPOS_DE_DOCUMENTO,
+            error_message=montar_mensagem_limite_plano(plan_usage),
+            form_data=form_data,
+            selected_document_ids=selected_document_ids,
+            selected_profile_id=selected_profile_id,
+            modo_edicao=False,
+            geracao=None,
+            duplicate_mode=duplicate_mode_bool,
+            duplicate_source_id=duplicate_source_id_int,
+            plan_usage=plan_usage,
         )
 
     documentos_selecionados = listar_documentos_por_ids(db, selected_document_ids, usuario.id)
@@ -560,6 +590,7 @@ async def edit_generation(
             selected_profile_id=selected_profile_id,
             modo_edicao=True,
             geracao=geracao,
+            plan_usage=plan_usage,
         )
 
     documentos_selecionados = listar_documentos_por_ids(db, selected_document_ids, usuario.id)
@@ -791,6 +822,7 @@ async def apply_template_to_generation_form(
             selected_profile_id=selected_profile_id,
             duplicate_mode=duplicate_mode_bool,
             duplicate_source_id=duplicate_source_id_int,
+            plan_usage=plan_usage,
         )
 
     return _render_generation_form(
@@ -803,6 +835,7 @@ async def apply_template_to_generation_form(
         selected_profile_id=selected_profile_id,
         duplicate_mode=duplicate_mode_bool,
         duplicate_source_id=duplicate_source_id_int,
+        plan_usage=plan_usage,
     )
 
 

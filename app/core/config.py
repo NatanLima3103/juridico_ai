@@ -22,6 +22,7 @@ RAG_CHUNK_SIZE = int(os.getenv("RAG_CHUNK_SIZE", "800"))
 RAG_CHUNK_OVERLAP = int(os.getenv("RAG_CHUNK_OVERLAP", "120"))
 RAG_TOP_K = int(os.getenv("RAG_TOP_K", "4"))
 RAG_VECTOR_DIMENSION = int(os.getenv("RAG_VECTOR_DIMENSION", "128"))
+FREE_PLAN_MONTHLY_GENERATION_LIMIT = int(os.getenv("FREE_PLAN_MONTHLY_GENERATION_LIMIT", "5"))
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "storage/uploads")
 GENERATIONS_DIR = os.getenv("GENERATIONS_DIR", "storage/generations")

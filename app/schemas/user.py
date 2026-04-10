@@ -13,6 +13,7 @@ class UserRead(BaseModel):
     email: str
     is_active: bool
     is_admin: bool
+    plan_slug: str = "free"
 
     class Config:
         from_attributes = True

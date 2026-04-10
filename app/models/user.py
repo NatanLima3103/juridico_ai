@@ -32,6 +32,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     is_admin = Column(Boolean, default=False, nullable=False)
+    plan_slug = Column(String(50), default="free", nullable=False, index=True)
     created_at = Column(DateTime, default=agora_brasil, nullable=False, index=True)
     updated_at = Column(DateTime, default=agora_brasil, onupdate=agora_brasil, nullable=False)
 
