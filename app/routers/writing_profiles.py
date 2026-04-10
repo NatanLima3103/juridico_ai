@@ -10,6 +10,7 @@ from app.models.user import User
 from app.routers.common import templates
 from app.schemas.writing_profile import WritingProfileCreate
 from app.services.generation_service import resumir_texto
+from app.services.plan_service import obter_uso_plano_usuario, validar_criacao_perfil_por_plano
 from app.services.writing_profile_service import (
     atualizar_perfil,
     buscar_perfil_por_id,
@@ -63,6 +64,7 @@ def listar_perfis_page(
     tons_disponiveis = obter_tons_disponiveis(db, usuario.id)
     ordenacoes = obter_ordenacoes_perfis()
     total_filtros_ativos = contar_filtros_ativos_perfis(filtros)
+    plan_usage = obter_uso_plano_usuario(db, usuario)
 
     perfis_resumo = []
     for perfil in perfis:
@@ -89,6 +91,7 @@ def listar_perfis_page(
             "ordenacoes": ordenacoes,
             "total_resultados": len(perfis_resumo),
             "total_filtros_ativos": total_filtros_ativos,
+            "plan_usage": plan_usage,
         },
     )
 
@@ -134,7 +137,12 @@ def toggle_favorite_profile(profile_id: int, request: Request, db: Session = Dep
 
 
 @router.get("/create")
-def exibir_formulario_perfil(request: Request):
+def exibir_formulario_perfil(
+    request: Request,
+    db: Session = Depends(get_db),
+    usuario: User = Depends(get_authenticated_user),
+):
+    plan_usage = obter_uso_plano_usuario(db, usuario)
     return templates.TemplateResponse(
         "writing_profile_form.html",
         {
@@ -143,6 +151,7 @@ def exibir_formulario_perfil(request: Request):
             "form_data": {},
             "modo_edicao": False,
             "perfil_id": None,
+            "plan_usage": plan_usage,
         },
     )
 
@@ -166,6 +175,7 @@ def criar_perfil_page(
     db: Session = Depends(get_db),
     usuario: User = Depends(get_authenticated_user),
 ):
+    pode_criar, plan_usage, mensagem_limite_plano = validar_criacao_perfil_por_plano(db, usuario)
     try:
         dados = validar_dados_perfil(
             profile_name=profile_name,
@@ -182,6 +192,9 @@ def criar_perfil_page(
             is_favorite=is_favorite,
             status=status_value,
         )
+
+        if not pode_criar:
+            raise ValueError(mensagem_limite_plano or "Limite de perfis atingido para o plano atual.")
 
         payload = WritingProfileCreate(user_id=usuario.id, **dados)
         criar_perfil(db, payload)
@@ -214,6 +227,7 @@ def criar_perfil_page(
                 },
                 "modo_edicao": False,
                 "perfil_id": None,
+                "plan_usage": plan_usage,
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
@@ -227,6 +241,7 @@ def exibir_formulario_edicao_perfil(
     usuario: User = Depends(get_authenticated_user),
 ):
     perfil = buscar_perfil_por_id(db, profile_id, usuario.id)
+    plan_usage = obter_uso_plano_usuario(db, usuario)
 
     if not perfil:
         return RedirectResponse(
@@ -256,6 +271,7 @@ def exibir_formulario_edicao_perfil(
             },
             "modo_edicao": True,
             "perfil_id": perfil.id,
+            "plan_usage": plan_usage,
         },
     )
 
@@ -281,6 +297,7 @@ def editar_perfil_page(
     usuario: User = Depends(get_authenticated_user),
 ):
     perfil = buscar_perfil_por_id(db, profile_id, usuario.id)
+    plan_usage = obter_uso_plano_usuario(db, usuario)
 
     if not perfil:
         return RedirectResponse(
@@ -336,6 +353,7 @@ def editar_perfil_page(
                 },
                 "modo_edicao": True,
                 "perfil_id": profile_id,
+                "plan_usage": plan_usage,
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
@@ -343,6 +361,13 @@ def editar_perfil_page(
 
 @router.post("/{profile_id}/duplicate")
 def duplicar_perfil_page(profile_id: int, db: Session = Depends(get_db), usuario: User = Depends(get_authenticated_user)):
+    pode_criar, _plan_usage, mensagem_limite_plano = validar_criacao_perfil_por_plano(db, usuario)
+    if not pode_criar:
+        return RedirectResponse(
+            url=f"/writing-profiles?erro={quote(mensagem_limite_plano or 'Limite de perfis atingido para o plano atual.')}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
     novo_perfil = duplicar_perfil(db, profile_id, usuario.id)
 
     if not novo_perfil:

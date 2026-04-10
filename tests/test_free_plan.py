@@ -15,6 +15,7 @@ from app.database import Base, get_db
 from app.models.generation import Generation
 from app.routers import auth, generations
 from app.schemas.user import UserCreate
+from app.services.ai_generation_service import AIGenerationResult
 from app.services.plan_service import FREE_PLAN, PRO_PLAN, listar_planos_disponiveis, obter_uso_plano_usuario
 from app.services.user_service import criar_usuario
 
@@ -187,6 +188,78 @@ class FreePlanTests(unittest.TestCase):
             PRO_PLAN.monthly_generation_limit - FREE_PLAN.monthly_generation_limit,
         )
         self.assertTrue(usage.can_create_generation)
+
+    def test_paid_plan_can_create_after_free_plan_usage_threshold(self):
+        client, testing_session_local = create_free_plan_test_client()
+        usuario = criar_usuario_teste(testing_session_local, email="pro-route@example.com")
+        autenticar(client, email="pro-route@example.com")
+
+        db = testing_session_local()
+        try:
+            usuario_db = db.merge(usuario)
+            usuario_db.plan_slug = "pro"
+            now = datetime.now()
+            for _ in range(FREE_PLAN.monthly_generation_limit):
+                criar_geracao_teste(db, user_id=usuario_db.id, created_at=now)
+            db.commit()
+        finally:
+            db.close()
+
+        with patch(
+            "app.routers.generations.gerar_rascunho_juridico_com_metadata",
+            return_value=AIGenerationResult(text="Texto Pro gerado", generation_strategy="rule_based"),
+        ) as gerar_mock:
+            response = client.post(
+                "/generations/create",
+                data={
+                    "client_name": "Cliente Pro",
+                    "document_type": "Contrato",
+                    "case_subject": "Prestacao de servicos",
+                    "facts": "As partes pretendem formalizar uma prestacao de servicos continuada.",
+                    "requests": "Definir objeto, prazo, pagamento e rescisao.",
+                    "legal_basis": "Codigo Civil.",
+                },
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("/generations/", response.headers["location"])
+        gerar_mock.assert_called_once()
+
+    def test_paid_plan_blocks_generation_when_its_monthly_limit_is_reached(self):
+        client, testing_session_local = create_free_plan_test_client()
+        usuario = criar_usuario_teste(testing_session_local, email="pro-limit@example.com")
+        autenticar(client, email="pro-limit@example.com")
+
+        db = testing_session_local()
+        try:
+            usuario_db = db.merge(usuario)
+            usuario_db.plan_slug = "pro"
+            now = datetime.now()
+            for _ in range(PRO_PLAN.monthly_generation_limit):
+                criar_geracao_teste(db, user_id=usuario_db.id, created_at=now)
+            db.commit()
+        finally:
+            db.close()
+
+        with patch("app.routers.generations.gerar_rascunho_juridico_com_metadata") as gerar_mock:
+            response = client.post(
+                "/generations/create",
+                data={
+                    "client_name": "Cliente Pro",
+                    "document_type": "Contrato",
+                    "case_subject": "Prestacao de servicos",
+                    "facts": "As partes pretendem formalizar uma prestacao de servicos continuada.",
+                    "requests": "Definir objeto, prazo, pagamento e rescisao.",
+                    "legal_basis": "Codigo Civil.",
+                },
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Plano Pro", response.text)
+        self.assertIn(str(PRO_PLAN.monthly_generation_limit), response.text)
+        gerar_mock.assert_not_called()
 
 
 if __name__ == "__main__":

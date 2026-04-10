@@ -11,9 +11,15 @@ except ImportError:
 
 from sqlalchemy.orm import Session
 
-from app.core.config import FREE_PLAN_MONTHLY_GENERATION_LIMIT, PRO_PLAN_MONTHLY_GENERATION_LIMIT
+from app.core.config import (
+    FREE_PLAN_MONTHLY_GENERATION_LIMIT,
+    FREE_PLAN_WRITING_PROFILE_LIMIT,
+    PRO_PLAN_MONTHLY_GENERATION_LIMIT,
+    PRO_PLAN_WRITING_PROFILE_LIMIT,
+)
 from app.models.generation import Generation
 from app.models.user import User
+from app.models.writing_profile import WritingProfile
 
 
 FREE_PLAN_SLUG = "free"
@@ -25,6 +31,7 @@ class PlanDefinition:
     slug: str
     name: str
     monthly_generation_limit: int
+    writing_profile_limit: int
     description: str
 
 
@@ -34,6 +41,9 @@ class PlanUsage:
     used_generations: int
     remaining_generations: int
     can_create_generation: bool
+    used_writing_profiles: int
+    remaining_writing_profiles: int
+    can_create_writing_profile: bool
     reset_label: str
 
 
@@ -41,6 +51,7 @@ FREE_PLAN = PlanDefinition(
     slug=FREE_PLAN_SLUG,
     name="Plano gratuito",
     monthly_generation_limit=FREE_PLAN_MONTHLY_GENERATION_LIMIT,
+    writing_profile_limit=FREE_PLAN_WRITING_PROFILE_LIMIT,
     description="Inclui geracoes mensais limitadas para validar o produto antes de contratar um plano pago.",
 )
 
@@ -48,6 +59,7 @@ PRO_PLAN = PlanDefinition(
     slug=PRO_PLAN_SLUG,
     name="Plano Pro",
     monthly_generation_limit=PRO_PLAN_MONTHLY_GENERATION_LIMIT,
+    writing_profile_limit=PRO_PLAN_WRITING_PROFILE_LIMIT,
     description="Plano pago para uso recorrente, com limite mensal ampliado de geracoes juridicas.",
 )
 
@@ -102,6 +114,10 @@ def contar_geracoes_usuario_no_mes(
     )
 
 
+def contar_perfis_escrita_usuario(db: Session, user_id: int) -> int:
+    return db.query(WritingProfile).filter(WritingProfile.user_id == user_id).count()
+
+
 def obter_uso_plano_usuario(
     db: Session,
     usuario: User,
@@ -110,13 +126,18 @@ def obter_uso_plano_usuario(
 ) -> PlanUsage:
     plano = obter_plano_usuario(usuario)
     usadas = contar_geracoes_usuario_no_mes(db, usuario.id, referencia=referencia)
+    perfis_usados = contar_perfis_escrita_usuario(db, usuario.id)
     restantes = max(plano.monthly_generation_limit - usadas, 0)
+    perfis_restantes = max(plano.writing_profile_limit - perfis_usados, 0)
 
     return PlanUsage(
         plan=plano,
         used_generations=usadas,
         remaining_generations=restantes,
         can_create_generation=usadas < plano.monthly_generation_limit,
+        used_writing_profiles=perfis_usados,
+        remaining_writing_profiles=perfis_restantes,
+        can_create_writing_profile=perfis_usados < plano.writing_profile_limit,
         reset_label="no inicio do proximo mes",
     )
 
@@ -127,6 +148,33 @@ def montar_mensagem_limite_plano(usage: PlanUsage) -> str:
         f"{usage.used_generations}/{usage.plan.monthly_generation_limit} geracoes neste mes. "
         f"O limite reinicia {usage.reset_label}."
     )
+
+
+def montar_mensagem_limite_perfis(usage: PlanUsage) -> str:
+    return (
+        f"Voce atingiu o limite do {usage.plan.name}: "
+        f"{usage.used_writing_profiles}/{usage.plan.writing_profile_limit} perfis de escrita cadastrados. "
+        "Exclua um perfil existente ou migre para um plano com limite maior."
+    )
+
+
+def validar_criacao_geracao_por_plano(
+    db: Session,
+    usuario: User,
+    *,
+    referencia: datetime | None = None,
+) -> tuple[bool, PlanUsage, str | None]:
+    usage = obter_uso_plano_usuario(db, usuario, referencia=referencia)
+    if usage.can_create_generation:
+        return True, usage, None
+    return False, usage, montar_mensagem_limite_plano(usage)
+
+
+def validar_criacao_perfil_por_plano(db: Session, usuario: User) -> tuple[bool, PlanUsage, str | None]:
+    usage = obter_uso_plano_usuario(db, usuario)
+    if usage.can_create_writing_profile:
+        return True, usage, None
+    return False, usage, montar_mensagem_limite_perfis(usage)
 
 
 def listar_planos_disponiveis() -> list[PlanDefinition]:

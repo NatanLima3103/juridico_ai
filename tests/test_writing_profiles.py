@@ -1,4 +1,5 @@
 import unittest
+from urllib.parse import unquote
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -13,6 +14,7 @@ from app.database import Base, get_db
 from app.models.writing_profile import WritingProfile
 from app.routers import auth, writing_profiles
 from app.schemas.user import UserCreate
+from app.services.plan_service import FREE_PLAN, PRO_PLAN
 from app.services.user_service import criar_usuario
 from app.services.writing_profile_service import buscar_perfil_por_id
 
@@ -74,6 +76,16 @@ def authenticate_test_client(client: TestClient, testing_session_local: sessionm
         follow_redirects=False,
     )
     assert response.status_code == 303
+
+
+def create_profile_record(db, *, user_id: int, name: str = "Perfil existente") -> WritingProfile:
+    perfil = WritingProfile(
+        user_id=user_id,
+        profile_name=name,
+        tone="Formal",
+    )
+    db.add(perfil)
+    return perfil
 
 
 class WritingProfilesTests(unittest.TestCase):
@@ -196,7 +208,112 @@ class WritingProfilesTests(unittest.TestCase):
         response = client.get(f"/writing-profiles/{perfil_id}/edit", follow_redirects=False)
 
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.headers["location"], "/writing-profiles?erro=Perfil+n%C3%A3o+encontrado.")
+        self.assertEqual(unquote(response.headers["location"]), "/writing-profiles?erro=Perfil não encontrado.")
+
+    def test_free_plan_blocks_profile_creation_when_limit_is_reached(self):
+        client, testing_session_local = create_writing_profiles_test_client()
+        usuario = create_user_for_test(testing_session_local, full_name="Maria Silva", email="maria@example.com")
+
+        db = testing_session_local()
+        try:
+            for index in range(FREE_PLAN.writing_profile_limit):
+                create_profile_record(db, user_id=usuario.id, name=f"Perfil Free {index}")
+            db.commit()
+        finally:
+            db.close()
+
+        authenticate_test_client(client, testing_session_local)
+
+        response = client.post(
+            "/writing-profiles/create",
+            data={
+                "profile_name": "Novo Perfil Free",
+                "tone": "Formal",
+            },
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Plano gratuito", response.text)
+        self.assertIn("limite", response.text.lower())
+
+    def test_pro_plan_can_create_profile_after_free_limit(self):
+        client, testing_session_local = create_writing_profiles_test_client()
+        usuario = create_user_for_test(testing_session_local, full_name="Maria Silva", email="maria@example.com")
+
+        db = testing_session_local()
+        try:
+            usuario_db = db.merge(usuario)
+            usuario_db.plan_slug = "pro"
+            for index in range(FREE_PLAN.writing_profile_limit):
+                create_profile_record(db, user_id=usuario_db.id, name=f"Perfil Pro {index}")
+            db.commit()
+        finally:
+            db.close()
+
+        authenticate_test_client(client, testing_session_local)
+
+        response = client.post(
+            "/writing-profiles/create",
+            data={
+                "profile_name": "Novo Perfil Pro",
+                "tone": "Objetivo",
+            },
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/writing-profiles?sucesso=Perfil%20criado%20com%20sucesso.")
+
+    def test_pro_plan_blocks_profile_creation_when_its_limit_is_reached(self):
+        client, testing_session_local = create_writing_profiles_test_client()
+        usuario = create_user_for_test(testing_session_local, full_name="Maria Silva", email="maria@example.com")
+
+        db = testing_session_local()
+        try:
+            usuario_db = db.merge(usuario)
+            usuario_db.plan_slug = "pro"
+            for index in range(PRO_PLAN.writing_profile_limit):
+                create_profile_record(db, user_id=usuario_db.id, name=f"Perfil Pro {index}")
+            db.commit()
+        finally:
+            db.close()
+
+        authenticate_test_client(client, testing_session_local)
+
+        response = client.post(
+            "/writing-profiles/create",
+            data={
+                "profile_name": "Perfil Excedente",
+                "tone": "Tecnico",
+            },
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Plano Pro", response.text)
+        self.assertIn(str(PRO_PLAN.writing_profile_limit), response.text)
+
+    def test_free_plan_blocks_profile_duplication_when_limit_is_reached(self):
+        client, testing_session_local = create_writing_profiles_test_client()
+        usuario = create_user_for_test(testing_session_local, full_name="Maria Silva", email="maria@example.com")
+
+        db = testing_session_local()
+        try:
+            perfil = create_profile_record(db, user_id=usuario.id, name="Perfil Original")
+            db.commit()
+            db.refresh(perfil)
+            perfil_id = perfil.id
+        finally:
+            db.close()
+
+        authenticate_test_client(client, testing_session_local)
+
+        response = client.post(f"/writing-profiles/{perfil_id}/duplicate", follow_redirects=False)
+
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("/writing-profiles?erro=", response.headers["location"])
+        self.assertIn("Plano%20gratuito", response.headers["location"])
 
 
 if __name__ == "__main__":

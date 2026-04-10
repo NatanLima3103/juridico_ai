@@ -35,7 +35,7 @@ from app.services.generation_service import (
     serializar_ids_documentos,
     validar_dados_geracao,
 )
-from app.services.plan_service import montar_mensagem_limite_plano, obter_uso_plano_usuario
+from app.services.plan_service import obter_uso_plano_usuario, validar_criacao_geracao_por_plano
 from app.services.writing_profile_service import (
     buscar_perfil_por_id,
     listar_perfis_escrita,
@@ -381,7 +381,7 @@ async def create_generation(
 ):
     documentos = listar_documentos(db, usuario.id)
     perfis = listar_perfis_escrita(db, usuario.id)
-    plan_usage = obter_uso_plano_usuario(db, usuario)
+    pode_criar, plan_usage, mensagem_limite_plano = validar_criacao_geracao_por_plano(db, usuario)
 
     selected_document_ids = coletar_ids_inteiros_unicos(document_ids)
 
@@ -441,13 +441,13 @@ async def create_generation(
             plan_usage=plan_usage,
         )
 
-    if not plan_usage.can_create_generation:
+    if not pode_criar:
         return _render_generation_form(
             request,
             documentos=documentos,
             perfis=perfis,
             tipos_de_documento=TIPOS_DE_DOCUMENTO,
-            error_message=montar_mensagem_limite_plano(plan_usage),
+            error_message=mensagem_limite_plano,
             form_data=form_data,
             selected_document_ids=selected_document_ids,
             selected_profile_id=selected_profile_id,

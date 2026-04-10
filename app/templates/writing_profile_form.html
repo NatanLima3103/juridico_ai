@@ -39,6 +39,18 @@
         </div>
     {% endif %}
 
+    {% if plan_usage and not modo_edicao %}
+        <div class="contexto-ajuda" style="margin-bottom: 18px;">
+            <strong>{{ plan_usage.plan.name }}:</strong>
+            {{ plan_usage.used_writing_profiles }}/{{ plan_usage.plan.writing_profile_limit }} perfil(is) de escrita cadastrados.
+            {% if plan_usage.can_create_writing_profile %}
+                Restam {{ plan_usage.remaining_writing_profiles }} perfil(is) neste plano.
+            {% else %}
+                Limite de perfis atingido. Exclua um perfil existente ou migre para o Plano Pro quando disponivel.
+            {% endif %}
+        </div>
+    {% endif %}
+
     <form
         method="post"
         action="{% if modo_edicao %}/writing-profiles/{{ perfil_id }}/edit{% else %}/writing-profiles/create{% endif %}"

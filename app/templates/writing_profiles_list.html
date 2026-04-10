@@ -41,6 +41,18 @@
         </div>
     {% endif %}
 
+    {% if plan_usage %}
+        <div class="contexto-ajuda" style="margin-bottom: 18px;">
+            <strong>{{ plan_usage.plan.name }}:</strong>
+            {{ plan_usage.used_writing_profiles }}/{{ plan_usage.plan.writing_profile_limit }} perfil(is) de escrita cadastrados.
+            {% if plan_usage.can_create_writing_profile %}
+                Restam {{ plan_usage.remaining_writing_profiles }} perfil(is) neste plano.
+            {% else %}
+                Limite de perfis atingido. Exclua um perfil existente ou migre para o Plano Pro quando disponivel.
+            {% endif %}
+        </div>
+    {% endif %}
+
     <section class="bloco-informativo bloco-filtros-avancados">
         <div class="bloco-informativo-topo bloco-informativo-topo-entre-linhas">
             <div>
