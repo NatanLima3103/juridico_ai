@@ -8,6 +8,7 @@ from app.core.config import SESSION_COOKIE_NAME
 from app.database import get_db
 from app.routers.common import templates
 from app.schemas.user import UserCreate
+from app.services.audit_service import registrar_acao_usuario
 from app.services.user_service import (
     atualizar_senha_usuario,
     autenticar_usuario,
@@ -144,7 +145,14 @@ def register_user(
         )
 
     payload = UserCreate(**dados)
-    criar_usuario(db, payload)
+    usuario = criar_usuario(db, payload)
+    registrar_acao_usuario(
+        db,
+        action="user_register",
+        usuario=usuario,
+        request=request,
+        metadata={"email": usuario.email},
+    )
 
     return RedirectResponse(
         url="/auth/login?sucesso=Conta criada com sucesso. Faça seu login.",
@@ -187,6 +195,18 @@ def login_user(
 
     usuario = autenticar_usuario(db, email=dados["email"], password=dados["password"])
     if not usuario:
+        usuario_existente = buscar_usuario_por_email(db, dados["email"])
+        registrar_acao_usuario(
+            db,
+            action="login_failed",
+            usuario=usuario_existente,
+            request=request,
+            metadata={
+                "email": dados["email"],
+                "reason": "invalid_credentials",
+                "has_user": usuario_existente is not None,
+            },
+        )
         return templates.TemplateResponse(
             "login.html",
             {
@@ -203,6 +223,13 @@ def login_user(
     request.session["user_id"] = usuario.id
     request.session["user_name"] = usuario.full_name
     request.session["is_admin"] = bool(usuario.is_admin)
+    registrar_acao_usuario(
+        db,
+        action="login_success",
+        usuario=usuario,
+        request=request,
+        metadata={"next": next_url},
+    )
 
     return RedirectResponse(url=next_url, status_code=status.HTTP_303_SEE_OTHER)
 
@@ -240,6 +267,17 @@ def forgot_password_user(
     if usuario and bool(usuario.is_active):
         token = gerar_token_recuperacao_senha(usuario)
         reset_link = str(request.url_for("reset_password_form", token=token))
+
+    registrar_acao_usuario(
+        db,
+        action="password_reset_requested",
+        usuario=usuario if usuario and bool(usuario.is_active) else None,
+        request=request,
+        metadata={
+            "email": dados["email"],
+            "active_user_found": bool(usuario and usuario.is_active),
+        },
+    )
 
     return templates.TemplateResponse(
         "forgot_password.html",
@@ -332,6 +370,12 @@ def reset_password_user(
         )
 
     atualizar_senha_usuario(db, usuario, dados["password"])
+    registrar_acao_usuario(
+        db,
+        action="password_reset_completed",
+        usuario=usuario,
+        request=request,
+    )
 
     return RedirectResponse(
         url=f"/auth/login?sucesso={quote('Senha redefinida com sucesso. Faça seu login.')}",
@@ -340,7 +384,21 @@ def reset_password_user(
 
 
 @router.post("/logout")
-def logout_user(request: Request):
+def logout_user(request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    try:
+        user_id_int = int(user_id) if user_id else None
+    except (TypeError, ValueError):
+        user_id_int = None
+
+    if user_id_int is not None:
+        registrar_acao_usuario(
+            db,
+            action="logout",
+            user_id=user_id_int,
+            request=request,
+        )
+
     request.session.clear()
     response = RedirectResponse(
         url="/auth/login?sucesso=Sess%C3%A3o+encerrada+com+sucesso.",

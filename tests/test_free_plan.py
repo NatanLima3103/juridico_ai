@@ -131,7 +131,7 @@ class FreePlanTests(unittest.TestCase):
         self.assertTrue(usage.can_create_generation)
         self.assertEqual(usage.plan.generation_limit_period, "daily")
         self.assertEqual(usage.plan.generation_usage_label, "hoje")
-        self.assertEqual(usage.reset_label, "amanha")
+        self.assertEqual(usage.reset_label, "amanhã")
 
     def test_free_plan_blocks_generation_when_daily_limit_is_reached(self):
         client, testing_session_local = create_free_plan_test_client()

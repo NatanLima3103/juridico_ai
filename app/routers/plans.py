@@ -7,6 +7,7 @@ from app.database import get_db
 from app.dependencies.auth import get_authenticated_user
 from app.models.user import User
 from app.routers.common import templates
+from app.services.audit_service import registrar_acao_usuario
 from app.services.payment_service import (
     PaymentIntegrationUnavailable,
     iniciar_checkout_plano,
@@ -74,6 +75,13 @@ def checkout_plan(
             cancel_url=cancel_url,
         )
     except PaymentIntegrationUnavailable as exc:
+        registrar_acao_usuario(
+            db,
+            action="plan_checkout_failed",
+            usuario=usuario,
+            request=request,
+            metadata={"plan_slug": plan_slug, "reason": "payment_unavailable"},
+        )
         return _render_plans_page(
             request,
             db,
@@ -82,6 +90,13 @@ def checkout_plan(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
     except ValueError as exc:
+        registrar_acao_usuario(
+            db,
+            action="plan_checkout_failed",
+            usuario=usuario,
+            request=request,
+            metadata={"plan_slug": plan_slug, "reason": str(exc)},
+        )
         return _render_plans_page(
             request,
             db,
@@ -89,6 +104,14 @@ def checkout_plan(
             erro=str(exc),
             status_code=status.HTTP_400_BAD_REQUEST,
         )
+
+    registrar_acao_usuario(
+        db,
+        action="plan_checkout_started",
+        usuario=usuario,
+        request=request,
+        metadata={"plan_slug": checkout.plan.slug, "provider": checkout.provider},
+    )
 
     return RedirectResponse(checkout.redirect_url, status_code=status.HTTP_303_SEE_OTHER)
 
@@ -99,6 +122,12 @@ def payment_success(
     db: Session = Depends(get_db),
     usuario: User = Depends(get_authenticated_user),
 ):
+    registrar_acao_usuario(
+        db,
+        action="plan_payment_success_return",
+        usuario=usuario,
+        request=request,
+    )
     return _render_plans_page(
         request,
         db,
@@ -113,6 +142,12 @@ def payment_cancel(
     db: Session = Depends(get_db),
     usuario: User = Depends(get_authenticated_user),
 ):
+    registrar_acao_usuario(
+        db,
+        action="plan_payment_cancel_return",
+        usuario=usuario,
+        request=request,
+    )
     return _render_plans_page(
         request,
         db,

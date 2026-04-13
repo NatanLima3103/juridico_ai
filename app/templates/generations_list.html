@@ -44,7 +44,7 @@
     {% if plan_usage %}
     <div class="contexto-ajuda" style="margin-bottom: 18px;">
         <strong>{{ plan_usage.plan.name }}:</strong>
-        {{ plan_usage.used_generations }}/{{ plan_usage.plan.monthly_generation_limit }} geracao(oes) usadas {{ plan_usage.plan.generation_usage_label }}.
+        {{ plan_usage.used_generations }}/{{ plan_usage.plan.monthly_generation_limit }} geracão(ões) usadas {{ plan_usage.plan.generation_usage_label }}.
         {% if plan_usage.can_create_generation %}
             Restam {{ plan_usage.remaining_generations }} geracão(ões) até o limite {{ plan_usage.plan.generation_limit_label }}.
         {% else %}

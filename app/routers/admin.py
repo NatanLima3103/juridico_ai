@@ -109,8 +109,14 @@ def admin_delete_problem_record(
     entity_type: str,
     entity_id: int,
     db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
 ):
-    sucesso, mensagem = remover_registro_problematico(db, entity_type=entity_type, entity_id=entity_id)
+    sucesso, mensagem = remover_registro_problematico(
+        db,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        admin_atual=admin,
+    )
     parametro = "sucesso" if sucesso else "erro"
     return RedirectResponse(
         url=f"/admin?{parametro}={quote(mensagem)}",

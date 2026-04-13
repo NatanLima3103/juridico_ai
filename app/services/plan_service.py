@@ -58,7 +58,7 @@ class PlanDefinition:
     @property
     def generation_reset_label(self) -> str:
         if self.generation_limit_period == "daily":
-            return "amanha"
+            return "amanhã"
         return "no início do próximo mês"
 
 

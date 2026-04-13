@@ -10,6 +10,7 @@ from app.models.audit_log import AuditLog
 from app.models.document import Document
 from app.models.generation import Generation
 from app.models.user import User
+from app.services.audit_service import registrar_acao_usuario
 from app.services.plan_service import obter_plano_usuario
 from app.models.writing_profile import WritingProfile
 from app.services.user_service import atualizar_status_usuario, buscar_usuario_por_id, listar_usuarios
@@ -174,7 +175,9 @@ def listar_registros_problematicos(db: Session) -> dict[str, list[dict[str, Any]
             "problemas": ["Sem usuário vinculado"],
             "entity_type": "audit_log",
         }
-        for evento in db.query(AuditLog).filter(AuditLog.user_id.is_(None)).all()
+        for evento in db.query(AuditLog)
+        .filter(AuditLog.user_id.is_(None), AuditLog.entity_type != "auth")
+        .all()
     ]
 
     return {
@@ -193,6 +196,16 @@ def alternar_status_usuario_admin(db: Session, *, admin_atual: User, user_id: in
         return False, "Você não pode desativar a própria conta administradora."
 
     usuario = atualizar_status_usuario(db, usuario, is_active=not bool(usuario.is_active))
+    registrar_acao_usuario(
+        db,
+        action="admin_toggle_user_active",
+        usuario=admin_atual,
+        metadata={
+            "target_user_id": usuario.id,
+            "target_user_email": usuario.email,
+            "target_is_active": bool(usuario.is_active),
+        },
+    )
     mensagem = "Usuário ativado com sucesso." if usuario.is_active else "Usuário desativado com sucesso."
     return True, mensagem
 
@@ -205,11 +218,27 @@ def alternar_admin_usuario(db: Session, *, admin_atual: User, user_id: int) -> t
         return False, "Você não pode remover seu próprio acesso administrativo."
 
     usuario = atualizar_status_usuario(db, usuario, is_admin=not bool(usuario.is_admin))
+    registrar_acao_usuario(
+        db,
+        action="admin_toggle_user_admin",
+        usuario=admin_atual,
+        metadata={
+            "target_user_id": usuario.id,
+            "target_user_email": usuario.email,
+            "target_is_admin": bool(usuario.is_admin),
+        },
+    )
     mensagem = "Permissão administrativa concedida com sucesso." if usuario.is_admin else "Permissão administrativa removida com sucesso."
     return True, mensagem
 
 
-def remover_registro_problematico(db: Session, *, entity_type: str, entity_id: int) -> tuple[bool, str]:
+def remover_registro_problematico(
+    db: Session,
+    *,
+    entity_type: str,
+    entity_id: int,
+    admin_atual: User | None = None,
+) -> tuple[bool, str]:
     mapa = {
         "document": Document,
         "writing_profile": WritingProfile,
@@ -223,6 +252,18 @@ def remover_registro_problematico(db: Session, *, entity_type: str, entity_id: i
     registro = db.query(modelo).filter(modelo.id == entity_id).first()
     if not registro:
         return False, "Registro não encontrado."
+
+    if admin_atual is not None:
+        registrar_acao_usuario(
+            db,
+            action="admin_delete_problem_record",
+            usuario=admin_atual,
+            metadata={
+                "target_entity_type": entity_type,
+                "target_entity_id": entity_id,
+            },
+            commit=False,
+        )
 
     db.delete(registro)
     db.commit()
