@@ -33,6 +33,8 @@ PAYMENT_CHECKOUT_URL = os.getenv("PAYMENT_CHECKOUT_URL", "").strip()
 PAYMENT_SUCCESS_URL = os.getenv("PAYMENT_SUCCESS_URL", "").strip()
 PAYMENT_CANCEL_URL = os.getenv("PAYMENT_CANCEL_URL", "").strip()
 PAYMENT_WEBHOOK_SECRET = os.getenv("PAYMENT_WEBHOOK_SECRET", "").strip()
+SOFT_DELETED_RETENTION_DAYS = int(os.getenv("SOFT_DELETED_RETENTION_DAYS", "30"))
+AUDIT_LOG_RETENTION_DAYS = int(os.getenv("AUDIT_LOG_RETENTION_DAYS", "180"))
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "storage/uploads")
 GENERATIONS_DIR = os.getenv("GENERATIONS_DIR", "storage/generations")

@@ -13,6 +13,7 @@ from app.models.user import User
 from app.services.audit_service import registrar_acao_usuario
 from app.services.document_service import proteger_path_documento
 from app.services.plan_service import obter_plano_usuario
+from app.services.retention_service import resumir_retencao
 from app.models.writing_profile import WritingProfile
 from app.services.user_service import atualizar_status_usuario, buscar_usuario_por_id, listar_usuarios
 
@@ -26,6 +27,9 @@ def obter_totais_sistema(db: Session) -> dict[str, int]:
         "perfis": db.query(WritingProfile).filter(WritingProfile.deleted_at.is_(None)).count(),
         "geracoes": db.query(Generation).filter(Generation.deleted_at.is_(None)).count(),
         "auditorias": db.query(AuditLog).count(),
+        "documentos_excluidos": db.query(Document).filter(Document.deleted_at.is_not(None)).count(),
+        "perfis_excluidos": db.query(WritingProfile).filter(WritingProfile.deleted_at.is_not(None)).count(),
+        "geracoes_excluidas": db.query(Generation).filter(Generation.deleted_at.is_not(None)).count(),
     }
 
 
@@ -126,6 +130,10 @@ def obter_uso_geral_sistema(db: Session) -> dict[str, Any]:
         "eventos_recentes": recentes,
         "resumo_entidades": [{"entidade": chave, "total": total} for chave, total in entidades.most_common()],
     }
+
+
+def obter_resumo_retencao_admin(db: Session) -> dict[str, Any]:
+    return resumir_retencao(db).to_dict()
 
 
 def listar_registros_problematicos(db: Session) -> dict[str, list[dict[str, Any]]]:

@@ -75,6 +75,51 @@
 <section class="card">
     <div class="cabecalho-pagina">
         <div>
+            <span class="etiqueta-secao">RetenÃ§Ã£o</span>
+            <h2>Política de Retenção</h2>
+            <p class="texto-suave">
+                Itens excluídos ficam em quarentena antes da remoção definitiva. Eventos antigos de auditoria também são limpos conforme o prazo configurado.
+            </p>
+        </div>
+        <div class="acoes-topo">
+            <form method="post" action="/admin/retention/apply" data-confirm-action data-confirm-title="Aplicar política de retenção" data-confirm-message="Essa ação remove definitivamente registros e arquivos fora do prazo de retenção. Deseja continuar?">
+                <button type="submit" class="botao-perigo">Aplicar retenção</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="admin-grid-resumo">
+        <article class="admin-card-resumo">
+            <span class="admin-card-label">Documentos</span>
+            <strong>{{ retencao.documents }}</strong>
+            <p>{{ totais.documentos_excluidos }} em quarentena</p>
+        </article>
+        <article class="admin-card-resumo">
+            <span class="admin-card-label">Perfis</span>
+            <strong>{{ retencao.writing_profiles }}</strong>
+            <p>{{ totais.perfis_excluidos }} em quarentena</p>
+        </article>
+        <article class="admin-card-resumo">
+            <span class="admin-card-label">GeraÃ§Ãµes</span>
+            <strong>{{ retencao.generations }}</strong>
+            <p>{{ totais.geracoes_excluidas }} em quarentena</p>
+        </article>
+        <article class="admin-card-resumo">
+            <span class="admin-card-label">Auditoria</span>
+            <strong>{{ retencao.audit_logs }}</strong>
+            <p>Eventos antigos aptos para limpeza</p>
+        </article>
+    </div>
+
+    <p class="texto-suave texto-pequeno">
+        Corte para itens excluÃ­dos: {{ retencao.cutoff_soft_deleted.strftime("%d/%m/%Y %H:%M") }}.
+        Corte para auditoria: {{ retencao.cutoff_audit_logs.strftime("%d/%m/%Y %H:%M") }}.
+    </p>
+</section>
+
+<section class="card">
+    <div class="cabecalho-pagina">
+        <div>
             <span class="etiqueta-secao">Métricas básicas</span>
             <h2>Atividade recente</h2>
             <p class="texto-suave">Leitura rápida de crescimento, uso e operações executadas.</p>

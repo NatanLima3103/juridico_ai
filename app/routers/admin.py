@@ -14,10 +14,12 @@ from app.services.admin_service import (
     listar_registros_problematicos,
     listar_usuarios_admin,
     obter_metricas_basicas_admin,
+    obter_resumo_retencao_admin,
     obter_totais_sistema,
     obter_uso_geral_sistema,
     remover_registro_problematico,
 )
+from app.services.retention_service import aplicar_politica_retencao
 
 router = APIRouter(
     prefix="/admin",
@@ -36,6 +38,7 @@ def admin_dashboard(
     metricas = obter_metricas_basicas_admin(db)
     uso_geral = obter_uso_geral_sistema(db)
     problematicos = listar_registros_problematicos(db)
+    retencao = obter_resumo_retencao_admin(db)
 
     totais_problematicos = sum(len(itens) for itens in problematicos.values())
 
@@ -50,6 +53,7 @@ def admin_dashboard(
             "uso_geral": uso_geral,
             "problematicos": problematicos,
             "totais_problematicos": totais_problematicos,
+            "retencao": retencao,
             "sucesso": request.query_params.get("sucesso"),
             "erro": request.query_params.get("erro"),
         },
@@ -120,5 +124,22 @@ def admin_delete_problem_record(
     parametro = "sucesso" if sucesso else "erro"
     return RedirectResponse(
         url=f"/admin?{parametro}={quote(mensagem)}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.post("/retention/apply")
+def admin_apply_retention_policy(
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    relatorio = aplicar_politica_retencao(db, admin_atual=admin)
+    mensagem = (
+        "Política de retenção aplicada: "
+        f"{relatorio.total_records} registros removidos e "
+        f"{relatorio.files_deleted} arquivo(s) físico(s) apagado(s)."
+    )
+    return RedirectResponse(
+        url=f"/admin?sucesso={quote(mensagem)}",
         status_code=status.HTTP_303_SEE_OTHER,
     )
