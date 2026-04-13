@@ -93,6 +93,7 @@ class Generation(Base):
     version = Column(Integer, default=1, nullable=False)
     created_at = Column(DateTime, default=agora_brasil, nullable=False, index=True)
     updated_at = Column(DateTime, default=agora_brasil, onupdate=agora_brasil, nullable=False)
+    deleted_at = Column(DateTime, nullable=True, index=True)
 
     @property
     def writing_profile_name(self):

@@ -75,6 +75,7 @@ class WritingProfile(Base):
 
     created_at = Column(DateTime, default=agora_brasil, nullable=False)
     updated_at = Column(DateTime, default=agora_brasil, onupdate=agora_brasil, nullable=False)
+    deleted_at = Column(DateTime, nullable=True, index=True)
 
     generations = relationship(
         "Generation",

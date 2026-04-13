@@ -2,7 +2,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.models.document import Document
+from app.models.document import Document, agora_brasil
 from app.schemas.document import DocumentCreate
 from app.services.audit_service import registrar_evento_auditoria, serializar_entidade_para_auditoria
 
@@ -50,7 +50,7 @@ def criar_documento(db: Session, document_data: DocumentCreate) -> Document:
 def listar_documentos(db: Session, user_id: int) -> list[Document]:
     return (
         db.query(Document)
-        .filter(Document.user_id == user_id)
+        .filter(Document.user_id == user_id, Document.deleted_at.is_(None))
         .order_by(Document.is_favorite.desc(), Document.created_at.desc(), Document.id.desc())
         .all()
     )
@@ -67,7 +67,7 @@ def listar_documentos_por_ids(db: Session, document_ids: list[int], user_id: int
 
     documentos = (
         db.query(Document)
-        .filter(Document.user_id == user_id, Document.id.in_(ids_unicos))
+        .filter(Document.user_id == user_id, Document.id.in_(ids_unicos), Document.deleted_at.is_(None))
         .order_by(Document.created_at.desc())
         .all()
     )
@@ -84,7 +84,11 @@ def listar_documentos_por_ids(db: Session, document_ids: list[int], user_id: int
 
 
 def buscar_documento_por_id(db: Session, document_id: int, user_id: int) -> Document | None:
-    return db.query(Document).filter(Document.id == document_id, Document.user_id == user_id).first()
+    return (
+        db.query(Document)
+        .filter(Document.id == document_id, Document.user_id == user_id, Document.deleted_at.is_(None))
+        .first()
+    )
 
 
 def atualizar_metadados_documento(
@@ -133,21 +137,20 @@ def toggle_favorito_documento(db: Session, documento: Document) -> Document:
 
 
 def excluir_documento(db: Session, documento: Document) -> None:
-    caminho = obter_path_documento(documento)
+    documento.deleted_at = documento.deleted_at or agora_brasil()
+    documento.updated_at = documento.deleted_at
+    documento.version = int(getattr(documento, "version", 1) or 1) + 1
     snapshot = serializar_entidade_para_auditoria(documento)
-
-    if caminho.exists():
-        caminho.unlink()
 
     registrar_evento_auditoria(
         db,
         entity_type="document",
         entity_id=documento.id,
         action="delete",
-        entity_version=int(getattr(documento, "version", 1) or 1),
+        entity_version=documento.version,
         snapshot=snapshot,
     )
-    db.delete(documento)
+    db.add(documento)
     db.commit()
 
 

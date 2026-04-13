@@ -21,9 +21,9 @@ def obter_totais_sistema(db: Session) -> dict[str, int]:
         "usuarios": db.query(User).count(),
         "usuarios_ativos": db.query(User).filter(User.is_active.is_(True)).count(),
         "admins": db.query(User).filter(User.is_admin.is_(True)).count(),
-        "documentos": db.query(Document).count(),
-        "perfis": db.query(WritingProfile).count(),
-        "geracoes": db.query(Generation).count(),
+        "documentos": db.query(Document).filter(Document.deleted_at.is_(None)).count(),
+        "perfis": db.query(WritingProfile).filter(WritingProfile.deleted_at.is_(None)).count(),
+        "geracoes": db.query(Generation).filter(Generation.deleted_at.is_(None)).count(),
         "auditorias": db.query(AuditLog).count(),
     }
 
@@ -41,8 +41,8 @@ def obter_metricas_basicas_admin(db: Session) -> dict[str, Any]:
     )
 
     cadastros_recentes = db.query(User).filter(User.created_at >= inicio_30_dias).count()
-    geracoes_recentes = db.query(Generation).filter(Generation.created_at >= inicio_7_dias).count()
-    uploads_recentes = db.query(Document).filter(Document.created_at >= inicio_7_dias).count()
+    geracoes_recentes = db.query(Generation).filter(Generation.deleted_at.is_(None), Generation.created_at >= inicio_7_dias).count()
+    uploads_recentes = db.query(Document).filter(Document.deleted_at.is_(None), Document.created_at >= inicio_7_dias).count()
 
     return {
         "cadastros_30_dias": cadastros_recentes,
@@ -60,15 +60,24 @@ def listar_usuarios_admin(db: Session) -> list[dict[str, Any]]:
 
     documentos_por_usuario = {
         user_id: total
-        for user_id, total in db.query(Document.user_id, func.count(Document.id)).group_by(Document.user_id).all()
+        for user_id, total in db.query(Document.user_id, func.count(Document.id))
+        .filter(Document.deleted_at.is_(None))
+        .group_by(Document.user_id)
+        .all()
     }
     perfis_por_usuario = {
         user_id: total
-        for user_id, total in db.query(WritingProfile.user_id, func.count(WritingProfile.id)).group_by(WritingProfile.user_id).all()
+        for user_id, total in db.query(WritingProfile.user_id, func.count(WritingProfile.id))
+        .filter(WritingProfile.deleted_at.is_(None))
+        .group_by(WritingProfile.user_id)
+        .all()
     }
     geracoes_por_usuario = {
         user_id: total
-        for user_id, total in db.query(Generation.user_id, func.count(Generation.id)).group_by(Generation.user_id).all()
+        for user_id, total in db.query(Generation.user_id, func.count(Generation.id))
+        .filter(Generation.deleted_at.is_(None))
+        .group_by(Generation.user_id)
+        .all()
     }
     auditorias_por_usuario = {
         user_id: total
@@ -120,7 +129,7 @@ def obter_uso_geral_sistema(db: Session) -> dict[str, Any]:
 
 def listar_registros_problematicos(db: Session) -> dict[str, list[dict[str, Any]]]:
     documentos_problematicos: list[dict[str, Any]] = []
-    for documento in db.query(Document).order_by(Document.created_at.desc(), Document.id.desc()).all():
+    for documento in db.query(Document).filter(Document.deleted_at.is_(None)).order_by(Document.created_at.desc(), Document.id.desc()).all():
         problemas: list[str] = []
         if documento.user_id is None:
             problemas.append("Sem usuário vinculado")
@@ -151,7 +160,9 @@ def listar_registros_problematicos(db: Session) -> dict[str, list[dict[str, Any]
             "problemas": ["Sem usuário vinculado"],
             "entity_type": "writing_profile",
         }
-        for perfil in db.query(WritingProfile).filter(WritingProfile.user_id.is_(None)).all()
+        for perfil in db.query(WritingProfile)
+        .filter(WritingProfile.user_id.is_(None), WritingProfile.deleted_at.is_(None))
+        .all()
     ]
 
     geracoes_problematicas = [
@@ -163,7 +174,9 @@ def listar_registros_problematicos(db: Session) -> dict[str, list[dict[str, Any]
             "problemas": ["Sem usuário vinculado"],
             "entity_type": "generation",
         }
-        for geracao in db.query(Generation).filter(Generation.user_id.is_(None)).all()
+        for geracao in db.query(Generation)
+        .filter(Generation.user_id.is_(None), Generation.deleted_at.is_(None))
+        .all()
     ]
 
     auditorias_problematicas = [

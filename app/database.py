@@ -34,7 +34,7 @@ SessionLocal = sessionmaker(
 
 Base = declarative_base()
 
-LATEST_SCHEMA_VERSION = 13
+LATEST_SCHEMA_VERSION = 14
 
 
 def _sqlite_column_exists(connection, table_name: str, column_name: str) -> bool:
@@ -420,6 +420,34 @@ def _migration_013_add_user_plan_slug(connection) -> None:
     connection.execute(text("CREATE INDEX IF NOT EXISTS ix_users_plan_slug ON users (plan_slug)"))
 
 
+def _migration_014_add_soft_delete_columns(connection) -> None:
+    ajustes = {
+        "documents": {
+            "deleted_at": "ALTER TABLE documents ADD COLUMN deleted_at DATETIME",
+            "index": "CREATE INDEX IF NOT EXISTS ix_documents_deleted_at ON documents (deleted_at)",
+        },
+        "generations": {
+            "deleted_at": "ALTER TABLE generations ADD COLUMN deleted_at DATETIME",
+            "index": "CREATE INDEX IF NOT EXISTS ix_generations_deleted_at ON generations (deleted_at)",
+        },
+        "writing_profiles": {
+            "deleted_at": "ALTER TABLE writing_profiles ADD COLUMN deleted_at DATETIME",
+            "index": "CREATE INDEX IF NOT EXISTS ix_writing_profiles_deleted_at ON writing_profiles (deleted_at)",
+        },
+    }
+
+    inspector = inspect(connection)
+    tabelas_existentes = set(inspector.get_table_names())
+
+    for tabela, comandos in ajustes.items():
+        if tabela not in tabelas_existentes:
+            continue
+
+        if not _sqlite_column_exists(connection, tabela, "deleted_at"):
+            connection.execute(text(comandos["deleted_at"]))
+        connection.execute(text(comandos["index"]))
+
+
 SQLITE_MIGRATIONS: list[tuple[int, str, Callable]] = [
     (1, "add_metadata_columns", _migration_001_add_metadata_columns),
     (2, "create_generation_documents", _migration_002_create_generation_documents),
@@ -434,6 +462,7 @@ SQLITE_MIGRATIONS: list[tuple[int, str, Callable]] = [
     (11, "add_admin_flag_to_users", _migration_011_add_admin_flag_to_users),
     (12, "add_llm_metadata_to_generations", _migration_012_add_llm_metadata_to_generations),
     (13, "add_user_plan_slug", _migration_013_add_user_plan_slug),
+    (14, "add_soft_delete_columns", _migration_014_add_soft_delete_columns),
 ]
 
 

@@ -225,6 +225,47 @@ class GenerationsOwnershipTests(unittest.TestCase):
         self.assertIn("Por Maria Silva", response.text)
         self.assertIn("maria@example.com", response.text)
 
+    def test_delete_generation_soft_deletes_record(self):
+        client, testing_session_local = create_generation_test_client()
+        usuario = create_user_for_test(testing_session_local, full_name="Maria Silva", email="maria@example.com")
+
+        db = testing_session_local()
+        try:
+            geracao = criar_geracao(
+                db=db,
+                user_id=usuario.id,
+                client_name="Cliente Soft Delete",
+                document_type="Peticao inicial",
+                case_subject="Cobranca indevida",
+                facts="Fatos detalhados para gerar a peca juridica.",
+                requests="Cancelamento da cobranca e indenizacao.",
+                legal_basis="Codigo Civil e CDC.",
+                context_used="Contexto inicial.",
+                generated_text="Texto inicial da minuta.",
+            )
+            geracao_id = geracao.id
+        finally:
+            db.close()
+
+        authenticate_test_client(client, email="maria@example.com")
+
+        response = client.post(f"/generations/{geracao_id}/delete", follow_redirects=False)
+
+        self.assertEqual(response.status_code, 303)
+
+        db = testing_session_local()
+        try:
+            geracao_db = db.query(Generation).filter(Generation.id == geracao_id).first()
+            self.assertIsNotNone(geracao_db)
+            self.assertIsNotNone(geracao_db.deleted_at)
+        finally:
+            db.close()
+
+        list_response = client.get("/generations")
+
+        self.assertEqual(list_response.status_code, 200)
+        self.assertNotIn("Cliente Soft Delete", list_response.text)
+
 
 if __name__ == "__main__":
     unittest.main()

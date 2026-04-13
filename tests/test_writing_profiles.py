@@ -317,6 +317,39 @@ class WritingProfilesTests(unittest.TestCase):
         self.assertIn("/writing-profiles?erro=", response.headers["location"])
         self.assertIn("Plano%20gratuito", response.headers["location"])
 
+    def test_delete_profile_soft_deletes_record(self):
+        client, testing_session_local = create_writing_profiles_test_client()
+        usuario = create_user_for_test(testing_session_local, full_name="Maria Silva", email="maria@example.com")
+
+        db = testing_session_local()
+        try:
+            perfil = create_profile_record(db, user_id=usuario.id, name="Perfil Soft Delete")
+            db.commit()
+            db.refresh(perfil)
+            perfil_id = perfil.id
+        finally:
+            db.close()
+
+        authenticate_test_client(client, testing_session_local)
+
+        response = client.post(f"/writing-profiles/{perfil_id}/delete", follow_redirects=False)
+
+        self.assertEqual(response.status_code, 303)
+
+        db = testing_session_local()
+        try:
+            perfil_db = db.query(WritingProfile).filter(WritingProfile.id == perfil_id).first()
+            self.assertIsNotNone(perfil_db)
+            self.assertIsNotNone(perfil_db.deleted_at)
+            self.assertIsNone(buscar_perfil_por_id(db, perfil_id, usuario.id))
+        finally:
+            db.close()
+
+        list_response = client.get("/writing-profiles")
+
+        self.assertEqual(list_response.status_code, 200)
+        self.assertNotIn("Perfil Soft Delete", list_response.text)
+
 
 if __name__ == "__main__":
     unittest.main()

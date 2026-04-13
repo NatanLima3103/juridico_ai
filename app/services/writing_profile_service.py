@@ -95,6 +95,7 @@ def obter_tons_disponiveis(db: Session, user_id: int) -> list[str]:
     resultados = (
         db.query(WritingProfile.tone)
         .filter(WritingProfile.user_id == user_id)
+        .filter(WritingProfile.deleted_at.is_(None))
         .filter(WritingProfile.tone.isnot(None))
         .order_by(WritingProfile.tone.asc())
         .all()
@@ -186,6 +187,7 @@ def criar_perfil(db: Session, payload: WritingProfileCreate) -> WritingProfile:
     db.add(perfil)
     db.commit()
     db.refresh(perfil)
+
     registrar_evento_auditoria(
         db,
         entity_type="writing_profile",
@@ -199,7 +201,15 @@ def criar_perfil(db: Session, payload: WritingProfileCreate) -> WritingProfile:
 
 
 def buscar_perfil_por_id(db: Session, profile_id: int, user_id: int) -> WritingProfile | None:
-    return db.query(WritingProfile).filter(WritingProfile.id == profile_id, WritingProfile.user_id == user_id).first()
+    return (
+        db.query(WritingProfile)
+        .filter(
+            WritingProfile.id == profile_id,
+            WritingProfile.user_id == user_id,
+            WritingProfile.deleted_at.is_(None),
+        )
+        .first()
+    )
 
 
 def atualizar_perfil(
@@ -250,6 +260,7 @@ def _gerar_nome_duplicado(db: Session, nome_original: str, user_id: int) -> str:
     while db.query(WritingProfile).filter(
         WritingProfile.user_id == user_id,
         WritingProfile.profile_name == candidato,
+        WritingProfile.deleted_at.is_(None),
     ).first():
         candidato = f"{nome_base} (cópia {contador})"
         contador += 1
@@ -351,15 +362,19 @@ def excluir_perfil(db: Session, profile_id: int, user_id: int) -> tuple[bool, st
     if not perfil:
         return False, "Perfil não encontrado."
 
+    perfil.deleted_at = perfil.deleted_at or datetime.now()
+    perfil.updated_at = perfil.deleted_at
+    perfil.version = int(getattr(perfil, "version", 1) or 1) + 1
+
     registrar_evento_auditoria(
         db,
         entity_type="writing_profile",
         entity_id=perfil.id,
         action="delete",
-        entity_version=int(getattr(perfil, "version", 1) or 1),
+        entity_version=perfil.version,
         snapshot=serializar_entidade_para_auditoria(perfil),
     )
-    db.delete(perfil)
+    db.add(perfil)
     db.commit()
     return True, "Perfil excluído com sucesso."
 
@@ -371,7 +386,7 @@ def listar_perfis_filtrados(
 ) -> list[WritingProfile]:
     filtros = filtros or {}
 
-    query = db.query(WritingProfile).filter(WritingProfile.user_id == user_id)
+    query = db.query(WritingProfile).filter(WritingProfile.user_id == user_id, WritingProfile.deleted_at.is_(None))
 
     search = _normalizar_texto(filtros.get("search"))
     if search:
@@ -447,7 +462,7 @@ def listar_perfis_filtrados(
 def listar_perfis_escrita(db: Session, user_id: int) -> list[WritingProfile]:
     return (
         db.query(WritingProfile)
-        .filter(WritingProfile.user_id == user_id)
+        .filter(WritingProfile.user_id == user_id, WritingProfile.deleted_at.is_(None))
         .order_by(WritingProfile.is_pinned.desc(), WritingProfile.profile_name.asc())
         .all()
     )

@@ -160,6 +160,7 @@ def contar_geracoes_usuario_no_mes(
     return (
         db.query(Generation)
         .filter(Generation.user_id == user_id)
+        .filter(Generation.deleted_at.is_(None))
         .filter(Generation.created_at >= inicio)
         .filter(Generation.created_at < fim)
         .count()
@@ -176,6 +177,7 @@ def contar_geracoes_usuario_no_dia(
     return (
         db.query(Generation)
         .filter(Generation.user_id == user_id)
+        .filter(Generation.deleted_at.is_(None))
         .filter(Generation.created_at >= inicio)
         .filter(Generation.created_at < fim)
         .count()
@@ -183,7 +185,11 @@ def contar_geracoes_usuario_no_dia(
 
 
 def contar_perfis_escrita_usuario(db: Session, user_id: int) -> int:
-    return db.query(WritingProfile).filter(WritingProfile.user_id == user_id).count()
+    return (
+        db.query(WritingProfile)
+        .filter(WritingProfile.user_id == user_id, WritingProfile.deleted_at.is_(None))
+        .count()
+    )
 
 
 def obter_uso_plano_usuario(

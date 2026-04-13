@@ -463,7 +463,11 @@ def criar_geracao(
     if writing_profile_id is not None:
         perfil_valido = (
             db.query(WritingProfile)
-            .filter(WritingProfile.id == writing_profile_id, WritingProfile.user_id == user_id)
+            .filter(
+                WritingProfile.id == writing_profile_id,
+                WritingProfile.user_id == user_id,
+                WritingProfile.deleted_at.is_(None),
+            )
             .first()
         )
         if not perfil_valido:
@@ -475,7 +479,7 @@ def criar_geracao(
     if document_ids:
         documentos_relacionados = (
             db.query(Document)
-            .filter(Document.user_id == user_id, Document.id.in_(document_ids))
+            .filter(Document.user_id == user_id, Document.id.in_(document_ids), Document.deleted_at.is_(None))
             .all()
         )
         documentos_por_id = {documento.id: documento for documento in documentos_relacionados}
@@ -547,7 +551,11 @@ def atualizar_geracao(
     if writing_profile_id is not None:
         perfil_valido = (
             db.query(WritingProfile)
-            .filter(WritingProfile.id == writing_profile_id, WritingProfile.user_id == geracao.user_id)
+            .filter(
+                WritingProfile.id == writing_profile_id,
+                WritingProfile.user_id == geracao.user_id,
+                WritingProfile.deleted_at.is_(None),
+            )
             .first()
         )
         if not perfil_valido:
@@ -559,7 +567,7 @@ def atualizar_geracao(
     if document_ids:
         documentos_relacionados = (
             db.query(Document)
-            .filter(Document.user_id == geracao.user_id, Document.id.in_(document_ids))
+            .filter(Document.user_id == geracao.user_id, Document.id.in_(document_ids), Document.deleted_at.is_(None))
             .all()
         )
         documentos_por_id = {documento.id: documento for documento in documentos_relacionados}
@@ -609,7 +617,7 @@ def buscar_geracao_por_id(db: Session, generation_id: int, user_id: int) -> Gene
     return (
         db.query(Generation)
         .options(joinedload(Generation.writing_profile), joinedload(Generation.documents))
-        .filter(Generation.id == generation_id, Generation.user_id == user_id)
+        .filter(Generation.id == generation_id, Generation.user_id == user_id, Generation.deleted_at.is_(None))
         .first()
     )
 
@@ -624,7 +632,7 @@ def listar_geracoes(
     query = (
         db.query(Generation)
         .options(joinedload(Generation.writing_profile), joinedload(Generation.documents))
-        .filter(Generation.user_id == user_id)
+        .filter(Generation.user_id == user_id, Generation.deleted_at.is_(None))
     )
 
     search_term = filtros.get("search_term")
@@ -884,21 +892,28 @@ def alternar_favorito_geracao(db: Session, geracao: Generation) -> Generation:
     return geracao
 
 def excluir_geracao(db: Session, geracao: Generation) -> None:
+    geracao.deleted_at = geracao.deleted_at or agora_brasil()
+    geracao.updated_at = geracao.deleted_at
+    geracao.version = int(getattr(geracao, "version", 1) or 1) + 1
+
     registrar_evento_auditoria(
         db,
         entity_type="generation",
         entity_id=geracao.id,
         action="delete",
-        entity_version=int(getattr(geracao, "version", 1) or 1),
+        entity_version=geracao.version,
         snapshot=serializar_entidade_para_auditoria(geracao),
     )
-    db.delete(geracao)
+    db.add(geracao)
     db.commit()
 
 def duplicar_geracao(
     db: Session,
     geracao_origem: Generation,
 ) -> Generation:
+    documentos_origem = [
+        documento for documento in geracao_origem.documents if getattr(documento, "deleted_at", None) is None
+    ]
     nova_geracao = Generation(
         user_id=geracao_origem.user_id,
         client_name=geracao_origem.client_name,
@@ -910,11 +925,11 @@ def duplicar_geracao(
         context_used=geracao_origem.context_used,
         generated_text=geracao_origem.generated_text,
         writing_profile_id=geracao_origem.writing_profile_id,
-        source_document_ids=serializar_ids_documentos(geracao_origem.document_ids),
+        source_document_ids=serializar_ids_documentos([documento.id for documento in documentos_origem]),
         is_pinned=False,
         updated_at=agora_brasil(),
     )
-    nova_geracao.documents = list(geracao_origem.documents)
+    nova_geracao.documents = documentos_origem
 
     db.add(nova_geracao)
     db.commit()
@@ -1748,11 +1763,12 @@ def obter_datas_dashboard(db: Session) -> dict:
 def obter_resumo_dashboard_geracoes(db: Session, user_id: int) -> dict:
     datas = obter_datas_dashboard(db)
 
-    total = db.query(Generation).filter(Generation.user_id == user_id).count()
+    total = db.query(Generation).filter(Generation.user_id == user_id, Generation.deleted_at.is_(None)).count()
 
     total_hoje = (
         db.query(Generation)
         .filter(Generation.user_id == user_id)
+        .filter(Generation.deleted_at.is_(None))
         .filter(Generation.created_at >= datas["inicio_hoje"])
         .filter(Generation.created_at <= datas["fim_hoje"])
         .count()
@@ -1761,6 +1777,7 @@ def obter_resumo_dashboard_geracoes(db: Session, user_id: int) -> dict:
     total_7_dias = (
         db.query(Generation)
         .filter(Generation.user_id == user_id)
+        .filter(Generation.deleted_at.is_(None))
         .filter(Generation.created_at >= datas["inicio_7_dias"])
         .count()
     )
@@ -1768,6 +1785,7 @@ def obter_resumo_dashboard_geracoes(db: Session, user_id: int) -> dict:
     total_30_dias = (
         db.query(Generation)
         .filter(Generation.user_id == user_id)
+        .filter(Generation.deleted_at.is_(None))
         .filter(Generation.created_at >= datas["inicio_30_dias"])
         .count()
     )
@@ -1775,6 +1793,7 @@ def obter_resumo_dashboard_geracoes(db: Session, user_id: int) -> dict:
     total_mes = (
         db.query(Generation)
         .filter(Generation.user_id == user_id)
+        .filter(Generation.deleted_at.is_(None))
         .filter(Generation.created_at >= datas["inicio_mes"])
         .count()
     )
@@ -1782,6 +1801,7 @@ def obter_resumo_dashboard_geracoes(db: Session, user_id: int) -> dict:
     total_fixadas = (
         db.query(Generation)
         .filter(Generation.user_id == user_id)
+        .filter(Generation.deleted_at.is_(None))
         .filter(Generation.is_pinned.is_(True))
         .count()
     )
@@ -1801,6 +1821,7 @@ def obter_ultimas_geracoes(db: Session, user_id: int, limite: int = 5) -> list[G
         db.query(Generation)
         .options(joinedload(Generation.writing_profile))
         .filter(Generation.user_id == user_id)
+        .filter(Generation.deleted_at.is_(None))
         .order_by(Generation.updated_at.desc(), Generation.id.desc())
         .limit(limite)
         .all()

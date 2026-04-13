@@ -1,6 +1,5 @@
 import unittest
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from fastapi import FastAPI
@@ -135,21 +134,20 @@ class DocumentsOwnershipTests(unittest.TestCase):
         usuario = criar_usuario_teste(testing_session_local, nome="Ana Souza", email="ana@example.com")
         fazer_login(client, email="ana@example.com")
 
-        with TemporaryDirectory() as tmp_dir:
-            arquivo_salvo = Path(tmp_dir) / "upload-ana.pdf"
-            arquivo_salvo.write_text("arquivo de teste", encoding="utf-8")
+        arquivo_salvo = Path(".tmp_pytest") / "upload-ana.pdf"
+        arquivo_salvo.write_text("arquivo de teste", encoding="utf-8")
 
-            async def fake_salvar_arquivo_upload(_file):
-                return arquivo_salvo
+        async def fake_salvar_arquivo_upload(_file):
+            return arquivo_salvo
 
-            with patch("app.routers.documents.salvar_arquivo_upload", fake_salvar_arquivo_upload), patch(
-                "app.routers.documents.extrair_texto_arquivo",
-                return_value="texto extraido",
-            ):
-                response = client.post(
-                    "/documents/upload",
-                    files={"file": ("upload-ana.pdf", b"conteudo fake", "application/pdf")},
-                )
+        with patch("app.routers.documents.salvar_arquivo_upload", fake_salvar_arquivo_upload), patch(
+            "app.routers.documents.extrair_texto_arquivo",
+            return_value="texto extraido",
+        ):
+            response = client.post(
+                "/documents/upload",
+                files={"file": ("upload-ana.pdf", b"conteudo fake", "application/pdf")},
+            )
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("Documento enviado e salvo com sucesso.", response.text)
@@ -162,6 +160,35 @@ class DocumentsOwnershipTests(unittest.TestCase):
             self.assertEqual(documentos_usuario[0].user_id, usuario.id)
         finally:
             db.close()
+
+
+    def test_delete_document_soft_deletes_record(self):
+        client, testing_session_local = create_documents_test_client()
+        usuario = criar_usuario_teste(testing_session_local, nome="Ana Souza", email="ana@example.com")
+        documento = criar_documento_teste(
+            testing_session_local,
+            user_id=usuario.id,
+            nome_arquivo="contrato-soft-delete.pdf",
+        )
+
+        fazer_login(client, email="ana@example.com")
+
+        response = client.post(f"/documents/{documento.id}/delete", follow_redirects=False)
+
+        self.assertEqual(response.status_code, 303)
+
+        db = testing_session_local()
+        try:
+            documento_db = db.query(Document).filter(Document.id == documento.id).first()
+            self.assertIsNotNone(documento_db)
+            self.assertIsNotNone(documento_db.deleted_at)
+        finally:
+            db.close()
+
+        list_response = client.get("/documents")
+
+        self.assertEqual(list_response.status_code, 200)
+        self.assertNotIn("contrato-soft-delete.pdf", list_response.text)
 
 
 if __name__ == "__main__":

@@ -21,13 +21,13 @@ def home_page(
     db: Session = Depends(get_db),
     usuario: User = Depends(get_authenticated_user),
 ):
-    total_documents = db.query(Document).filter(Document.user_id == usuario.id).count()
-    total_profiles = db.query(WritingProfile).filter(WritingProfile.user_id == usuario.id).count()
-    total_generations = db.query(Generation).filter(Generation.user_id == usuario.id).count()
+    total_documents = db.query(Document).filter(Document.user_id == usuario.id, Document.deleted_at.is_(None)).count()
+    total_profiles = db.query(WritingProfile).filter(WritingProfile.user_id == usuario.id, WritingProfile.deleted_at.is_(None)).count()
+    total_generations = db.query(Generation).filter(Generation.user_id == usuario.id, Generation.deleted_at.is_(None)).count()
 
     recent_documents = (
         db.query(Document)
-        .filter(Document.user_id == usuario.id)
+        .filter(Document.user_id == usuario.id, Document.deleted_at.is_(None))
         .order_by(Document.created_at.desc(), Document.id.desc())
         .limit(4)
         .all()
@@ -35,7 +35,7 @@ def home_page(
 
     recent_profiles = (
         db.query(WritingProfile)
-        .filter(WritingProfile.user_id == usuario.id)
+        .filter(WritingProfile.user_id == usuario.id, WritingProfile.deleted_at.is_(None))
         .order_by(WritingProfile.is_pinned.desc(), WritingProfile.created_at.desc(), WritingProfile.id.desc())
         .limit(4)
         .all()
@@ -43,14 +43,14 @@ def home_page(
 
     recent_generations = (
         db.query(Generation)
-        .filter(Generation.user_id == usuario.id)
+        .filter(Generation.user_id == usuario.id, Generation.deleted_at.is_(None))
         .order_by(Generation.is_pinned.desc(), Generation.updated_at.desc(), Generation.id.desc())
         .limit(5)
         .all()
     )
 
     generation_types = []
-    for generation in db.query(Generation).filter(Generation.user_id == usuario.id).all():
+    for generation in db.query(Generation).filter(Generation.user_id == usuario.id, Generation.deleted_at.is_(None)).all():
         tipo = (generation.document_type or "Não informado").strip()
         generation_types.append(tipo or "Não informado")
 
