@@ -266,6 +266,9 @@ def remover_registro_problematico(
     if not registro:
         return False, "Registro não encontrado."
 
+    if not _registro_eh_problematico(entity_type, registro):
+        return False, "Registro nao e considerado problematico para remocao administrativa."
+
     if admin_atual is not None:
         registrar_acao_usuario(
             db,
@@ -281,3 +284,29 @@ def remover_registro_problematico(
     db.delete(registro)
     db.commit()
     return True, "Registro problemático removido com sucesso."
+
+
+def _registro_eh_problematico(entity_type: str, registro: Any) -> bool:
+    if entity_type == "document":
+        if getattr(registro, "deleted_at", None) is not None:
+            return False
+        if getattr(registro, "user_id", None) is None:
+            return True
+        caminho_texto = (getattr(registro, "file_path", "") or "").strip()
+        if not caminho_texto:
+            return True
+        return not Path(caminho_texto).exists()
+
+    if entity_type in {"writing_profile", "generation"}:
+        return (
+            getattr(registro, "deleted_at", None) is None
+            and getattr(registro, "user_id", None) is None
+        )
+
+    if entity_type == "audit_log":
+        return (
+            getattr(registro, "user_id", None) is None
+            and getattr(registro, "entity_type", None) != "auth"
+        )
+
+    return False

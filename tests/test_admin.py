@@ -10,6 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import SECRET_KEY, SESSION_COOKIE_NAME, STATIC_DIR
 from app.database import Base, get_db
+from app.models.document import Document
 from app.routers import admin, auth
 from app.schemas.user import UserCreate
 from app.services.user_service import criar_usuario
@@ -96,6 +97,76 @@ class AdminAreaTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 303)
         self.assertIn("/?erro=", response.headers["location"])
+
+    def test_admin_cannot_delete_healthy_record_through_problem_records_route(self):
+        client, testing_session_local = create_admin_test_client()
+        admin_user = create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com")
+
+        db = testing_session_local()
+        try:
+            documento = Document(
+                original_filename="documento-saudavel.pdf",
+                saved_filename="documento-saudavel.pdf",
+                file_path="app/static/img/favicon.png",
+                file_type=".pdf",
+                extracted_text="Documento saudavel.",
+                user_id=admin_user.id,
+            )
+            db.add(documento)
+            db.commit()
+            db.refresh(documento)
+            document_id = documento.id
+        finally:
+            db.close()
+
+        login(client, email="admin@example.com")
+
+        response = client.post(f"/admin/problem-records/document/{document_id}/delete", follow_redirects=False)
+
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("erro=", response.headers["location"])
+
+        db = testing_session_local()
+        try:
+            documento_db = db.query(Document).filter(Document.id == document_id).first()
+            self.assertIsNotNone(documento_db)
+        finally:
+            db.close()
+
+    def test_admin_can_delete_problematic_record_through_problem_records_route(self):
+        client, testing_session_local = create_admin_test_client()
+        create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com")
+
+        db = testing_session_local()
+        try:
+            documento = Document(
+                original_filename="documento-problematico.pdf",
+                saved_filename="documento-problematico.pdf",
+                file_path="storage/arquivo-inexistente-13-5.pdf",
+                file_type=".pdf",
+                extracted_text="Documento problematico.",
+                user_id=None,
+            )
+            db.add(documento)
+            db.commit()
+            db.refresh(documento)
+            document_id = documento.id
+        finally:
+            db.close()
+
+        login(client, email="admin@example.com")
+
+        response = client.post(f"/admin/problem-records/document/{document_id}/delete", follow_redirects=False)
+
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("sucesso=", response.headers["location"])
+
+        db = testing_session_local()
+        try:
+            documento_db = db.query(Document).filter(Document.id == document_id).first()
+            self.assertIsNone(documento_db)
+        finally:
+            db.close()
 
 
 if __name__ == "__main__":
