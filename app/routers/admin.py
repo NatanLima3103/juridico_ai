@@ -1,7 +1,7 @@
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Path, Request, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -14,11 +14,14 @@ from app.services.admin_service import (
     listar_registros_problematicos,
     listar_usuarios_admin,
     obter_metricas_basicas_admin,
+    obter_resumo_lgpd_admin,
     obter_resumo_retencao_admin,
     obter_totais_sistema,
     obter_uso_geral_sistema,
     remover_registro_problematico,
 )
+from app.services.audit_service import registrar_acao_usuario
+from app.services.lgpd_service import anonimizar_titular_lgpd, exportar_dados_titular_lgpd
 from app.services.retention_service import aplicar_politica_retencao
 
 router = APIRouter(
@@ -39,6 +42,7 @@ def admin_dashboard(
     uso_geral = obter_uso_geral_sistema(db)
     problematicos = listar_registros_problematicos(db)
     retencao = obter_resumo_retencao_admin(db)
+    lgpd = obter_resumo_lgpd_admin(db)
 
     totais_problematicos = sum(len(itens) for itens in problematicos.values())
 
@@ -54,6 +58,7 @@ def admin_dashboard(
             "problematicos": problematicos,
             "totais_problematicos": totais_problematicos,
             "retencao": retencao,
+            "lgpd": lgpd,
             "sucesso": request.query_params.get("sucesso"),
             "erro": request.query_params.get("erro"),
         },
@@ -104,6 +109,51 @@ def admin_toggle_user_admin(
     parametro = "sucesso" if sucesso else "erro"
     return RedirectResponse(
         url=f"{destino}?{parametro}={quote(mensagem)}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.get("/users/{user_id}/lgpd-export")
+def admin_export_user_lgpd(
+    user_id: int = Path(...),
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    payload = exportar_dados_titular_lgpd(db, user_id)
+    if payload is None:
+        return RedirectResponse(
+            url=f"/admin/users?erro={quote('Usuario nao encontrado.')}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    registrar_acao_usuario(
+        db,
+        action="admin_lgpd_export_user",
+        usuario=admin,
+        metadata={"target_user_id": user_id},
+    )
+    return JSONResponse(payload)
+
+
+@router.post("/users/{user_id}/lgpd-anonymize")
+def admin_anonymize_user_lgpd(
+    user_id: int = Path(...),
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    sucesso, mensagem, relatorio = anonimizar_titular_lgpd(
+        db,
+        user_id=user_id,
+        admin_atual=admin,
+    )
+    parametro = "sucesso" if sucesso else "erro"
+    if relatorio is not None:
+        mensagem = (
+            f"{mensagem} Registros tratados: {relatorio.total_records}; "
+            f"arquivos removidos: {relatorio.files_deleted}."
+        )
+    return RedirectResponse(
+        url=f"/admin/users?{parametro}={quote(mensagem)}",
         status_code=status.HTTP_303_SEE_OTHER,
     )
 

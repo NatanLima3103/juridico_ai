@@ -13,6 +13,8 @@ from unittest.mock import patch
 from app.core.config import SECRET_KEY, SESSION_COOKIE_NAME, STATIC_DIR
 from app.database import Base, get_db
 from app.models.document import Document
+from app.models.generation import Generation
+from app.models.user import User
 from app.routers import admin, auth
 from app.schemas.user import UserCreate
 from app.services.user_service import criar_usuario
@@ -207,6 +209,83 @@ class AdminAreaTests(unittest.TestCase):
         try:
             documento_db = db.query(Document).filter(Document.id == document_id).first()
             self.assertIsNone(documento_db)
+        finally:
+            db.close()
+
+    def test_admin_can_export_user_lgpd_data(self):
+        client, testing_session_local = create_admin_test_client()
+        create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com")
+        titular = create_user(testing_session_local, full_name="Titular Export", email="titular-export@example.com")
+
+        db = testing_session_local()
+        try:
+            db.add(
+                Generation(
+                    user_id=titular.id,
+                    client_name="Cliente Export LGPD",
+                    document_type="Peticao inicial",
+                    case_subject="Assunto",
+                    facts="Fatos",
+                    requests="Pedidos",
+                    legal_basis="Base",
+                    context_used="Contexto",
+                    generated_text="Texto",
+                )
+            )
+            db.commit()
+        finally:
+            db.close()
+
+        login(client, email="admin@example.com")
+
+        response = client.get(f"/admin/users/{titular.id}/lgpd-export")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["user"]["email"], "titular-export@example.com")
+        self.assertEqual(payload["generations"][0]["client_name"], "Cliente Export LGPD")
+
+    def test_admin_can_anonymize_user_lgpd_data(self):
+        client, testing_session_local = create_admin_test_client()
+        create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com")
+        titular = create_user(testing_session_local, full_name="Titular Remove", email="titular-remove@example.com")
+
+        db = testing_session_local()
+        try:
+            db.add(
+                Generation(
+                    user_id=titular.id,
+                    client_name="Cliente Remove LGPD",
+                    document_type="Peticao inicial",
+                    case_subject="Assunto",
+                    facts="Fatos",
+                    requests="Pedidos",
+                    legal_basis="Base",
+                    context_used="Contexto",
+                    generated_text="Texto",
+                )
+            )
+            db.commit()
+            titular_id = titular.id
+        finally:
+            db.close()
+
+        login(client, email="admin@example.com")
+
+        response = client.post(f"/admin/users/{titular_id}/lgpd-anonymize", follow_redirects=False)
+
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("sucesso=", response.headers["location"])
+
+        db = testing_session_local()
+        try:
+            usuario_db = db.query(User).filter(User.id == titular_id).first()
+            geracao_db = db.query(Generation).filter(Generation.user_id == titular_id).first()
+
+            self.assertFalse(usuario_db.is_active)
+            self.assertEqual(usuario_db.email, f"anonimizado+{titular_id}@juridico-ai.local")
+            self.assertEqual(geracao_db.client_name, "[removido por solicitacao LGPD]")
+            self.assertIsNotNone(geracao_db.deleted_at)
         finally:
             db.close()
 

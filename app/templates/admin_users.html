@@ -94,6 +94,14 @@
                                         {% if usuario.is_admin %}Remover admin{% else %}Tornar admin{% endif %}
                                     </button>
                                 </form>
+                                <a class="botao botao-secundario" href="/admin/users/{{ usuario.id }}/lgpd-export">
+                                    Exportar LGPD
+                                </a>
+                                <form method="post" action="/admin/users/{{ usuario.id }}/lgpd-anonymize" data-confirm-action data-confirm-title="Anonimizar titular" data-confirm-message="Essa acao desativa a conta, remove dados pessoais dos conteudos do titular e coloca os registros em quarentena. Deseja continuar?">
+                                    <button type="submit" class="botao-perigo">
+                                        Anonimizar LGPD
+                                    </button>
+                                </form>
                             </div>
                         </td>
                     </tr>

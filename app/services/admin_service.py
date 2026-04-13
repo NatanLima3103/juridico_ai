@@ -12,6 +12,7 @@ from app.models.generation import Generation
 from app.models.user import User
 from app.services.audit_service import registrar_acao_usuario
 from app.services.document_service import proteger_path_documento
+from app.services.lgpd_service import obter_inventario_lgpd
 from app.services.plan_service import obter_plano_usuario
 from app.services.retention_service import resumir_retencao
 from app.models.writing_profile import WritingProfile
@@ -134,6 +135,10 @@ def obter_uso_geral_sistema(db: Session) -> dict[str, Any]:
 
 def obter_resumo_retencao_admin(db: Session) -> dict[str, Any]:
     return resumir_retencao(db).to_dict()
+
+
+def obter_resumo_lgpd_admin(db: Session) -> dict[str, Any]:
+    return obter_inventario_lgpd(db)
 
 
 def listar_registros_problematicos(db: Session) -> dict[str, list[dict[str, Any]]]:

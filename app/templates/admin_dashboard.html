@@ -75,6 +75,54 @@
 <section class="card">
     <div class="cabecalho-pagina">
         <div>
+            <span class="etiqueta-secao">LGPD</span>
+            <h2>Preparacao para LGPD</h2>
+            <p class="texto-suave">
+                Inventario operacional dos dados tratados e controles minimos para acesso, portabilidade, retencao e anonimizacao.
+            </p>
+        </div>
+        <div class="acoes-topo">
+            <a class="botao" href="/admin/users">Atender titular</a>
+        </div>
+    </div>
+
+    <div class="admin-grid-resumo">
+        {% for entidade, total in lgpd.totais.items() %}
+            <article class="admin-card-resumo">
+                <span class="admin-card-label">{{ entidade.replace("_", " ").title() }}</span>
+                <strong>{{ total }}</strong>
+                <p>Registros mapeados</p>
+            </article>
+        {% endfor %}
+    </div>
+
+    <div class="admin-table-wrapper">
+        <table class="tabela-admin">
+            <thead>
+                <tr>
+                    <th>Entidade</th>
+                    <th>Dados tratados</th>
+                    <th>Finalidade operacional</th>
+                    <th>Retencao</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in lgpd.catalogo %}
+                    <tr>
+                        <td>{{ item.entidade }}</td>
+                        <td>{{ item.dados | join(", ") }}</td>
+                        <td>{{ item.base_operacional }}</td>
+                        <td>{{ item.retencao }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="card">
+    <div class="cabecalho-pagina">
+        <div>
             <span class="etiqueta-secao">RetenÃ§Ã£o</span>
             <h2>Política de Retenção</h2>
             <p class="texto-suave">

@@ -95,3 +95,21 @@ Todo conteudo comercial deve ser informativo, moderado e sem promessa de resulta
 
 - AB2L: pagina institucional sobre o ecossistema brasileiro de inovacao juridica, com categorias como lawtechs, legaltechs, escritorios de advocacia, departamentos juridicos e empresas: https://ab2l.org.br/
 - OAB Provimento 205/2021: regras de publicidade e informacao na advocacia: https://eticaedisciplina.oab.org.br/assets/docs/Provimento%20n.%20205.2021%20-%20Publicidade.pdf
+
+## Etapa 13.8 - Preparacao para LGPD
+
+Objetivo: preparar controles tecnicos iniciais para tratamento de dados pessoais no Juridico AI, com foco em inventario, acesso, portabilidade, retencao e anonimizacao administrativa.
+
+### Controles implementados
+
+- Inventario LGPD no painel admin com entidades tratadas, categorias de dados, finalidade operacional e retencao esperada.
+- Exportacao estruturada dos dados do titular por usuario, incluindo conta, documentos, geracoes, perfis de escrita e auditorias vinculadas.
+- Anonimizacao administrativa do titular, com desativacao da conta, remocao de identificadores diretos, limpeza de conteudos sensiveis, exclusao de arquivos fisicos quando estiverem no armazenamento permitido e quarentena dos registros tratados.
+- Reducao dos payloads de auditoria vinculados ao titular anonimizado, preservando rastreabilidade minima do ato sem manter snapshots pessoais.
+- Registro auditavel das acoes administrativas de exportacao e anonimizacao LGPD.
+
+### Limites assumidos
+
+- A anonimizacao nao substitui uma politica juridica formal de privacidade, termos de uso ou avaliacao de base legal.
+- Auditorias antigas seguem retidas de forma minimizada conforme a politica de retencao configurada.
+- Arquivos fora do armazenamento permitido nao sao apagados automaticamente; o relatorio marca esses casos como bloqueados.
