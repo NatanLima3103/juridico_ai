@@ -177,12 +177,12 @@
     <section class="bloco-informativo historico-edicoes">
         <div class="bloco-informativo-topo">
             <div>
-                <h3>Historico de edições</h3>
+                <h3>Histórico de edições</h3>
                 <p class="texto-suave">
                     Acompanhe as versões salvas e os principais campos alterados nesta geração.
                 </p>
             </div>
-            <span class="badge badge-neutro">Versao atual #{{ geracao.version }}</span>
+            <span class="badge badge-neutro">Versão atual #{{ geracao.version }}</span>
         </div>
 
         {% if historico_edicoes %}
@@ -194,7 +194,10 @@
                             <div class="historico-edicoes-topo">
                                 <div>
                                     <strong>{{ item.action_label }}</strong>
-                                    <span>Versao #{{ item.entity_version }}</span>
+                                    <span>Versão #{{ item.entity_version }}</span>
+                                    <span class="historico-edicoes-autor">
+                                        Por {{ item.author_name }}{% if item.author_email %} &lt;{{ item.author_email }}&gt;{% endif %}
+                                    </span>
                                 </div>
                                 <time>
                                     {{ item.created_at.strftime("%d/%m/%Y %H:%M") if item.created_at else "-" }}
@@ -217,7 +220,7 @@
                 {% endfor %}
             </div>
         {% else %}
-            <p class="texto-suave">Nenhuma edicao registrada para esta geracao.</p>
+            <p class="texto-suave">Nenhuma edição registrada para esta geração.</p>
         {% endif %}
     </section>
 

@@ -2395,6 +2395,11 @@ button.botao,
     font-size: 14px;
 }
 
+.historico-edicoes-topo .historico-edicoes-autor {
+    color: #475569;
+    font-weight: 600;
+}
+
 .historico-edicoes-campos,
 .historico-edicoes-preview {
     margin-top: 8px;

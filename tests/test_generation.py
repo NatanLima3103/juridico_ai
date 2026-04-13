@@ -221,7 +221,9 @@ class GenerationsOwnershipTests(unittest.TestCase):
         self.assertIn("Histórico de edições", response.text)
         self.assertIn("Texto ajustado", response.text)
         self.assertIn("Criação da geração", response.text)
-        self.assertIn("Versao #2", response.text)
+        self.assertIn("Versão #2", response.text)
+        self.assertIn("Por Maria Silva", response.text)
+        self.assertIn("maria@example.com", response.text)
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.document import Document
 from app.models.audit_log import AuditLog
 from app.models.generation import Generation
+from app.models.user import User
 from app.models.writing_profile import WritingProfile
 from app.services.ai_generation_service import AIGenerationResult, gerar_resultado_juridico_com_fallback
 from app.services.audit_service import registrar_evento_auditoria, serializar_entidade_para_auditoria
@@ -47,12 +48,12 @@ ORDENACOES_GERACOES = {
 
 ACOES_HISTORICO_GERACAO = {
     "create": "Criação da geração",
-    "update": "Edicao dos dados",
+    "update": "Edição dos dados",
     "save_text": "Texto ajustado",
-    "toggle_pin": "Fixacao atualizada",
+    "toggle_pin": "Fixação atualizada",
     "toggle_favorite": "Favorito atualizado",
-    "duplicate": "Duplicacao",
-    "delete": "Exclusao",
+    "duplicate": "Duplicação",
+    "delete": "Exclusão",
 }
 
 CAMPOS_HISTORICO_GERACAO = {
@@ -61,14 +62,14 @@ CAMPOS_HISTORICO_GERACAO = {
     "case_subject": "Assunto",
     "facts": "Fatos",
     "requests": "Pedidos",
-    "legal_basis": "Fundamentacao juridica",
+    "legal_basis": "Fundamentação juridica",
     "context_used": "Contexto inteligente",
     "generated_text": "Texto juridico",
     "writing_profile_id": "Perfil de escrita",
     "document_ids": "Documentos base",
     "tags": "Tags",
     "status": "Status",
-    "is_pinned": "Fixacao",
+    "is_pinned": "Fixação",
     "is_favorite": "Favorito",
     "generation_strategy": "Estrategia",
     "llm_model": "Modelo IA",
@@ -792,11 +793,30 @@ def listar_historico_edicoes_geracao(
         .all()
     )
 
-    historico = []
-    snapshot_anterior = None
+    eventos_com_snapshot = []
+    user_ids_historico = set()
 
     for evento in eventos:
         snapshot = _carregar_payload_auditoria(evento.payload)
+        autor_id = evento.user_id
+        if autor_id is None and isinstance(snapshot.get("user_id"), int):
+            autor_id = snapshot.get("user_id")
+
+        if autor_id is not None:
+            user_ids_historico.add(int(autor_id))
+
+        eventos_com_snapshot.append((evento, snapshot, autor_id))
+
+    usuarios_por_id = {}
+    if user_ids_historico:
+        usuarios = db.query(User).filter(User.id.in_(user_ids_historico)).all()
+        usuarios_por_id = {usuario.id: usuario for usuario in usuarios}
+
+    historico = []
+    snapshot_anterior = None
+
+    for evento, snapshot, autor_id in eventos_com_snapshot:
+        autor = usuarios_por_id.get(autor_id)
         campos_alterados = _campos_alterados_historico(snapshot, snapshot_anterior)
         if evento.action == "create":
             campos_alterados = ["Registro inicial"]
@@ -809,6 +829,9 @@ def listar_historico_edicoes_geracao(
                 "entity_version": int(evento.entity_version or 1),
                 "created_at": evento.created_at,
                 "changed_fields": campos_alterados,
+                "author_id": autor_id,
+                "author_name": autor.full_name if autor else "Usuario nao identificado",
+                "author_email": autor.email if autor else "",
                 "client_name": snapshot.get("client_name") or "",
                 "document_type": snapshot.get("document_type") or "",
                 "status": snapshot.get("status") or "",
