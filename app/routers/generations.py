@@ -26,6 +26,7 @@ from app.services.generation_service import (
     coletar_ids_inteiros_unicos,
     contar_filtros_ativos_geracoes,
     listar_geracoes,
+    listar_historico_edicoes_geracao,
     listar_templates_juridicos_prontos,
     montar_resumo_geracao,
     montar_contexto_inteligente,
@@ -265,6 +266,7 @@ async def generation_detail(
 
     documento_ids = geracao.document_ids
     documentos_base = listar_documentos_por_ids(db, documento_ids, usuario.id)
+    historico_edicoes = listar_historico_edicoes_geracao(db, generation_id, usuario.id)
 
     return templates.TemplateResponse(
         "generation_detail.html",
@@ -272,6 +274,7 @@ async def generation_detail(
             "request": request,
             "geracao": montar_resumo_geracao(geracao),
             "documentos_base": documentos_base,
+            "historico_edicoes": historico_edicoes,
             "sucesso": sucesso,
             "erro": erro,
         },

@@ -1,5 +1,6 @@
 from datetime import date, datetime, time, timedelta
 from io import BytesIO
+import json
 import unicodedata
 
 try:
@@ -15,6 +16,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.document import Document
+from app.models.audit_log import AuditLog
 from app.models.generation import Generation
 from app.models.writing_profile import WritingProfile
 from app.services.ai_generation_service import AIGenerationResult, gerar_resultado_juridico_com_fallback
@@ -41,6 +43,35 @@ ORDENACOES_GERACOES = {
     "created_asc": "CriaÃ§Ã£o (mais antiga primeiro)",
     "client_asc": "Cliente (A-Z)",
     "client_desc": "Cliente (Z-A)",
+}
+
+ACOES_HISTORICO_GERACAO = {
+    "create": "Criação da geração",
+    "update": "Edicao dos dados",
+    "save_text": "Texto ajustado",
+    "toggle_pin": "Fixacao atualizada",
+    "toggle_favorite": "Favorito atualizado",
+    "duplicate": "Duplicacao",
+    "delete": "Exclusao",
+}
+
+CAMPOS_HISTORICO_GERACAO = {
+    "client_name": "Cliente",
+    "document_type": "Tipo de documento",
+    "case_subject": "Assunto",
+    "facts": "Fatos",
+    "requests": "Pedidos",
+    "legal_basis": "Fundamentacao juridica",
+    "context_used": "Contexto inteligente",
+    "generated_text": "Texto juridico",
+    "writing_profile_id": "Perfil de escrita",
+    "document_ids": "Documentos base",
+    "tags": "Tags",
+    "status": "Status",
+    "is_pinned": "Fixacao",
+    "is_favorite": "Favorito",
+    "generation_strategy": "Estrategia",
+    "llm_model": "Modelo IA",
 }
 
 
@@ -713,6 +744,7 @@ def montar_resumo_geracao(geracao: Generation) -> dict:
         "status": geracao.status or "",
         "is_pinned": bool(geracao.is_pinned),
         "is_favorite": bool(geracao.is_favorite),
+        "version": int(getattr(geracao, "version", 1) or 1),
         "created_at": geracao.created_at,
         "updated_at": geracao.updated_at,
         "document_count": len(document_ids),
@@ -720,6 +752,74 @@ def montar_resumo_geracao(geracao: Generation) -> dict:
         "requests_preview": resumir_texto(geracao.requests, 180),
         "generated_text_preview": resumir_texto(geracao.generated_text, 220),
     }
+
+
+def _carregar_payload_auditoria(payload: str | None) -> dict:
+    if not payload:
+        return {}
+
+    try:
+        dados = json.loads(payload)
+    except (TypeError, ValueError):
+        return {}
+
+    return dados if isinstance(dados, dict) else {}
+
+
+def _campos_alterados_historico(snapshot_atual: dict, snapshot_anterior: dict | None) -> list[str]:
+    if not snapshot_anterior:
+        return []
+
+    alterados = []
+    for campo, rotulo in CAMPOS_HISTORICO_GERACAO.items():
+        if snapshot_atual.get(campo) != snapshot_anterior.get(campo):
+            alterados.append(rotulo)
+
+    return alterados
+
+
+def listar_historico_edicoes_geracao(
+    db: Session,
+    generation_id: int,
+    user_id: int,
+) -> list[dict]:
+    eventos = (
+        db.query(AuditLog)
+        .filter(AuditLog.entity_type == "generation")
+        .filter(AuditLog.entity_id == generation_id)
+        .filter(or_(AuditLog.user_id == user_id, AuditLog.user_id.is_(None)))
+        .order_by(AuditLog.created_at.asc(), AuditLog.id.asc())
+        .all()
+    )
+
+    historico = []
+    snapshot_anterior = None
+
+    for evento in eventos:
+        snapshot = _carregar_payload_auditoria(evento.payload)
+        campos_alterados = _campos_alterados_historico(snapshot, snapshot_anterior)
+        if evento.action == "create":
+            campos_alterados = ["Registro inicial"]
+
+        historico.append(
+            {
+                "id": evento.id,
+                "action": evento.action,
+                "action_label": ACOES_HISTORICO_GERACAO.get(evento.action, evento.action),
+                "entity_version": int(evento.entity_version or 1),
+                "created_at": evento.created_at,
+                "changed_fields": campos_alterados,
+                "client_name": snapshot.get("client_name") or "",
+                "document_type": snapshot.get("document_type") or "",
+                "status": snapshot.get("status") or "",
+                "tags": snapshot.get("tags") or "",
+                "generated_text_preview": resumir_texto(snapshot.get("generated_text"), 180),
+            }
+        )
+        snapshot_anterior = snapshot
+
+    return list(reversed(historico))
+
 
 def alternar_fixacao_geracao(db: Session, geracao: Generation) -> Generation:
     geracao.is_pinned = not bool(geracao.is_pinned)

@@ -14,6 +14,7 @@ from app.models.audit_log import AuditLog
 from app.models.generation import Generation
 from app.routers import auth, generations
 from app.schemas.user import UserCreate
+from app.services.generation_service import criar_geracao, salvar_texto_geracao
 from app.services.user_service import criar_usuario
 
 
@@ -188,6 +189,39 @@ class GenerationsOwnershipTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 404)
         self.assertIn("Gera", response.text)
+
+    def test_generation_detail_shows_edit_history(self):
+        client, testing_session_local = create_generation_test_client()
+        usuario = create_user_for_test(testing_session_local, full_name="Maria Silva", email="maria@example.com")
+
+        db = testing_session_local()
+        try:
+            geracao = criar_geracao(
+                db=db,
+                user_id=usuario.id,
+                client_name="Cliente Historico",
+                document_type="Peticao inicial",
+                case_subject="Cobranca indevida",
+                facts="Fatos detalhados para gerar a peca juridica.",
+                requests="Cancelamento da cobranca e indenizacao.",
+                legal_basis="Codigo Civil e CDC.",
+                context_used="Contexto inicial.",
+                generated_text="Texto inicial da minuta.",
+            )
+            salvar_texto_geracao(db, geracao, "Texto ajustado da minuta.")
+            geracao_id = geracao.id
+        finally:
+            db.close()
+
+        authenticate_test_client(client, email="maria@example.com")
+
+        response = client.get(f"/generations/{geracao_id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Histórico de edições", response.text)
+        self.assertIn("Texto ajustado", response.text)
+        self.assertIn("Criação da geração", response.text)
+        self.assertIn("Versao #2", response.text)
 
 
 if __name__ == "__main__":
