@@ -5,7 +5,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.core.config import APP_NAME, SECRET_KEY, SESSION_COOKIE_NAME, STATIC_DIR
 from app.database import initialize_database
 from app.models import Document, Generation, User, WritingProfile
-from app.routers import admin, auth, documents, generations, home, writing_profiles
+from app.routers import admin, auth, documents, generations, home, plans, writing_profiles
 
 initialize_database()
 
@@ -25,3 +25,4 @@ app.include_router(admin.router)
 app.include_router(documents.router)
 app.include_router(generations.router)
 app.include_router(writing_profiles.router)
+app.include_router(plans.router)

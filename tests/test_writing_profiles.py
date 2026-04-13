@@ -301,6 +301,8 @@ class WritingProfilesTests(unittest.TestCase):
         db = testing_session_local()
         try:
             perfil = create_profile_record(db, user_id=usuario.id, name="Perfil Original")
+            for index in range(FREE_PLAN.writing_profile_limit - 1):
+                create_profile_record(db, user_id=usuario.id, name=f"Perfil Free {index}")
             db.commit()
             db.refresh(perfil)
             perfil_id = perfil.id

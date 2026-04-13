@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Planos - Jurídico AI{% endblock %}
+
+{% block content %}
+<section class="plans-page">
+    <section class="plans-hero">
+        <div>
+            <span class="etiqueta-secao">Planos</span>
+            <h2>Seu plano no Jurídico AI</h2>
+            <p>
+                Acompanhe seus limites atuais e compare as opções disponíveis para manter o fluxo de gerações e perfis de escrita.
+            </p>
+        </div>
+
+        <div class="plans-current-card">
+            <span class="info-label">Plano atual</span>
+            <strong>{{ plan_usage.plan.name }}</strong>
+            <p>{{ plan_usage.plan.description }}</p>
+        </div>
+    </section>
+
+    <section class="plans-usage-grid" aria-label="Uso do plano atual">
+        <article class="plans-usage-card">
+            <span class="info-label">Gerações</span>
+            <strong>{{ plan_usage.used_generations }}/{{ plan_usage.plan.monthly_generation_limit }}</strong>
+            <p>
+                Usadas {{ plan_usage.plan.generation_usage_label }}.
+                {% if plan_usage.can_create_generation %}
+                    Restam {{ plan_usage.remaining_generations }} até o limite {{ plan_usage.plan.generation_limit_label }}.
+                {% else %}
+                    Limite {{ plan_usage.plan.generation_limit_label }} atingido. Reinicia {{ plan_usage.reset_label }}.
+                {% endif %}
+            </p>
+        </article>
+
+        <article class="plans-usage-card">
+            <span class="info-label">Perfis de escrita</span>
+            <strong>{{ plan_usage.used_writing_profiles }}/{{ plan_usage.plan.writing_profile_limit }}</strong>
+            <p>
+                {% if plan_usage.can_create_writing_profile %}
+                    Restam {{ plan_usage.remaining_writing_profiles }} perfil(is) neste plano.
+                {% else %}
+                    Limite de perfis atingido. Exclua um perfil ou migre para um plano com limite maior.
+                {% endif %}
+            </p>
+        </article>
+
+        <article class="plans-usage-card">
+            <span class="info-label">Renovação</span>
+            <strong>{{ plan_usage.reset_label|capitalize }}</strong>
+            <p>O ciclo de gerações do seu plano segue a janela {{ plan_usage.plan.generation_limit_label }}.</p>
+        </article>
+    </section>
+
+    <section class="plans-comparison">
+        <div class="cabecalho-pagina plans-section-header">
+            <div>
+                <span class="etiqueta-secao">Comparativo</span>
+                <h2>Opções disponíveis</h2>
+                <p class="texto-suave">Veja os limites de cada plano e os recursos premium incluídos.</p>
+            </div>
+        </div>
+
+        <div class="plans-grid">
+            {% for plano in planos %}
+                <article class="plan-card {% if plano.slug == plan_usage.plan.slug %}plan-card-active{% endif %}">
+                    <div class="plan-card-header">
+                        <div>
+                            <span class="info-label">Plano</span>
+                            <h3>{{ plano.name }}</h3>
+                        </div>
+
+                        {% if plano.slug == plan_usage.plan.slug %}
+                            <span class="badge badge-sucesso">Atual</span>
+                        {% else %}
+                            <span class="badge badge-neutro">Disponível</span>
+                        {% endif %}
+                    </div>
+
+                    <p>{{ plano.description }}</p>
+
+                    <div class="plan-limits">
+                        <div>
+                            <span class="info-label">Gerações</span>
+                            <strong>{{ plano.monthly_generation_limit }}</strong>
+                            <span>{{ plano.generation_limit_label }}</span>
+                        </div>
+
+                        <div>
+                            <span class="info-label">Perfis</span>
+                            <strong>{{ plano.writing_profile_limit }}</strong>
+                            <span>perfil(is)</span>
+                        </div>
+                    </div>
+
+                    {% if plano.premium_resources %}
+                        <div class="plan-features">
+                            <strong>Recursos premium</strong>
+                            <ul>
+                                {% for recurso in plano.premium_resources %}
+                                    <li>{{ recurso.title }} - {{ recurso.description }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% else %}
+                        <div class="plan-features">
+                            <strong>Incluído</strong>
+                            <ul>
+                                <li>Uso inicial para validar o produto no fluxo jurídico diário.</li>
+                                <li>Limites controlados para gerações e perfis de escrita.</li>
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <div class="plan-card-actions">
+                        {% if plano.slug == plan_usage.plan.slug %}
+                            <span class="plan-status-text">Plano ativo na sua conta.</span>
+                        {% elif plan_usage.upgrade_plan and plano.slug == plan_usage.upgrade_plan.slug %}
+                            <span class="plan-status-text">Upgrade disponível para limites ampliados.</span>
+                        {% else %}
+                            <span class="plan-status-text">Opção disponível.</span>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    </section>
+</section>
+{% endblock %}

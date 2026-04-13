@@ -174,8 +174,10 @@ class FreePlanTests(unittest.TestCase):
         self.assertEqual(PRO_PLAN.slug, "pro")
         self.assertEqual(FREE_PLAN.generation_limit_period, "daily")
         self.assertEqual(PRO_PLAN.generation_limit_period, "monthly")
-        self.assertEqual(FREE_PLAN.monthly_generation_limit, 5)
+        self.assertEqual(FREE_PLAN.monthly_generation_limit, 10)
         self.assertEqual(PRO_PLAN.monthly_generation_limit, 1000)
+        self.assertEqual(FREE_PLAN.writing_profile_limit, 5)
+        self.assertEqual(PRO_PLAN.writing_profile_limit, 25)
         self.assertGreater(PRO_PLAN.monthly_generation_limit, FREE_PLAN.monthly_generation_limit)
         self.assertGreater(PRO_PLAN.writing_profile_limit, FREE_PLAN.writing_profile_limit)
 

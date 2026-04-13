@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Jurídico AI{% endblock %}</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', path='img/favicon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=7.6">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=7.7">
 </head>
 <body>
     <header class="topo">
@@ -30,6 +30,7 @@
                 <a href="/generations">Gerações</a>
                 <a href="/writing-profiles/create">Novo perfil</a>
                 <a href="/writing-profiles">Perfis</a>
+                <a href="/plans">Planos</a>
                 {% if request.session.get("is_admin") %}
                 <a href="/admin">Admin</a>
                 {% endif %}
