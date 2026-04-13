@@ -4,6 +4,26 @@
 
 {% block content %}
 <section class="plans-page">
+    {% if sucesso %}
+        <div class="alerta alerta-sucesso" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Operação realizada com sucesso</span>
+                <p>{{ sucesso }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
+    {% endif %}
+
+    {% if erro %}
+        <div class="alerta alerta-erro" data-alerta>
+            <div class="alerta-conteudo">
+                <span class="alerta-titulo">Não foi possível iniciar o pagamento</span>
+                <p>{{ erro }}</p>
+            </div>
+            <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+        </div>
+    {% endif %}
+
     <section class="plans-hero">
         <div>
             <span class="etiqueta-secao">Planos</span>
@@ -117,7 +137,15 @@
                         {% if plano.slug == plan_usage.plan.slug %}
                             <span class="plan-status-text">Plano ativo na sua conta.</span>
                         {% elif plan_usage.upgrade_plan and plano.slug == plan_usage.upgrade_plan.slug %}
-                            <span class="plan-status-text">Upgrade disponível para limites ampliados.</span>
+                            <form method="post" action="/plans/checkout" class="plan-checkout-form">
+                                <input type="hidden" name="plan_slug" value="{{ plano.slug }}">
+                                <button type="submit" class="botao">Assinar {{ plano.name }}</button>
+                            </form>
+                            {% if pagamento_configurado %}
+                                <span class="plan-status-text">Upgrade disponível para limites ampliados.</span>
+                            {% else %}
+                                <span class="plan-status-text">Checkout em preparação. Configure a URL de pagamento para ativar.</span>
+                            {% endif %}
                         {% else %}
                             <span class="plan-status-text">Opção disponível.</span>
                         {% endif %}

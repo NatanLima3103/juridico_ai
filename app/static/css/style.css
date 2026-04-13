@@ -2526,9 +2526,17 @@ button.botao,
 }
 
 .plan-card-actions {
+    display: grid;
+    gap: 8px;
     margin-top: auto;
     padding-top: 12px;
     border-top: 1px solid #e2e8f0;
+}
+
+.plan-checkout-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 @media (max-width: 900px) {

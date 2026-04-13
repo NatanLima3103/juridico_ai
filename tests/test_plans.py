@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -96,6 +97,43 @@ class PlansScreenTests(unittest.TestCase):
         self.assertIn("Gerações", response.text)
         self.assertIn("Perfis", response.text)
         self.assertIn("Atual", response.text)
+
+    def test_checkout_without_payment_url_shows_configuration_message(self):
+        client, testing_session_local = create_plans_test_client()
+        criar_usuario_tela_planos(testing_session_local)
+        autenticar(client)
+
+        response = client.post("/plans/checkout", data={"plan_slug": "pro"})
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("Checkout de pagamento ainda nao configurado", response.text)
+
+    def test_checkout_redirects_to_configured_payment_url(self):
+        client, testing_session_local = create_plans_test_client()
+        criar_usuario_tela_planos(testing_session_local)
+        autenticar(client)
+
+        with patch("app.core.config.PAYMENT_CHECKOUT_URL", "https://pay.example/checkout"):
+            response = client.post(
+                "/plans/checkout",
+                data={"plan_slug": "pro"},
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertTrue(response.headers["location"].startswith("https://pay.example/checkout?"))
+        self.assertIn("plan_slug=pro", response.headers["location"])
+        self.assertIn("success_url=", response.headers["location"])
+
+    def test_checkout_rejects_current_plan(self):
+        client, testing_session_local = create_plans_test_client()
+        criar_usuario_tela_planos(testing_session_local, plan_slug="pro")
+        autenticar(client)
+
+        response = client.post("/plans/checkout", data={"plan_slug": "pro"})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Este plano ja esta ativo", response.text)
 
 
 if __name__ == "__main__":
