@@ -11,6 +11,7 @@ from app.models.document import Document
 from app.models.generation import Generation
 from app.models.user import User
 from app.services.audit_service import registrar_acao_usuario
+from app.services.document_service import proteger_path_documento
 from app.services.plan_service import obter_plano_usuario
 from app.models.writing_profile import WritingProfile
 from app.services.user_service import atualizar_status_usuario, buscar_usuario_por_id, listar_usuarios
@@ -137,8 +138,14 @@ def listar_registros_problematicos(db: Session) -> dict[str, list[dict[str, Any]
         caminho = Path(caminho_texto) if caminho_texto else None
         if not caminho_texto:
             problemas.append("Caminho do arquivo não informado")
-        elif caminho is not None and not caminho.exists():
-            problemas.append("Arquivo ausente no armazenamento")
+        elif caminho is not None:
+            try:
+                caminho_protegido = proteger_path_documento(caminho)
+            except ValueError:
+                problemas.append("Arquivo fora do armazenamento permitido")
+            else:
+                if not caminho_protegido.is_file():
+                    problemas.append("Arquivo ausente no armazenamento")
         if problemas:
             documentos_problematicos.append(
                 {
@@ -295,7 +302,12 @@ def _registro_eh_problematico(entity_type: str, registro: Any) -> bool:
         caminho_texto = (getattr(registro, "file_path", "") or "").strip()
         if not caminho_texto:
             return True
-        return not Path(caminho_texto).exists()
+        try:
+            caminho = proteger_path_documento(Path(caminho_texto))
+        except ValueError:
+            return True
+
+        return not caminho.is_file()
 
     if entity_type in {"writing_profile", "generation"}:
         return (

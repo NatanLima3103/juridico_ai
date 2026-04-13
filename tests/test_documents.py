@@ -63,13 +63,19 @@ def criar_usuario_teste(testing_session_local, *, nome: str, email: str):
         db.close()
 
 
-def criar_documento_teste(testing_session_local, *, user_id: int, nome_arquivo: str) -> Document:
+def criar_documento_teste(
+    testing_session_local,
+    *,
+    user_id: int,
+    nome_arquivo: str,
+    file_path: str | None = None,
+) -> Document:
     db = testing_session_local()
     try:
         documento = Document(
             original_filename=nome_arquivo,
             saved_filename=nome_arquivo,
-            file_path=f"C:/tmp/{nome_arquivo}",
+            file_path=file_path or f"C:/tmp/{nome_arquivo}",
             file_type=Path(nome_arquivo).suffix.lower() or ".txt",
             extracted_text=f"Conteudo de {nome_arquivo}",
             user_id=user_id,
@@ -189,6 +195,44 @@ class DocumentsOwnershipTests(unittest.TestCase):
 
         self.assertEqual(list_response.status_code, 200)
         self.assertNotIn("contrato-soft-delete.pdf", list_response.text)
+
+    def test_download_document_allows_file_inside_upload_storage(self):
+        client, testing_session_local = create_documents_test_client()
+        usuario = criar_usuario_teste(testing_session_local, nome="Ana Souza", email="ana@example.com")
+        upload_path_teste = Path(".tmp_pytest") / "uploads"
+        upload_path_teste.mkdir(parents=True, exist_ok=True)
+        arquivo_salvo = upload_path_teste / "download-protegido-teste.txt"
+        arquivo_salvo.write_text("conteudo protegido", encoding="utf-8")
+        documento = criar_documento_teste(
+            testing_session_local,
+            user_id=usuario.id,
+            nome_arquivo="download-protegido-teste.txt",
+            file_path=str(arquivo_salvo),
+        )
+
+        fazer_login(client, email="ana@example.com")
+
+        with patch("app.services.document_service.UPLOAD_PATH", upload_path_teste):
+            response = client.get(f"/documents/{documento.id}/download")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"conteudo protegido")
+
+    def test_download_document_blocks_file_outside_upload_storage(self):
+        client, testing_session_local = create_documents_test_client()
+        usuario = criar_usuario_teste(testing_session_local, nome="Ana Souza", email="ana@example.com")
+        documento = criar_documento_teste(
+            testing_session_local,
+            user_id=usuario.id,
+            nome_arquivo="config-exposto.txt",
+            file_path="app/core/config.py",
+        )
+
+        fazer_login(client, email="ana@example.com")
+
+        response = client.get(f"/documents/{documento.id}/download")
+
+        self.assertEqual(response.status_code, 403)
 
 
 if __name__ == "__main__":

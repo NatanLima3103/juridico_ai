@@ -2,6 +2,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from app.core.config import UPLOAD_PATH
 from app.models.document import Document, agora_brasil
 from app.schemas.document import DocumentCreate
 from app.services.audit_service import registrar_evento_auditoria, serializar_entidade_para_auditoria
@@ -174,17 +175,37 @@ def montar_dados_documento(
 
 
 def obter_path_documento(documento: Document) -> Path:
-    return Path(documento.file_path)
+    return proteger_path_documento(Path(documento.file_path or ""))
+
+
+def proteger_path_documento(caminho: Path) -> Path:
+    caminho_resolvido = caminho.resolve(strict=False)
+    upload_path_resolvido = UPLOAD_PATH.resolve(strict=False)
+
+    try:
+        caminho_resolvido.relative_to(upload_path_resolvido)
+    except ValueError as exc:
+        raise ValueError("Caminho de arquivo fora do armazenamento permitido.") from exc
+
+    return caminho_resolvido
 
 
 def documento_existe(documento: Document) -> bool:
-    return obter_path_documento(documento).exists()
+    try:
+        caminho = obter_path_documento(documento)
+    except ValueError:
+        return False
+
+    return caminho.is_file()
 
 
 def obter_tamanho_arquivo(documento: Document) -> int | None:
-    caminho = obter_path_documento(documento)
+    try:
+        caminho = obter_path_documento(documento)
+    except ValueError:
+        return None
 
-    if not caminho.exists():
+    if not caminho.is_file():
         return None
 
     return caminho.stat().st_size

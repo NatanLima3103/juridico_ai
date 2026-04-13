@@ -366,9 +366,15 @@ def download_document(
     if not documento:
         raise HTTPException(status_code=404, detail="Documento não encontrado.")
 
-    caminho_arquivo = obter_path_documento(documento)
+    try:
+        caminho_arquivo = obter_path_documento(documento)
+    except ValueError:
+        raise HTTPException(
+            status_code=403,
+            detail="Arquivo bloqueado por protecao de armazenamento.",
+        ) from None
 
-    if not caminho_arquivo.exists():
+    if not caminho_arquivo.is_file():
         raise HTTPException(
             status_code=404,
             detail="Arquivo não encontrado no armazenamento.",
