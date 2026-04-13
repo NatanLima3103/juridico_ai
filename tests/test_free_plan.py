@@ -16,7 +16,13 @@ from app.models.generation import Generation
 from app.routers import auth, generations
 from app.schemas.user import UserCreate
 from app.services.ai_generation_service import AIGenerationResult
-from app.services.plan_service import FREE_PLAN, PRO_PLAN, listar_planos_disponiveis, obter_uso_plano_usuario
+from app.services.plan_service import (
+    FREE_PLAN,
+    PRO_PLAN,
+    listar_planos_disponiveis,
+    listar_recursos_premium,
+    obter_uso_plano_usuario,
+)
 from app.services.user_service import criar_usuario
 
 
@@ -103,15 +109,16 @@ class FreePlanTests(unittest.TestCase):
 
         self.assertEqual(usuario.plan_slug, "free")
 
-    def test_free_plan_usage_counts_only_current_month(self):
+    def test_free_plan_usage_counts_only_current_day(self):
         _, testing_session_local = create_free_plan_test_client()
         usuario = criar_usuario_teste(testing_session_local)
         referencia = datetime(2026, 4, 10, 12, 0, 0)
 
         db = testing_session_local()
         try:
+            criar_geracao_teste(db, user_id=usuario.id, created_at=datetime(2026, 4, 10, 8, 0, 0))
+            criar_geracao_teste(db, user_id=usuario.id, created_at=datetime(2026, 4, 9, 23, 59, 0))
             criar_geracao_teste(db, user_id=usuario.id, created_at=datetime(2026, 4, 1, 8, 0, 0))
-            criar_geracao_teste(db, user_id=usuario.id, created_at=datetime(2026, 3, 31, 23, 59, 0))
             db.commit()
 
             usage = obter_uso_plano_usuario(db, usuario, referencia=referencia)
@@ -122,8 +129,11 @@ class FreePlanTests(unittest.TestCase):
         self.assertEqual(usage.used_generations, 1)
         self.assertEqual(usage.remaining_generations, FREE_PLAN.monthly_generation_limit - 1)
         self.assertTrue(usage.can_create_generation)
+        self.assertEqual(usage.plan.generation_limit_period, "daily")
+        self.assertEqual(usage.plan.generation_usage_label, "hoje")
+        self.assertEqual(usage.reset_label, "amanha")
 
-    def test_free_plan_blocks_generation_when_monthly_limit_is_reached(self):
+    def test_free_plan_blocks_generation_when_daily_limit_is_reached(self):
         client, testing_session_local = create_free_plan_test_client()
         usuario = criar_usuario_teste(testing_session_local)
         autenticar(client)
@@ -162,7 +172,21 @@ class FreePlanTests(unittest.TestCase):
         self.assertIn(FREE_PLAN, planos)
         self.assertIn(PRO_PLAN, planos)
         self.assertEqual(PRO_PLAN.slug, "pro")
+        self.assertEqual(FREE_PLAN.generation_limit_period, "daily")
+        self.assertEqual(PRO_PLAN.generation_limit_period, "monthly")
+        self.assertEqual(FREE_PLAN.monthly_generation_limit, 5)
+        self.assertEqual(PRO_PLAN.monthly_generation_limit, 1000)
         self.assertGreater(PRO_PLAN.monthly_generation_limit, FREE_PLAN.monthly_generation_limit)
+        self.assertGreater(PRO_PLAN.writing_profile_limit, FREE_PLAN.writing_profile_limit)
+
+    def test_paid_plan_defines_premium_resources(self):
+        recursos = listar_recursos_premium()
+        slugs = {recurso.slug for recurso in recursos}
+
+        self.assertEqual(PRO_PLAN.premium_resources, recursos)
+        self.assertFalse(FREE_PLAN.premium_resources)
+        self.assertIn("monthly_generation_limit", slugs)
+        self.assertIn("writing_profile_limit", slugs)
 
     def test_paid_plan_uses_its_own_monthly_limit(self):
         _, testing_session_local = create_free_plan_test_client()
@@ -188,6 +212,21 @@ class FreePlanTests(unittest.TestCase):
             PRO_PLAN.monthly_generation_limit - FREE_PLAN.monthly_generation_limit,
         )
         self.assertTrue(usage.can_create_generation)
+        self.assertIsNone(usage.upgrade_plan)
+
+    def test_free_plan_usage_offers_paid_upgrade_plan(self):
+        _, testing_session_local = create_free_plan_test_client()
+        usuario = criar_usuario_teste(testing_session_local, email="upgrade@example.com")
+
+        db = testing_session_local()
+        try:
+            usage = obter_uso_plano_usuario(db, usuario, referencia=datetime(2026, 4, 10, 12, 0, 0))
+        finally:
+            db.close()
+
+        self.assertEqual(usage.plan.slug, "free")
+        self.assertEqual(usage.upgrade_plan, PRO_PLAN)
+        self.assertEqual(usage.upgrade_plan.premium_resources, PRO_PLAN.premium_resources)
 
     def test_paid_plan_can_create_after_free_plan_usage_threshold(self):
         client, testing_session_local = create_free_plan_test_client()

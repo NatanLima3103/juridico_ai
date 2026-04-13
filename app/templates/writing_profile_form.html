@@ -46,7 +46,27 @@
             {% if plan_usage.can_create_writing_profile %}
                 Restam {{ plan_usage.remaining_writing_profiles }} perfil(is) neste plano.
             {% else %}
-                Limite de perfis atingido. Exclua um perfil existente ou migre para o Plano Pro quando disponivel.
+                Limite de perfis atingido. Exclua um perfil existente ou migre para o Plano Pro quando disponível.
+            {% endif %}
+
+            {% if plan_usage.upgrade_plan and plan_usage.upgrade_plan.premium_resources %}
+                <div class="recursos-premium-plano">
+                    <strong>{{ plan_usage.upgrade_plan.name }} inclui:</strong>
+                    <ul>
+                        {% for recurso in plan_usage.upgrade_plan.premium_resources %}
+                            <li>{{ recurso.title }} - {{ recurso.description }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% elif plan_usage.plan.premium_resources %}
+                <div class="recursos-premium-plano">
+                    <strong>Recursos premium ativos:</strong>
+                    <ul>
+                        {% for recurso in plan_usage.plan.premium_resources %}
+                            <li>{{ recurso.title }} - {{ recurso.description }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
             {% endif %}
         </div>
     {% endif %}

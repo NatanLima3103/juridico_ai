@@ -547,6 +547,7 @@ async def edit_generation(
 
     documentos = listar_documentos(db, usuario.id)
     perfis = listar_perfis_escrita(db, usuario.id)
+    plan_usage = obter_uso_plano_usuario(db, usuario)
 
     selected_document_ids = coletar_ids_inteiros_unicos(document_ids)
 
@@ -766,6 +767,7 @@ async def apply_template_to_generation_form(
 ):
     documentos = listar_documentos(db, usuario.id)
     perfis = listar_perfis_escrita(db, usuario.id)
+    plan_usage = obter_uso_plano_usuario(db, usuario)
 
     selected_document_ids = coletar_ids_inteiros_unicos(document_ids)
 

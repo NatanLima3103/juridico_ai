@@ -44,11 +44,31 @@
     {% if plan_usage %}
     <div class="contexto-ajuda" style="margin-bottom: 18px;">
         <strong>{{ plan_usage.plan.name }}:</strong>
-        {{ plan_usage.used_generations }}/{{ plan_usage.plan.monthly_generation_limit }} geracao(oes) usadas neste mes.
+        {{ plan_usage.used_generations }}/{{ plan_usage.plan.monthly_generation_limit }} geracao(oes) usadas {{ plan_usage.plan.generation_usage_label }}.
         {% if plan_usage.can_create_generation %}
-            Restam {{ plan_usage.remaining_generations }} geracao(oes) no ciclo gratuito atual.
+            Restam {{ plan_usage.remaining_generations }} geracão(ões) até o limite {{ plan_usage.plan.generation_limit_label }}.
         {% else %}
-            Limite mensal atingido; novas geracoes ficam disponiveis {{ plan_usage.reset_label }}. Considere migrar para o Plano Pro quando disponivel.
+            Limite {{ plan_usage.plan.generation_limit_label }} atingido; novas gerações ficam disponíveis {{ plan_usage.reset_label }}. Considere migrar para o Plano Pro quando disponivel.
+        {% endif %}
+
+        {% if plan_usage.upgrade_plan and plan_usage.upgrade_plan.premium_resources %}
+            <div class="recursos-premium-plano">
+                <strong>{{ plan_usage.upgrade_plan.name }} inclui:</strong>
+                <ul>
+                    {% for recurso in plan_usage.upgrade_plan.premium_resources %}
+                        <li>{{ recurso.title }} - {{ recurso.description }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% elif plan_usage.plan.premium_resources %}
+            <div class="recursos-premium-plano">
+                <strong>Recursos premium ativos:</strong>
+                <ul>
+                    {% for recurso in plan_usage.plan.premium_resources %}
+                        <li>{{ recurso.title }} - {{ recurso.description }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
         {% endif %}
     </div>
     {% endif %}

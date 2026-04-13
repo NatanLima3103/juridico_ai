@@ -574,6 +574,18 @@ input[type="number"] {
     font-size: 14px;
 }
 
+.recursos-premium-plano {
+    margin-top: 10px;
+}
+
+.recursos-premium-plano ul {
+    margin: 6px 0 0 18px;
+}
+
+.recursos-premium-plano li + li {
+    margin-top: 4px;
+}
+
 .tabela-responsiva {
     overflow-x: auto;
 }
