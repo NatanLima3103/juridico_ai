@@ -1,15 +1,17 @@
 # Juridico AI
 
-## Etapa 14.3 - Docker
+## Etapa 14.4 - Docker Compose
 
-Objetivo: preparar a execucao do Juridico AI em container, mantendo a configuracao por variaveis de ambiente e persistindo os dados locais fora da imagem.
+Objetivo: padronizar a subida do Juridico AI com Docker Compose, mantendo configuracao por ambiente, healthcheck e persistencia fora da imagem.
 
 ### Como ficou
 
-- `Dockerfile` cria uma imagem Python 3.12 enxuta, instala as dependencias do `requirements.txt`, executa a aplicacao com `uvicorn` e usa usuario sem privilegios.
-- `.dockerignore` reduz o contexto de build e evita copiar `.env`, banco local, uploads, caches e ambiente virtual para a imagem.
-- `docker-compose.yml` sobe o servico `web` na porta `8000`, carrega `.env`, persiste o SQLite em volume Docker e mantem `storage/uploads` e `storage/generations` em volume separado.
-- `/health` passou a responder um JSON simples para o healthcheck do container.
+- `docker-compose.yml` define o projeto `juridico_ai` e o servico `web`, com build local da imagem `juridico-ai:local`.
+- O arquivo `.env` e carregado quando existir, mas o Compose tambem funciona com os valores padrao do `docker-compose.yml`.
+- `APP_PORT` permite trocar a porta publicada sem editar o arquivo, por exemplo `APP_PORT=8080`.
+- `COMPOSE_DATABASE_URL` aponta por padrao para `sqlite:////data/juridico_ai.db`, persistido no volume `juridico_ai_data`.
+- `COMPOSE_UPLOAD_DIR` e `COMPOSE_GENERATIONS_DIR` permitem ajustar os caminhos usados dentro do container; por padrao eles ficam em `/app/storage`, persistido no volume `juridico_ai_storage`.
+- O healthcheck usa `/health` para validar se a aplicacao inicializou corretamente.
 
 ### Como executar
 
@@ -30,11 +32,36 @@ Acesse:
 - Aplicacao: http://localhost:8000
 - Healthcheck: http://localhost:8000/health
 
+Para usar outra porta local:
+
+```powershell
+$env:APP_PORT="8080"
+docker compose up --build
+```
+
+Para rodar em segundo plano:
+
+```powershell
+docker compose up --build -d
+docker compose ps
+```
+
 ### Observacoes de deploy
 
-- O `compose` usa `DATABASE_URL=sqlite:////data/juridico_ai.db` para persistir o banco em volume Docker durante desenvolvimento ou homologacao simples.
+- O Compose foi pensado para desenvolvimento e homologacao simples com SQLite persistente em volume Docker.
+- Em producao com outro banco, defina `COMPOSE_DATABASE_URL` para a URL real do ambiente.
 - Para producao, mantenha `APP_ENV=production`, defina `SECRET_KEY` forte, `SESSION_COOKIE_SECURE=true` e aponte `DATABASE_URL` para o banco real do ambiente.
 - O arquivo `.env` real continua fora da imagem e nao deve ser versionado.
+
+## Etapa 14.3 - Docker
+
+Objetivo: preparar a execucao do Juridico AI em container, mantendo a configuracao por variaveis de ambiente e evitando que dados locais entrem na imagem.
+
+### Como ficou
+
+- `Dockerfile` cria uma imagem Python 3.12 enxuta, instala as dependencias do `requirements.txt`, executa a aplicacao com `uvicorn` e usa usuario sem privilegios.
+- `.dockerignore` reduz o contexto de build e evita copiar `.env`, banco local, uploads, caches e ambiente virtual para a imagem.
+- `/health` responde um JSON simples para uso por healthchecks.
 
 ## Etapa 14.2 - Variaveis de ambiente
 
