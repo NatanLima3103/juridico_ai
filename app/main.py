@@ -27,3 +27,12 @@ app.include_router(documents.router)
 app.include_router(generations.router)
 app.include_router(writing_profiles.router)
 app.include_router(plans.router)
+
+
+@app.get("/health", tags=["health"])
+def health_check():
+    return {
+        "status": "ok",
+        "app": settings.app_name,
+        "environment": settings.app_env,
+    }

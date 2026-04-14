@@ -1,0 +1,28 @@
+services:
+  web:
+    build:
+      context: .
+    env_file:
+      - .env
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      DEBUG: ${DEBUG:-true}
+      DATABASE_URL: sqlite:////data/juridico_ai.db
+      UPLOAD_DIR: storage/uploads
+      GENERATIONS_DIR: storage/generations
+    ports:
+      - "8000:8000"
+    volumes:
+      - juridico_ai_data:/data
+      - juridico_ai_storage:/app/storage
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  juridico_ai_data:
+  juridico_ai_storage:

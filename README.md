@@ -1,5 +1,41 @@
 # Juridico AI
 
+## Etapa 14.3 - Docker
+
+Objetivo: preparar a execucao do Juridico AI em container, mantendo a configuracao por variaveis de ambiente e persistindo os dados locais fora da imagem.
+
+### Como ficou
+
+- `Dockerfile` cria uma imagem Python 3.12 enxuta, instala as dependencias do `requirements.txt`, executa a aplicacao com `uvicorn` e usa usuario sem privilegios.
+- `.dockerignore` reduz o contexto de build e evita copiar `.env`, banco local, uploads, caches e ambiente virtual para a imagem.
+- `docker-compose.yml` sobe o servico `web` na porta `8000`, carrega `.env`, persiste o SQLite em volume Docker e mantem `storage/uploads` e `storage/generations` em volume separado.
+- `/health` passou a responder um JSON simples para o healthcheck do container.
+
+### Como executar
+
+Prepare o arquivo de ambiente local, se ainda nao existir:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Suba a aplicacao:
+
+```powershell
+docker compose up --build
+```
+
+Acesse:
+
+- Aplicacao: http://localhost:8000
+- Healthcheck: http://localhost:8000/health
+
+### Observacoes de deploy
+
+- O `compose` usa `DATABASE_URL=sqlite:////data/juridico_ai.db` para persistir o banco em volume Docker durante desenvolvimento ou homologacao simples.
+- Para producao, mantenha `APP_ENV=production`, defina `SECRET_KEY` forte, `SESSION_COOKIE_SECURE=true` e aponte `DATABASE_URL` para o banco real do ambiente.
+- O arquivo `.env` real continua fora da imagem e nao deve ser versionado.
+
 ## Etapa 14.2 - Variaveis de ambiente
 
 Objetivo: deixar explicito quais variaveis controlam o Juridico AI por ambiente e bloquear configuracoes inseguras antes do deploy.
