@@ -36,6 +36,7 @@ def _path_from_base(base_dir: Path, value: str) -> Path:
 class AppSettings:
     app_name: str
     app_env: str
+    env_file: str
     debug: bool
     base_dir: Path
     database_url: str
@@ -78,6 +79,7 @@ class AppSettings:
         return cls(
             app_name=_str(env, "APP_NAME", "Juridico AI") or "Juridico AI",
             app_env=app_env,
+            env_file=_str(env, "ENV_FILE", ".env") or ".env",
             debug=_bool(env, "DEBUG", app_env != "production"),
             base_dir=base_dir,
             database_url=_str(env, "DATABASE_URL", "sqlite:///./juridico_ai.db") or "sqlite:///./juridico_ai.db",
@@ -134,26 +136,54 @@ class AppSettings:
         self.generations_path.mkdir(parents=True, exist_ok=True)
 
     def validate(self) -> None:
+        errors: list[str] = []
+
         if self.rag_chunk_size <= 0:
-            raise ValueError("RAG_CHUNK_SIZE deve ser maior que zero.")
+            errors.append("RAG_CHUNK_SIZE deve ser maior que zero.")
         if self.rag_chunk_overlap < 0:
-            raise ValueError("RAG_CHUNK_OVERLAP nao pode ser negativo.")
+            errors.append("RAG_CHUNK_OVERLAP nao pode ser negativo.")
         if self.rag_top_k <= 0:
-            raise ValueError("RAG_TOP_K deve ser maior que zero.")
+            errors.append("RAG_TOP_K deve ser maior que zero.")
         if self.rag_vector_dimension <= 0:
-            raise ValueError("RAG_VECTOR_DIMENSION deve ser maior que zero.")
+            errors.append("RAG_VECTOR_DIMENSION deve ser maior que zero.")
         if self.max_upload_size_mb <= 0:
-            raise ValueError("MAX_UPLOAD_SIZE_MB deve ser maior que zero.")
+            errors.append("MAX_UPLOAD_SIZE_MB deve ser maior que zero.")
         if self.soft_deleted_retention_days <= 0:
-            raise ValueError("SOFT_DELETED_RETENTION_DAYS deve ser maior que zero.")
+            errors.append("SOFT_DELETED_RETENTION_DAYS deve ser maior que zero.")
         if self.audit_log_retention_days <= 0:
-            raise ValueError("AUDIT_LOG_RETENTION_DAYS deve ser maior que zero.")
-        if self.is_production and self.secret_key == "changeme":
-            raise ValueError("SECRET_KEY deve ser configurada fora do valor padrao em producao.")
+            errors.append("AUDIT_LOG_RETENTION_DAYS deve ser maior que zero.")
+        if self.password_reset_token_max_age_seconds <= 0:
+            errors.append("PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS deve ser maior que zero.")
+        if self.openai_max_output_tokens <= 0:
+            errors.append("OPENAI_MAX_OUTPUT_TOKENS deve ser maior que zero.")
+        if self.free_plan_daily_generation_limit < 0:
+            errors.append("FREE_PLAN_DAILY_GENERATION_LIMIT nao pode ser negativo.")
+        if self.pro_plan_monthly_generation_limit < 0:
+            errors.append("PRO_PLAN_MONTHLY_GENERATION_LIMIT nao pode ser negativo.")
+        if self.free_plan_writing_profile_limit < 0:
+            errors.append("FREE_PLAN_WRITING_PROFILE_LIMIT nao pode ser negativo.")
+        if self.pro_plan_writing_profile_limit < 0:
+            errors.append("PRO_PLAN_WRITING_PROFILE_LIMIT nao pode ser negativo.")
+
+        if self.is_production:
+            secret_key_insegura = {"", "changeme", "troque-esta-chave-em-producao"}
+            if self.secret_key in secret_key_insegura:
+                errors.append("SECRET_KEY deve ser configurada fora do valor padrao em producao.")
+            if self.database_url == "sqlite:///./juridico_ai.db":
+                errors.append("DATABASE_URL deve apontar para o banco de producao.")
+            if not self.session_cookie_secure:
+                errors.append("SESSION_COOKIE_SECURE deve ser true em producao.")
+
+        if errors:
+            raise ValueError(" ".join(errors))
 
 
 def load_settings() -> AppSettings:
-    load_dotenv()
+    env_file = os.environ.get("ENV_FILE")
+    if env_file:
+        load_dotenv(dotenv_path=env_file)
+    else:
+        load_dotenv()
     settings = AppSettings.from_env()
     settings.validate()
     settings.ensure_storage_dirs()
@@ -164,6 +194,7 @@ settings = load_settings()
 
 APP_NAME = settings.app_name
 APP_ENV = settings.app_env
+ENV_FILE = settings.env_file
 DEBUG = settings.debug
 DATABASE_URL = settings.database_url
 SECRET_KEY = settings.secret_key

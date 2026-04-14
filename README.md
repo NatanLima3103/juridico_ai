@@ -1,5 +1,40 @@
 # Juridico AI
 
+## Etapa 14.2 - Variaveis de ambiente
+
+Objetivo: deixar explicito quais variaveis controlam o Juridico AI por ambiente e bloquear configuracoes inseguras antes do deploy.
+
+### Como ficou
+
+- `ENV_FILE` permite escolher o arquivo carregado pelo `python-dotenv` antes da aplicacao iniciar, por exemplo `.env`, `.env.staging` ou `.env.production`.
+- `.env.example` passou a incluir `ENV_FILE` como ponto de entrada para padronizar ambientes locais, homologacao e producao.
+- A validacao centralizada agora acumula erros de configuracao, facilitando corrigir varias variaveis de uma vez.
+- Em producao (`APP_ENV=production`), a aplicacao exige `SECRET_KEY` real, `DATABASE_URL` diferente do SQLite local padrao e `SESSION_COOKIE_SECURE=true`.
+- Limites numericos sensiveis, como tokens da OpenAI, retencao, upload, RAG e cotas de planos, agora sao validados contra valores nulos ou negativos.
+
+### Arquivos de ambiente sugeridos
+
+Use `.env` para desenvolvimento local. Para homologacao e producao, defina `ENV_FILE` no processo antes de iniciar a aplicacao:
+
+```powershell
+$env:ENV_FILE=".env.production"
+uvicorn app.main:app
+```
+
+O arquivo real de ambiente nao deve ser versionado. Mantenha apenas `.env.example` como referencia publica.
+
+### Checklist minimo de producao
+
+- `APP_ENV=production`
+- `ENV_FILE=.env.production`, quando houver arquivo separado no servidor
+- `DEBUG=false`
+- `DATABASE_URL` apontando para o banco real
+- `SECRET_KEY` forte e exclusiva do ambiente
+- `SESSION_COOKIE_SECURE=true`
+- `UPLOAD_DIR` e `GENERATIONS_DIR` apontando para armazenamento persistente
+- `OPENAI_API_KEY`, quando a geracao real com IA estiver habilitada
+- `PAYMENT_*`, quando checkout e webhooks reais forem ativados
+
 ## Etapa 14.1 - Centralizar configuracoes
 
 Objetivo: preparar o Juridico AI para sair do ambiente local, concentrando configuracoes de aplicacao, seguranca, banco, armazenamento, IA, RAG, planos, pagamento e retencao em uma unica camada.
