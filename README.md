@@ -1,5 +1,30 @@
 # Juridico AI
 
+## Etapa 14.1 - Centralizar configuracoes
+
+Objetivo: preparar o Juridico AI para sair do ambiente local, concentrando configuracoes de aplicacao, seguranca, banco, armazenamento, IA, RAG, planos, pagamento e retencao em uma unica camada.
+
+### Como ficou
+
+- `app/core/config.py` passou a expor `AppSettings`, um objeto tipado carregado por ambiente.
+- As constantes antigas continuam disponiveis no mesmo modulo para manter compatibilidade com o restante da aplicacao e com os testes existentes.
+- `.env.example` documenta as variaveis esperadas para local, homologacao e producao.
+- Em producao (`APP_ENV=production`), a aplicacao bloqueia o uso de `SECRET_KEY=changeme`.
+- `DEBUG` e `SESSION_COOKIE_SECURE` agora podem ser controlados por ambiente, com defaults seguros para producao.
+- Os diretorios de upload e geracoes continuam sendo criados automaticamente a partir de `UPLOAD_DIR` e `GENERATIONS_DIR`.
+
+### Variaveis essenciais para deploy
+
+- `APP_ENV=production`
+- `DEBUG=false`
+- `DATABASE_URL`
+- `SECRET_KEY`
+- `SESSION_COOKIE_SECURE=true`
+- `UPLOAD_DIR`
+- `GENERATIONS_DIR`
+- `OPENAI_API_KEY`, quando a geracao com IA real estiver habilitada
+- `PAYMENT_CHECKOUT_URL` e `PAYMENT_WEBHOOK_SECRET`, quando o pagamento real for ativado
+
 ## Etapa 12.8 - Estrategia comercial inicial
 
 Objetivo: iniciar a validacao comercial do Juridico AI com uma oferta simples, mensuravel e compativel com o mercado juridico.
