@@ -1,0 +1,21 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN:?defina DOMAIN no ambiente de producao}
+      ACME_EMAIL: ${ACME_EMAIL:?defina ACME_EMAIL no ambiente de producao}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - juridico_ai_caddy_data:/data
+      - juridico_ai_caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  juridico_ai_caddy_data:
+  juridico_ai_caddy_config:

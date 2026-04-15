@@ -1,5 +1,161 @@
 # Juridico AI
 
+## Etapa 14.7 - Reverse proxy (Nginx)
+
+Objetivo: adicionar um caminho de deploy com Nginx como reverse proxy na frente do servico FastAPI, mantendo o Uvicorn acessivel apenas localmente na stack de producao.
+
+### Como ficou
+
+- `docker-compose.nginx.yml` adiciona o servico `nginx`, dependente do `web` saudavel, publicando a porta `80` por padrao.
+- `deploy/nginx/default.conf` faz proxy para `web:8000`, preserva headers `Host`, `X-Forwarded-*` e `X-Real-IP`, habilita gzip e aplica headers HTTP basicos.
+- `.env.production.example` agora documenta `NGINX_HTTP_PORT` para trocar a porta publicada pelo proxy quando necessario.
+- O `docker-compose.prod.yml` continua publicando o app em `127.0.0.1:8000` por padrao, evitando exposicao direta do Uvicorn.
+
+### Como executar com Nginx
+
+Crie e edite o arquivo real de producao:
+
+```bash
+cp .env.production.example .env.production
+```
+
+Defina pelo menos:
+
+- `POSTGRES_PASSWORD`, com senha forte
+- `SECRET_KEY`, com valor longo e aleatorio
+- `APP_BIND_HOST=127.0.0.1`
+- `NGINX_HTTP_PORT=80`, ou outra porta se houver outro proxy/load balancer na frente
+- `OPENAI_API_KEY`, quando a geracao real estiver habilitada
+
+Prepare o banco:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm web python scripts/prepare_production_database.py
+```
+
+Suba a stack com Nginx:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.nginx.yml up --build -d
+```
+
+Valide:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.nginx.yml ps
+curl -f http://localhost/health
+```
+
+### Observacoes de producao
+
+- Esta configuracao Nginx entrega HTTP. Para internet publica, coloque TLS na frente com um load balancer, Cloudflare, Certbot/Let's Encrypt ou use o overlay Caddy da etapa 14.6 para HTTPS automatico.
+- Se `MAX_UPLOAD_SIZE_MB` for alterado para mais de `10`, ajuste tambem `client_max_body_size` em `deploy/nginx/default.conf`.
+- Nao suba `docker-compose.vps.yml` e `docker-compose.nginx.yml` ao mesmo tempo no mesmo host sem alterar portas, pois ambos tentam publicar a porta `80`.
+
+## Etapa 14.6 - Deploy em nuvem/VPS
+
+Objetivo: deixar um caminho repetivel para publicar o Juridico AI em um VPS ou servidor de nuvem usando Docker Compose, PostgreSQL persistente e HTTPS automatico via Caddy.
+
+### Como ficou
+
+- `docker-compose.prod.yml` agora publica a aplicacao em `127.0.0.1:8000` por padrao, evitando expor o Uvicorn diretamente na internet.
+- `docker-compose.vps.yml` adiciona um proxy Caddy com portas `80` e `443`, certificado TLS automatico e proxy reverso para o servico `web`.
+- `deploy/Caddyfile` centraliza a configuracao de dominio, compressao e headers HTTP basicos.
+- `.env.production.example` documenta `APP_BIND_HOST`, `DOMAIN` e `ACME_EMAIL` para uso no servidor.
+- O deploy reaproveita os volumes persistentes de Postgres, armazenamento da aplicacao e certificados do Caddy.
+
+### Pre-requisitos do VPS
+
+- Ubuntu/Debian atualizado ou distribuicao equivalente.
+- Docker Engine e Docker Compose Plugin instalados.
+- Portas `80` e `443` liberadas no firewall/security group.
+- Dominio ou subdominio apontando para o IP publico do VPS por registro `A`.
+- Arquivo `.env.production` criado a partir de `.env.production.example`, com senhas e chaves reais.
+
+### Primeiro deploy
+
+No servidor, clone o repositorio e entre na pasta do projeto:
+
+```bash
+git clone <url-do-repositorio> juridico_ai
+cd juridico_ai
+cp .env.production.example .env.production
+```
+
+Edite `.env.production` e defina, no minimo:
+
+- `DOMAIN`, por exemplo `app.seudominio.com.br`
+- `ACME_EMAIL`, usado pelo emissor do certificado TLS
+- `POSTGRES_PASSWORD`, com senha forte
+- `SECRET_KEY`, com valor longo e aleatorio
+- `OPENAI_API_KEY`, quando a geracao real estiver habilitada
+- `PAYMENT_*`, quando checkout e webhooks reais estiverem ativos
+
+Prepare o banco:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm web python scripts/prepare_production_database.py
+```
+
+Suba a stack com HTTPS:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.vps.yml up --build -d
+```
+
+Valide os containers e a saude da aplicacao:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.vps.yml ps
+curl -f https://app.seudominio.com.br/health
+```
+
+### Atualizacao de versao
+
+Para publicar uma nova versao no VPS:
+
+```bash
+git pull
+docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.vps.yml up --build -d
+docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.vps.yml ps
+```
+
+Se houver mudanca de schema, rode novamente a preparacao antes de liberar trafego:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm web python scripts/prepare_production_database.py
+```
+
+### Backup rapido
+
+Crie um dump do Postgres:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > backup_juridico_ai.sql
+```
+
+Restaure em um banco vazio:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml exec -T db sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"' < backup_juridico_ai.sql
+```
+
+Arquivos enviados e geracoes ficam no volume `juridico_ai_storage`; inclua esse volume na rotina de snapshot/backup do provedor de nuvem.
+
+### Checklist de producao
+
+- DNS do dominio aponta para o VPS antes de subir o Caddy.
+- `.env.production` nao foi versionado.
+- `APP_ENV=production`, `DEBUG=false` e `SESSION_COOKIE_SECURE=true`.
+- `APP_BIND_HOST=127.0.0.1`, quando o acesso externo passa pelo Caddy.
+- `/health` responde via HTTPS.
+- Snapshot ou backup automatizado do banco e do volume de arquivos esta ativo.
+- Logs foram verificados apos o primeiro deploy:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.vps.yml logs -f --tail=100
+```
+
 ## Etapa 14.5 - Banco de producao
 
 Objetivo: preparar o Juridico AI para rodar em producao com PostgreSQL, evitando SQLite em ambiente real e deixando um caminho repetivel para provisionar e validar o schema.
