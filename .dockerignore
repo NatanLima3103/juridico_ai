@@ -9,6 +9,7 @@ pytest-cache-files-*/
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 juridico_ai.db
 *.db

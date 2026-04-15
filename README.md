@@ -1,5 +1,49 @@
 # Juridico AI
 
+## Etapa 14.5 - Banco de producao
+
+Objetivo: preparar o Juridico AI para rodar em producao com PostgreSQL, evitando SQLite em ambiente real e deixando um caminho repetivel para provisionar e validar o schema.
+
+### Como ficou
+
+- `psycopg[binary]` foi adicionado as dependencias para habilitar `DATABASE_URL=postgresql+psycopg://...`.
+- Em producao (`APP_ENV=production`), a aplicacao agora bloqueia qualquer `DATABASE_URL` SQLite e exige PostgreSQL.
+- `docker-compose.prod.yml` sobe um Postgres 16 com volume persistente e inicia a aplicacao somente depois do banco ficar saudavel.
+- `.env.production.example` documenta as variaveis minimas para o banco, seguranca, armazenamento, IA, planos, pagamento e retencao.
+- `scripts/prepare_production_database.py` valida que o ambiente esta em producao, cria o schema com os modelos atuais e testa a conexao.
+- A engine SQLAlchemy usa `pool_pre_ping` fora de SQLite para reduzir falhas com conexoes recicladas em ambiente de servidor.
+
+### Como preparar
+
+Crie o arquivo real de producao a partir do exemplo:
+
+```powershell
+Copy-Item .env.production.example .env.production
+```
+
+Edite `.env.production` com valores reais para:
+
+- `POSTGRES_PASSWORD`
+- `DATABASE_URL`, se usar um banco externo em vez do servico `db` do Compose
+- `SECRET_KEY`
+- `OPENAI_API_KEY`, quando a geracao real com IA estiver habilitada
+- `PAYMENT_*`, quando checkout e webhooks reais forem ativados
+
+Prepare e valide o banco antes de liberar trafego:
+
+```powershell
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm web python scripts/prepare_production_database.py
+```
+
+Suba a stack de producao:
+
+```powershell
+docker compose --env-file .env.production -f docker-compose.prod.yml up --build -d
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+```
+
+Para usar um PostgreSQL gerenciado, defina `DATABASE_URL` apontando para o endpoint externo e mantenha `APP_ENV=production`, `DEBUG=false` e `SESSION_COOKIE_SECURE=true`.
+
 ## Etapa 14.4 - Docker Compose
 
 Objetivo: padronizar a subida do Juridico AI com Docker Compose, mantendo configuracao por ambiente, healthcheck e persistencia fora da imagem.

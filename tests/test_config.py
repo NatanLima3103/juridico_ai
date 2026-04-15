@@ -38,6 +38,7 @@ def test_settings_respeita_env_e_fallback_legado():
     assert settings.is_production is True
     assert settings.debug is False
     assert settings.session_cookie_secure is True
+    assert settings.is_postgres_database is True
     assert settings.free_plan_daily_generation_limit == 7
     assert settings.upload_path == Path("/var/lib/juridico/uploads")
 
@@ -65,8 +66,57 @@ def test_settings_bloqueia_variaveis_inseguras_em_producao():
 
     message = str(exc_info.value)
     assert "SECRET_KEY" in message
-    assert "DATABASE_URL" in message
+    assert "PostgreSQL" in message
     assert "SESSION_COOKIE_SECURE" in message
+
+
+def test_settings_bloqueia_banco_nao_postgres_em_producao():
+    settings = AppSettings.from_env(
+        {
+            "APP_ENV": "production",
+            "SECRET_KEY": "uma-chave-real",
+            "DATABASE_URL": "mysql+pymysql://user:pass@db/juridico",
+            "SESSION_COOKIE_SECURE": "true",
+        },
+        base_dir=Path("/app"),
+    )
+
+    with pytest.raises(ValueError, match="postgresql\\+psycopg"):
+        settings.validate()
+
+
+def test_settings_exige_driver_psycopg_em_producao():
+    settings = AppSettings.from_env(
+        {
+            "APP_ENV": "production",
+            "SECRET_KEY": "uma-chave-real",
+            "DATABASE_URL": "postgresql://user:pass@db/juridico",
+            "SESSION_COOKIE_SECURE": "true",
+        },
+        base_dir=Path("/app"),
+    )
+
+    with pytest.raises(ValueError, match="postgresql\\+psycopg"):
+        settings.validate()
+
+
+def test_settings_bloqueia_placeholders_de_producao():
+    settings = AppSettings.from_env(
+        {
+            "APP_ENV": "production",
+            "SECRET_KEY": "troque-por-uma-chave-longa-e-aleatoria",
+            "DATABASE_URL": "postgresql+psycopg://juridico_ai:troque-por-uma-senha-forte@db:5432/juridico_ai",
+            "SESSION_COOKIE_SECURE": "true",
+        },
+        base_dir=Path("/app"),
+    )
+
+    with pytest.raises(ValueError) as exc_info:
+        settings.validate()
+
+    message = str(exc_info.value)
+    assert "SECRET_KEY" in message
+    assert "credenciais reais" in message
 
 
 def test_settings_valida_limites_numericos():

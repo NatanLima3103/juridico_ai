@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -124,6 +125,18 @@ class AppSettings:
         return self.max_upload_size_mb * 1024 * 1024
 
     @property
+    def database_scheme(self) -> str:
+        return urlparse(self.database_url).scheme.lower()
+
+    @property
+    def is_sqlite_database(self) -> bool:
+        return self.database_scheme.startswith("sqlite")
+
+    @property
+    def is_postgres_database(self) -> bool:
+        return self.database_scheme == "postgresql+psycopg"
+
+    @property
     def upload_path(self) -> Path:
         return _path_from_base(self.base_dir, self.upload_dir)
 
@@ -166,11 +179,24 @@ class AppSettings:
             errors.append("PRO_PLAN_WRITING_PROFILE_LIMIT nao pode ser negativo.")
 
         if self.is_production:
-            secret_key_insegura = {"", "changeme", "troque-esta-chave-em-producao"}
+            secret_key_insegura = {
+                "",
+                "changeme",
+                "troque-esta-chave-em-producao",
+                "troque-por-uma-chave-longa-e-aleatoria",
+            }
+            database_url_insegura = {
+                "troque-por-uma-senha-forte",
+                "usuario:senha",
+            }
             if self.secret_key in secret_key_insegura:
                 errors.append("SECRET_KEY deve ser configurada fora do valor padrao em producao.")
-            if self.database_url == "sqlite:///./juridico_ai.db":
-                errors.append("DATABASE_URL deve apontar para o banco de producao.")
+            if self.is_sqlite_database:
+                errors.append("DATABASE_URL deve apontar para PostgreSQL em producao.")
+            elif not self.is_postgres_database:
+                errors.append("DATABASE_URL deve usar o esquema postgresql+psycopg em producao.")
+            elif any(valor in self.database_url for valor in database_url_insegura):
+                errors.append("DATABASE_URL deve usar credenciais reais em producao.")
             if not self.session_cookie_secure:
                 errors.append("SESSION_COOKIE_SECURE deve ser true em producao.")
 
