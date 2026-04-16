@@ -68,6 +68,8 @@ class AppSettings:
     upload_dir: str
     generations_dir: str
     max_upload_size_mb: int
+    log_level: str
+    log_format: str
     templates_dir: Path
     static_dir: Path
 
@@ -112,6 +114,8 @@ class AppSettings:
             upload_dir=_str(env, "UPLOAD_DIR", "storage/uploads") or "storage/uploads",
             generations_dir=_str(env, "GENERATIONS_DIR", "storage/generations") or "storage/generations",
             max_upload_size_mb=_int(env, "MAX_UPLOAD_SIZE_MB", 10),
+            log_level=_str(env, "LOG_LEVEL", "INFO").upper() or "INFO",
+            log_format=_str(env, "LOG_FORMAT", "json" if app_env == "production" else "text").lower() or "text",
             templates_dir=base_dir / "app" / "templates",
             static_dir=base_dir / "app" / "static",
         )
@@ -177,6 +181,10 @@ class AppSettings:
             errors.append("FREE_PLAN_WRITING_PROFILE_LIMIT nao pode ser negativo.")
         if self.pro_plan_writing_profile_limit < 0:
             errors.append("PRO_PLAN_WRITING_PROFILE_LIMIT nao pode ser negativo.")
+        if self.log_level not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
+            errors.append("LOG_LEVEL deve ser DEBUG, INFO, WARNING, ERROR ou CRITICAL.")
+        if self.log_format not in {"text", "json"}:
+            errors.append("LOG_FORMAT deve ser text ou json.")
 
         if self.is_production:
             secret_key_insegura = {
@@ -251,6 +259,8 @@ UPLOAD_DIR = settings.upload_dir
 GENERATIONS_DIR = settings.generations_dir
 MAX_UPLOAD_SIZE_MB = settings.max_upload_size_mb
 MAX_UPLOAD_SIZE_BYTES = settings.max_upload_size_bytes
+LOG_LEVEL = settings.log_level
+LOG_FORMAT = settings.log_format
 UPLOAD_PATH = settings.upload_path
 GENERATIONS_PATH = settings.generations_path
 TEMPLATES_DIR = settings.templates_dir

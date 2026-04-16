@@ -1,8 +1,15 @@
 name: juridico_ai_prod
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: ${LOG_MAX_SIZE:-10m}
+    max-file: ${LOG_MAX_FILE:-5}
+
 services:
   db:
     image: postgres:16-alpine
+    logging: *default-logging
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-juridico_ai}
       POSTGRES_USER: ${POSTGRES_USER:-juridico_ai}
@@ -23,6 +30,7 @@ services:
       dockerfile: Dockerfile
     image: juridico-ai:prod
     init: true
+    logging: *default-logging
     env_file:
       - path: .env.production
         required: false

@@ -1,5 +1,63 @@
 # Juridico AI
 
+## Etapa 14.8 - Logs de producao
+
+Objetivo: deixar os logs de producao consultaveis, correlacionaveis e com rotacao basica no Docker, sem gravar dados sensiveis em arquivos dentro da aplicacao.
+
+### Como ficou
+
+- A aplicacao configura logging no bootstrap com `LOG_LEVEL` e `LOG_FORMAT`.
+- Em producao, o padrao e `LOG_FORMAT=json`, adequado para `docker compose logs`, agentes de coleta e provedores de observabilidade.
+- Cada requisicao HTTP gera um log com metodo, caminho sem query string, status, duracao, ambiente, IP de origem e `request_id`.
+- O header `X-Request-ID` e preservado quando enviado pelo proxy; quando ausente, a aplicacao gera um identificador e devolve no response.
+- Os servicos Docker de producao usam o driver `json-file` com rotacao por `LOG_MAX_SIZE` e `LOG_MAX_FILE`.
+- O log operacional fica no stdout/stderr dos containers; auditoria de negocio continua em `audit_logs`.
+
+### Variaveis
+
+No `.env.production`, ajuste conforme o ambiente:
+
+```bash
+LOG_LEVEL=INFO
+LOG_FORMAT=json
+LOG_MAX_SIZE=10m
+LOG_MAX_FILE=5
+```
+
+Use `LOG_LEVEL=DEBUG` apenas temporariamente para investigar incidentes, pois pode aumentar volume e custo de armazenamento.
+
+### Comandos uteis
+
+Logs recentes da aplicacao:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail=100 web
+```
+
+Acompanhar a stack VPS com HTTPS:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.vps.yml logs -f --tail=100
+```
+
+Acompanhar a stack com Nginx:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.nginx.yml logs -f --tail=100
+```
+
+Filtrar por um request id recebido pelo usuario ou proxy:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml logs web | grep "req-123"
+```
+
+### Observacoes de producao
+
+- Nao registre conteudo de documentos, prompts, respostas de IA, senhas, tokens ou parametros de query nos logs operacionais.
+- Para retencao longa, envie stdout/stderr para um coletor externo do provedor de nuvem; a rotacao local evita crescimento indefinido, mas nao substitui observabilidade centralizada.
+- Em incidente, correlacione `X-Request-ID` entre proxy, aplicacao e relato do usuario antes de buscar dados no banco.
+
 ## Etapa 14.7 - Reverse proxy (Nginx)
 
 Objetivo: adicionar um caminho de deploy com Nginx como reverse proxy na frente do servico FastAPI, mantendo o Uvicorn acessivel apenas localmente na stack de producao.

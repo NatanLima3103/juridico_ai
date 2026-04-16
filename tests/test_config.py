@@ -16,6 +16,8 @@ def test_settings_carrega_defaults_centralizados():
     assert settings.upload_path == Path("/app/storage/uploads")
     assert settings.generations_path == Path("/app/storage/generations")
     assert settings.max_upload_size_bytes == 10 * 1024 * 1024
+    assert settings.log_level == "INFO"
+    assert settings.log_format == "text"
 
 
 def test_settings_respeita_env_e_fallback_legado():
@@ -41,6 +43,7 @@ def test_settings_respeita_env_e_fallback_legado():
     assert settings.is_postgres_database is True
     assert settings.free_plan_daily_generation_limit == 7
     assert settings.upload_path == Path("/var/lib/juridico/uploads")
+    assert settings.log_format == "json"
 
 
 def test_settings_bloqueia_secret_key_padrao_em_producao():
@@ -126,6 +129,8 @@ def test_settings_valida_limites_numericos():
             "OPENAI_MAX_OUTPUT_TOKENS": "0",
             "PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS": "0",
             "FREE_PLAN_DAILY_GENERATION_LIMIT": "-1",
+            "LOG_LEVEL": "VERBOSE",
+            "LOG_FORMAT": "xml",
         },
         base_dir=Path("/app"),
     )
@@ -138,3 +143,5 @@ def test_settings_valida_limites_numericos():
     assert "OPENAI_MAX_OUTPUT_TOKENS" in message
     assert "PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS" in message
     assert "FREE_PLAN_DAILY_GENERATION_LIMIT" in message
+    assert "LOG_LEVEL" in message
+    assert "LOG_FORMAT" in message

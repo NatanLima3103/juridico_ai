@@ -1,6 +1,13 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: ${LOG_MAX_SIZE:-10m}
+    max-file: ${LOG_MAX_FILE:-5}
+
 services:
   nginx:
     image: nginx:1.27-alpine
+    logging: *default-logging
     depends_on:
       web:
         condition: service_healthy
