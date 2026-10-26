@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from app.core.config import SESSION_COOKIE_NAME
+from app.core.config import APP_ENV, DEBUG, SESSION_COOKIE_NAME
 from app.database import get_db
 from app.routers.common import templates
 from app.schemas.user import UserCreate
@@ -32,6 +32,12 @@ def _normalizar_destino_pos_login(destino: str | None) -> str:
     if destino_limpo.startswith("//"):
         return "/"
     return destino_limpo
+
+
+def _exibir_link_recuperacao_na_tela() -> bool:
+    # Ainda nao ha envio de e-mail: exibir o link na tela permitiria a qualquer pessoa
+    # redefinir a senha de outra conta, por isso isso so acontece em desenvolvimento local.
+    return DEBUG and APP_ENV != "production"
 
 
 def _redirect_if_authenticated(request: Request) -> RedirectResponse | None:
@@ -264,7 +270,7 @@ def forgot_password_user(
 
     usuario = buscar_usuario_por_email(db, dados["email"])
     reset_link = None
-    if usuario and bool(usuario.is_active):
+    if usuario and bool(usuario.is_active) and _exibir_link_recuperacao_na_tela():
         token = gerar_token_recuperacao_senha(usuario)
         reset_link = str(request.url_for("reset_password_form", token=token))
 

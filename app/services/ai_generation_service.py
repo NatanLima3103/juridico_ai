@@ -8,6 +8,7 @@ from app.core.config import (
     OPENAI_MAX_OUTPUT_TOKENS,
     OPENAI_MODEL,
     OPENAI_REASONING_EFFORT,
+    OPENAI_TIMEOUT_SECONDS,
 )
 from app.services.llm_service import LLMServiceError, gerar_texto_juridico_com_fallback
 
@@ -52,7 +53,7 @@ def _gerar_texto_com_openai(prompt_payload: dict) -> AIGenerationResult:
             "SDK da OpenAI nao esta instalado. Adicione 'openai' as dependencias do projeto."
         ) from exc
 
-    client = OpenAI(api_key=OPENAI_API_KEY)
+    client = OpenAI(api_key=OPENAI_API_KEY, timeout=OPENAI_TIMEOUT_SECONDS, max_retries=1)
 
     try:
         response = client.responses.create(**_montar_parametros_openai(prompt_payload))

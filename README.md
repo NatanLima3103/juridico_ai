@@ -1,5 +1,27 @@
 # Juridico AI
 
+## Correcoes de seguranca e limites de uso
+
+### Como ficou
+
+- O link de recuperacao de senha so aparece na tela em desenvolvimento local (`DEBUG=true` e `APP_ENV` diferente de `production`). Em producao ele nao e exibido; enquanto o envio por e-mail nao for implementado, a recuperacao de senha fica indisponivel nesse ambiente.
+- O cadastro publico nunca concede acesso administrativo. O administrador e definido por script, depois que a conta for criada pelo site:
+
+```bash
+python -m scripts.promote_admin email@exemplo.com
+python -m scripts.promote_admin email@exemplo.com --revogar
+```
+
+Em producao com Docker Compose:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm web python -m scripts.promote_admin email@exemplo.com
+```
+
+- O limite do plano conta toda chamada de geracao: geracoes excluidas continuam contando e cada edicao (que gera a minuta novamente) consome uma geracao.
+- As rotas de geracao rodam fora do event loop e as chamadas a OpenAI tem timeout configuravel em `OPENAI_TIMEOUT_SECONDS` (padrao 45s, abaixo do `proxy_read_timeout` de 60s do Nginx).
+- `.env`, bancos SQLite e arquivos enviados deixaram de ser versionados.
+
 ## Etapa 14.8 - Logs de producao
 
 Objetivo: deixar os logs de producao consultaveis, correlacionaveis e com rotacao basica no Docker, sem gravar dados sensiveis em arquivos dentro da aplicacao.

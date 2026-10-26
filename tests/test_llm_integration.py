@@ -37,7 +37,13 @@ class LLMIntegrationTests(unittest.TestCase):
         self.assertIn("OPENAI_API_KEY", result.llm_error)
 
     def test_returns_openai_result_when_client_responds(self):
-        fake_module = types.SimpleNamespace(OpenAI=lambda api_key=None: FakeOpenAIClient(text="Texto IA", response_id="resp_ok"))
+        client_kwargs: dict = {}
+
+        def fake_openai(**kwargs):
+            client_kwargs.update(kwargs)
+            return FakeOpenAIClient(text="Texto IA", response_id="resp_ok")
+
+        fake_module = types.SimpleNamespace(OpenAI=fake_openai)
 
         with patch.object(ai_generation_service, "OPENAI_API_KEY", "test-key"):
             with patch.dict(sys.modules, {"openai": fake_module}):
@@ -50,10 +56,12 @@ class LLMIntegrationTests(unittest.TestCase):
         self.assertEqual(result.generation_strategy, "ai_openai")
         self.assertEqual(result.llm_provider, "openai")
         self.assertEqual(result.llm_response_id, "resp_ok")
+        self.assertEqual(client_kwargs["timeout"], ai_generation_service.OPENAI_TIMEOUT_SECONDS)
+        self.assertEqual(client_kwargs["max_retries"], 1)
 
     def test_falls_back_when_openai_call_fails(self):
         fake_module = types.SimpleNamespace(
-            OpenAI=lambda api_key=None: FakeOpenAIClient(error=RuntimeError("falha externa"))
+            OpenAI=lambda **_: FakeOpenAIClient(error=RuntimeError("falha externa"))
         )
 
         with patch.object(ai_generation_service, "OPENAI_API_KEY", "test-key"):

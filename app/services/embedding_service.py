@@ -4,7 +4,7 @@ from hashlib import sha256
 import math
 import re
 
-from app.core.config import OPENAI_API_KEY, OPENAI_EMBEDDING_MODEL, RAG_VECTOR_DIMENSION
+from app.core.config import OPENAI_API_KEY, OPENAI_EMBEDDING_MODEL, OPENAI_TIMEOUT_SECONDS, RAG_VECTOR_DIMENSION
 
 
 class EmbeddingServiceError(Exception):
@@ -54,7 +54,7 @@ def _gerar_embeddings_openai(textos: list[str]) -> list[list[float]]:
             "SDK da OpenAI nao esta instalado. Adicione 'openai' as dependencias do projeto."
         ) from exc
 
-    client = OpenAI(api_key=OPENAI_API_KEY)
+    client = OpenAI(api_key=OPENAI_API_KEY, timeout=OPENAI_TIMEOUT_SECONDS, max_retries=1)
 
     try:
         response = client.embeddings.create(model=OPENAI_EMBEDDING_MODEL, input=textos)

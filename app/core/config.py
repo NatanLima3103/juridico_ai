@@ -49,6 +49,7 @@ class AppSettings:
     openai_model: str
     openai_reasoning_effort: str
     openai_max_output_tokens: int
+    openai_timeout_seconds: int
     openai_embedding_model: str
     rag_chunk_size: int
     rag_chunk_overlap: int
@@ -94,6 +95,7 @@ class AppSettings:
             openai_model=_str(env, "OPENAI_MODEL", "gpt-5-mini") or "gpt-5-mini",
             openai_reasoning_effort=_str(env, "OPENAI_REASONING_EFFORT"),
             openai_max_output_tokens=_int(env, "OPENAI_MAX_OUTPUT_TOKENS", 2200),
+            openai_timeout_seconds=_int(env, "OPENAI_TIMEOUT_SECONDS", 45),
             openai_embedding_model=_str(env, "OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
             or "text-embedding-3-small",
             rag_chunk_size=_int(env, "RAG_CHUNK_SIZE", 800),
@@ -173,6 +175,8 @@ class AppSettings:
             errors.append("PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS deve ser maior que zero.")
         if self.openai_max_output_tokens <= 0:
             errors.append("OPENAI_MAX_OUTPUT_TOKENS deve ser maior que zero.")
+        if self.openai_timeout_seconds <= 0:
+            errors.append("OPENAI_TIMEOUT_SECONDS deve ser maior que zero.")
         if self.free_plan_daily_generation_limit < 0:
             errors.append("FREE_PLAN_DAILY_GENERATION_LIMIT nao pode ser negativo.")
         if self.pro_plan_monthly_generation_limit < 0:
@@ -239,6 +243,7 @@ OPENAI_API_KEY = settings.openai_api_key
 OPENAI_MODEL = settings.openai_model
 OPENAI_REASONING_EFFORT = settings.openai_reasoning_effort
 OPENAI_MAX_OUTPUT_TOKENS = settings.openai_max_output_tokens
+OPENAI_TIMEOUT_SECONDS = settings.openai_timeout_seconds
 OPENAI_EMBEDDING_MODEL = settings.openai_embedding_model
 RAG_CHUNK_SIZE = settings.rag_chunk_size
 RAG_CHUNK_OVERLAP = settings.rag_chunk_overlap

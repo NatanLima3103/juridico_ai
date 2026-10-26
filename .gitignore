@@ -207,3 +207,14 @@ pytest-cache-files-*/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Dados locais da aplicacao (bancos, arquivos enviados, caches) nunca devem ser versionados
+*.db
+*.db-journal
+uploads/*
+!uploads/.gitkeep
+storage/
+vector_store/*
+!vector_store/.gitkeep
+.pycache_tmp/
+tests/.tmp_auth/

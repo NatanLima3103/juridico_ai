@@ -161,7 +161,7 @@ def _render_generation_form(
 
 
 @router.get("")
-async def list_generations(
+def list_generations(
     request: Request,
     search: str = "",
     search_term: str = "",
@@ -230,7 +230,7 @@ async def list_generations(
 
 
 @router.get("/create")
-async def create_generation_form(
+def create_generation_form(
     request: Request,
     db: Session = Depends(get_db),
     usuario: User = Depends(get_authenticated_user),
@@ -252,7 +252,7 @@ async def create_generation_form(
 
 
 @router.get("/{generation_id}")
-async def generation_detail(
+def generation_detail(
     generation_id: int,
     request: Request,
     sucesso: str | None = None,
@@ -282,7 +282,7 @@ async def generation_detail(
 
 
 @router.get("/{generation_id}/edit")
-async def edit_generation_form(
+def edit_generation_form(
     generation_id: int,
     request: Request,
     db: Session = Depends(get_db),
@@ -323,7 +323,7 @@ async def edit_generation_form(
 
 
 @router.get("/{generation_id}/duplicate")
-async def duplicate_generation_form(
+def duplicate_generation_form(
     generation_id: int,
     request: Request,
     db: Session = Depends(get_db),
@@ -364,7 +364,7 @@ async def duplicate_generation_form(
 
 
 @router.post("/create")
-async def create_generation(
+def create_generation(
     request: Request,
     client_name: str = Form(...),
     document_type: str = Form(...),
@@ -528,7 +528,7 @@ async def create_generation(
 
 
 @router.post("/{generation_id}/edit")
-async def edit_generation(
+def edit_generation(
     generation_id: int,
     request: Request,
     client_name: str = Form(...),
@@ -550,7 +550,7 @@ async def edit_generation(
 
     documentos = listar_documentos(db, usuario.id)
     perfis = listar_perfis_escrita(db, usuario.id)
-    plan_usage = obter_uso_plano_usuario(db, usuario)
+    pode_reprocessar, plan_usage, mensagem_limite_plano = validar_criacao_geracao_por_plano(db, usuario)
 
     selected_document_ids = coletar_ids_inteiros_unicos(document_ids)
 
@@ -589,6 +589,21 @@ async def edit_generation(
             perfis=perfis,
             tipos_de_documento=TIPOS_DE_DOCUMENTO,
             error_message=str(exc),
+            form_data=form_data,
+            selected_document_ids=selected_document_ids,
+            selected_profile_id=selected_profile_id,
+            modo_edicao=True,
+            geracao=geracao,
+            plan_usage=plan_usage,
+        )
+
+    if not pode_reprocessar:
+        return _render_generation_form(
+            request,
+            documentos=documentos,
+            perfis=perfis,
+            tipos_de_documento=TIPOS_DE_DOCUMENTO,
+            error_message=mensagem_limite_plano,
             form_data=form_data,
             selected_document_ids=selected_document_ids,
             selected_profile_id=selected_profile_id,
@@ -687,7 +702,7 @@ async def save_generation_text(
 
 
 @router.post("/{generation_id}/delete")
-async def delete_generation(
+def delete_generation(
     generation_id: int,
     db: Session = Depends(get_db),
     usuario: User = Depends(get_authenticated_user),
@@ -704,7 +719,7 @@ async def delete_generation(
 
 
 @router.post("/{generation_id}/toggle-pin")
-async def toggle_pin_generation(
+def toggle_pin_generation(
     generation_id: int,
     request: Request,
     db: Session = Depends(get_db),
@@ -727,7 +742,7 @@ async def toggle_pin_generation(
 
 
 @router.post("/{generation_id}/toggle-favorite")
-async def toggle_favorite_generation(
+def toggle_favorite_generation(
     generation_id: int,
     request: Request,
     db: Session = Depends(get_db),
@@ -750,7 +765,7 @@ async def toggle_favorite_generation(
 
 
 @router.post("/apply-template")
-async def apply_template_to_generation_form(
+def apply_template_to_generation_form(
     request: Request,
     template_document_type: str = Form(...),
     client_name: str = Form(""),
@@ -845,7 +860,7 @@ async def apply_template_to_generation_form(
 
 
 @router.get("/{generation_id}/download-docx")
-async def download_generation_docx(
+def download_generation_docx(
     generation_id: int,
     db: Session = Depends(get_db),
     usuario: User = Depends(get_authenticated_user),
@@ -865,7 +880,7 @@ async def download_generation_docx(
 
 
 @router.get("/{generation_id}/download-txt")
-async def download_generation_txt(
+def download_generation_txt(
     generation_id: int,
     db: Session = Depends(get_db),
     usuario: User = Depends(get_authenticated_user),

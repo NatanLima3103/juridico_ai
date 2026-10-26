@@ -1,5 +1,6 @@
 import re
 import unittest
+from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -92,6 +93,33 @@ class PasswordResetTests(unittest.TestCase):
             self.assertIsNotNone(autenticar_usuario(db, email="ana@example.com", password="novaSenha123"))
         finally:
             db.close()
+
+    def test_reset_link_is_not_shown_outside_local_development(self):
+        client, testing_session_local = create_password_reset_test_client()
+
+        db = testing_session_local()
+        try:
+            criar_usuario(
+                db,
+                UserCreate(
+                    full_name="Ana Souza",
+                    email="ana@example.com",
+                    password="senha1234",
+                ),
+            )
+        finally:
+            db.close()
+
+        for debug, app_env in [(False, "development"), (True, "production")]:
+            with self.subTest(debug=debug, app_env=app_env):
+                with patch.object(auth, "DEBUG", debug), patch.object(auth, "APP_ENV", app_env):
+                    response = client.post(
+                        "/auth/forgot-password",
+                        data={"email": "ana@example.com"},
+                    )
+
+                self.assertEqual(response.status_code, 200)
+                self.assertNotIn("/auth/reset-password/", response.text)
 
     def test_invalid_token_shows_error(self):
         client, _ = create_password_reset_test_client()

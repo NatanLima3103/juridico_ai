@@ -39,7 +39,7 @@ class CapturingOpenAIClient:
 
 def build_fake_openai_module(*, text: str, response_id: str, calls: list[dict]):
     return types.SimpleNamespace(
-        OpenAI=lambda api_key=None: CapturingOpenAIClient(
+        OpenAI=lambda **_: CapturingOpenAIClient(
             text=text,
             response_id=response_id,
             calls=calls,

@@ -12,6 +12,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import SECRET_KEY, SESSION_COOKIE_NAME, STATIC_DIR
 from app.database import Base, get_db
+from app.models.audit_log import AuditLog
 from app.models.generation import Generation
 from app.routers import auth, generations
 from app.schemas.user import UserCreate
@@ -163,6 +164,94 @@ class FreePlanTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("Plano gratuito", response.text)
+        self.assertIn("limite", response.text.lower())
+        gerar_mock.assert_not_called()
+
+    def test_deleted_generations_still_count_towards_daily_limit(self):
+        _, testing_session_local = create_free_plan_test_client()
+        usuario = criar_usuario_teste(testing_session_local)
+        referencia = datetime(2026, 4, 10, 12, 0, 0)
+
+        db = testing_session_local()
+        try:
+            criar_geracao_teste(db, user_id=usuario.id, created_at=datetime(2026, 4, 10, 8, 0, 0))
+            criar_geracao_teste(db, user_id=usuario.id, created_at=datetime(2026, 4, 10, 9, 0, 0))
+            db.commit()
+            excluida = db.query(Generation).first()
+            excluida.deleted_at = datetime(2026, 4, 10, 10, 0, 0)
+            db.commit()
+
+            usage = obter_uso_plano_usuario(db, usuario, referencia=referencia)
+        finally:
+            db.close()
+
+        self.assertEqual(usage.used_generations, 2)
+
+    def test_edit_regenerations_count_towards_daily_limit(self):
+        _, testing_session_local = create_free_plan_test_client()
+        usuario = criar_usuario_teste(testing_session_local)
+        referencia = datetime(2026, 4, 10, 12, 0, 0)
+
+        db = testing_session_local()
+        try:
+            criar_geracao_teste(db, user_id=usuario.id, created_at=datetime(2026, 4, 10, 8, 0, 0))
+            db.commit()
+            generation_id = db.query(Generation).first().id
+            for action, created_at in [
+                ("update", datetime(2026, 4, 10, 9, 0, 0)),
+                ("update", datetime(2026, 4, 10, 10, 0, 0)),
+                ("update", datetime(2026, 4, 9, 10, 0, 0)),
+                ("save_text", datetime(2026, 4, 10, 11, 0, 0)),
+            ]:
+                db.add(
+                    AuditLog(
+                        user_id=usuario.id,
+                        entity_type="generation",
+                        entity_id=generation_id,
+                        action=action,
+                        entity_version=2,
+                        payload="{}",
+                        created_at=created_at,
+                    )
+                )
+            db.commit()
+
+            usage = obter_uso_plano_usuario(db, usuario, referencia=referencia)
+        finally:
+            db.close()
+
+        self.assertEqual(usage.used_generations, 3)
+
+    def test_free_plan_blocks_edit_regeneration_when_daily_limit_is_reached(self):
+        client, testing_session_local = create_free_plan_test_client()
+        usuario = criar_usuario_teste(testing_session_local)
+        autenticar(client)
+
+        db = testing_session_local()
+        try:
+            now = datetime.now()
+            for _ in range(FREE_PLAN.monthly_generation_limit):
+                criar_geracao_teste(db, user_id=usuario.id, created_at=now)
+            db.commit()
+            generation_id = db.query(Generation).first().id
+        finally:
+            db.close()
+
+        with patch("app.routers.generations.gerar_rascunho_juridico_com_metadata") as gerar_mock:
+            response = client.post(
+                f"/generations/{generation_id}/edit",
+                data={
+                    "client_name": "Cliente Teste",
+                    "document_type": "Contrato",
+                    "case_subject": "Prestacao de servicos",
+                    "facts": "As partes pretendem formalizar uma prestacao de servicos continuada.",
+                    "requests": "Definir objeto, prazo, pagamento e rescisao.",
+                    "legal_basis": "Codigo Civil.",
+                },
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 200)
         self.assertIn("limite", response.text.lower())
         gerar_mock.assert_not_called()
 

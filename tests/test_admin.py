@@ -17,7 +17,7 @@ from app.models.generation import Generation
 from app.models.user import User
 from app.routers import admin, auth
 from app.schemas.user import UserCreate
-from app.services.user_service import criar_usuario
+from app.services.user_service import atualizar_status_usuario, criar_usuario
 
 
 def create_admin_test_client() -> tuple[TestClient, sessionmaker]:
@@ -50,10 +50,10 @@ def create_admin_test_client() -> tuple[TestClient, sessionmaker]:
     return TestClient(app), testing_session_local
 
 
-def create_user(testing_session_local: sessionmaker, *, full_name: str, email: str):
+def create_user(testing_session_local: sessionmaker, *, full_name: str, email: str, is_admin: bool = False):
     db = testing_session_local()
     try:
-        return criar_usuario(
+        usuario = criar_usuario(
             db,
             UserCreate(
                 full_name=full_name,
@@ -61,6 +61,9 @@ def create_user(testing_session_local: sessionmaker, *, full_name: str, email: s
                 password="senha1234",
             ),
         )
+        if is_admin:
+            usuario = atualizar_status_usuario(db, usuario, is_admin=True)
+        return usuario
     finally:
         db.close()
 
@@ -79,9 +82,21 @@ def login(client: TestClient, *, email: str, next_url: str = "/admin") -> None:
 
 
 class AdminAreaTests(unittest.TestCase):
-    def test_first_user_can_access_admin_dashboard(self):
+    def test_first_registered_user_is_not_admin_automatically(self):
         client, testing_session_local = create_admin_test_client()
-        create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com")
+        primeiro = create_user(testing_session_local, full_name="Primeira Conta", email="primeira@example.com")
+
+        self.assertFalse(primeiro.is_admin)
+
+        login(client, email="primeira@example.com")
+        response = client.get("/admin", follow_redirects=False)
+
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("/?erro=", response.headers["location"])
+
+    def test_admin_user_can_access_admin_dashboard(self):
+        client, testing_session_local = create_admin_test_client()
+        create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com", is_admin=True)
 
         login(client, email="admin@example.com")
 
@@ -92,7 +107,7 @@ class AdminAreaTests(unittest.TestCase):
 
     def test_non_admin_user_is_redirected_from_admin_dashboard(self):
         client, testing_session_local = create_admin_test_client()
-        create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com")
+        create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com", is_admin=True)
         create_user(testing_session_local, full_name="Usuário Comum", email="user@example.com")
 
         login(client, email="user@example.com")
@@ -104,7 +119,7 @@ class AdminAreaTests(unittest.TestCase):
 
     def test_admin_cannot_delete_healthy_record_through_problem_records_route(self):
         client, testing_session_local = create_admin_test_client()
-        admin_user = create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com")
+        admin_user = create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com", is_admin=True)
 
         db = testing_session_local()
         try:
@@ -144,7 +159,7 @@ class AdminAreaTests(unittest.TestCase):
 
     def test_admin_can_delete_problematic_record_through_problem_records_route(self):
         client, testing_session_local = create_admin_test_client()
-        create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com")
+        create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com", is_admin=True)
 
         db = testing_session_local()
         try:
@@ -179,7 +194,7 @@ class AdminAreaTests(unittest.TestCase):
 
     def test_admin_can_delete_document_record_outside_upload_storage(self):
         client, testing_session_local = create_admin_test_client()
-        admin_user = create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com")
+        admin_user = create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com", is_admin=True)
 
         db = testing_session_local()
         try:
@@ -214,7 +229,7 @@ class AdminAreaTests(unittest.TestCase):
 
     def test_admin_can_export_user_lgpd_data(self):
         client, testing_session_local = create_admin_test_client()
-        create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com")
+        create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com", is_admin=True)
         titular = create_user(testing_session_local, full_name="Titular Export", email="titular-export@example.com")
 
         db = testing_session_local()
@@ -247,7 +262,7 @@ class AdminAreaTests(unittest.TestCase):
 
     def test_admin_can_anonymize_user_lgpd_data(self):
         client, testing_session_local = create_admin_test_client()
-        create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com")
+        create_user(testing_session_local, full_name="Admin Inicial", email="admin@example.com", is_admin=True)
         titular = create_user(testing_session_local, full_name="Titular Remove", email="titular-remove@example.com")
 
         db = testing_session_local()

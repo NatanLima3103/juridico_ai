@@ -17,6 +17,7 @@ from app.core.config import (
     PRO_PLAN_MONTHLY_GENERATION_LIMIT,
     PRO_PLAN_WRITING_PROFILE_LIMIT,
 )
+from app.models.audit_log import AuditLog
 from app.models.generation import Generation
 from app.models.user import User
 from app.models.writing_profile import WritingProfile
@@ -150,6 +151,30 @@ def _intervalo_dia_atual(referencia: datetime | None = None) -> tuple[datetime, 
     return inicio, fim
 
 
+def _contar_geracoes_usuario_no_intervalo(db: Session, user_id: int, inicio: datetime, fim: datetime) -> int:
+    """
+    Conta cada chamada de geracao feita no intervalo: criacoes (inclusive as ja excluidas,
+    para que excluir nao libere cota) e reprocessamentos via edicao, registrados na auditoria.
+    """
+    criadas = (
+        db.query(Generation)
+        .filter(Generation.user_id == user_id)
+        .filter(Generation.created_at >= inicio)
+        .filter(Generation.created_at < fim)
+        .count()
+    )
+    reprocessadas = (
+        db.query(AuditLog)
+        .filter(AuditLog.user_id == user_id)
+        .filter(AuditLog.entity_type == "generation")
+        .filter(AuditLog.action == "update")
+        .filter(AuditLog.created_at >= inicio)
+        .filter(AuditLog.created_at < fim)
+        .count()
+    )
+    return criadas + reprocessadas
+
+
 def contar_geracoes_usuario_no_mes(
     db: Session,
     user_id: int,
@@ -157,14 +182,7 @@ def contar_geracoes_usuario_no_mes(
     referencia: datetime | None = None,
 ) -> int:
     inicio, fim = _intervalo_mes_atual(referencia)
-    return (
-        db.query(Generation)
-        .filter(Generation.user_id == user_id)
-        .filter(Generation.deleted_at.is_(None))
-        .filter(Generation.created_at >= inicio)
-        .filter(Generation.created_at < fim)
-        .count()
-    )
+    return _contar_geracoes_usuario_no_intervalo(db, user_id, inicio, fim)
 
 
 def contar_geracoes_usuario_no_dia(
@@ -174,14 +192,7 @@ def contar_geracoes_usuario_no_dia(
     referencia: datetime | None = None,
 ) -> int:
     inicio, fim = _intervalo_dia_atual(referencia)
-    return (
-        db.query(Generation)
-        .filter(Generation.user_id == user_id)
-        .filter(Generation.deleted_at.is_(None))
-        .filter(Generation.created_at >= inicio)
-        .filter(Generation.created_at < fim)
-        .count()
-    )
+    return _contar_geracoes_usuario_no_intervalo(db, user_id, inicio, fim)
 
 
 def contar_perfis_escrita_usuario(db: Session, user_id: int) -> int:

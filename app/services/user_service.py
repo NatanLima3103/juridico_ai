@@ -66,13 +66,13 @@ def validar_dados_cadastro(
 
 
 def criar_usuario(db: Session, payload: UserCreate) -> User:
-    total_usuarios = db.query(User).count()
+    # Acesso administrativo nunca vem do cadastro publico; use scripts/promote_admin.py.
     usuario = User(
         full_name=_normalizar_texto(payload.full_name),
         email=_normalizar_email(payload.email),
         password_hash=hash_password(payload.password),
         is_active=True,
-        is_admin=total_usuarios == 0,
+        is_admin=False,
         plan_slug="free",
     )
     db.add(usuario)
