@@ -1,0 +1,20 @@
+{#
+    Componentes Jinja reutilizaveis.
+    Uso:  {% from "_ui.html" import alerta %}
+          {{ alerta("sucesso", "Operação realizada com sucesso", sucesso) }}
+          {{ alerta("erro", "Não foi possível entrar", erro) }}
+    Tipos: sucesso | erro | aviso | info
+#}
+{% from "_icons.html" import icon %}
+
+{% macro alerta(tipo, titulo, mensagem="") -%}
+{%- set icones = {"sucesso": "check-circle", "erro": "alert-circle", "aviso": "alert-triangle", "info": "info"} -%}
+<div class="alerta alerta-{{ tipo }}" data-alerta role="{{ 'alert' if tipo in ('erro', 'aviso') else 'status' }}">
+    <span class="alerta-icone">{{ icon(icones.get(tipo, "info")) }}</span>
+    <div class="alerta-conteudo">
+        {% if titulo %}<span class="alerta-titulo">{{ titulo }}</span>{% endif %}
+        {% if caller %}{{ caller() }}{% elif mensagem %}<p>{{ mensagem }}</p>{% endif %}
+    </div>
+    <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">{{ icon("x", "sm") }}</button>
+</div>
+{%- endmacro %}

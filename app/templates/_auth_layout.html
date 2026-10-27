@@ -1,0 +1,33 @@
+{#
+    Layout compartilhado das telas de autenticacao (login, cadastro, recuperar e redefinir senha):
+    cartao central estreito sobre --bg-subtle, marca acima, titulo grande e um botao primario largo.
+    Blocos: auth_titulo, auth_subtitulo, auth_alertas, auth_corpo, auth_rodape, auth_depois.
+#}
+{% extends "base.html" %}
+
+{% block body_class %}pagina-auth{% endblock %}
+
+{% block content %}
+<section class="auth" aria-labelledby="auth-titulo">
+    <div class="auth-cartao">
+        <header class="auth-cabecalho">
+            <div class="auth-marca" aria-hidden="true">
+                <img src="{{ url_for('static', path='img/logo-juridico-ai-marca-claro.png') }}" alt="" class="logo-claro" width="56" height="56">
+                <img src="{{ url_for('static', path='img/logo-juridico-ai-marca-escuro.png') }}" alt="" class="logo-escuro" width="56" height="56">
+            </div>
+            <h1 id="auth-titulo">{% block auth_titulo %}{% endblock %}</h1>
+            <p>{% block auth_subtitulo %}{% endblock %}</p>
+        </header>
+
+        {% block auth_alertas %}{% endblock %}
+
+        {% block auth_corpo %}{% endblock %}
+
+        <footer class="auth-rodape">
+            {% block auth_rodape %}{% endblock %}
+        </footer>
+    </div>
+
+    {% block auth_depois %}{% endblock %}
+</section>
+{% endblock %}

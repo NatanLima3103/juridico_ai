@@ -1,96 +1,79 @@
-{% extends "base.html" %}
+{% extends "_auth_layout.html" %}
+{% from "_ui.html" import alerta %}
 
 {% block title %}Criar Conta - Jurídico AI{% endblock %}
 
-{% block content %}
-<section class="card card-form">
-    <div class="secao-topo">
-        <div>
-            <p class="secao-kicker">Etapa 9.1</p>
-            <h1>Criar conta</h1>
-            <p class="secao-subtitulo">
-                Cadastre um usuário para começar a preparar o sistema para uso multiusuário.
-            </p>
-        </div>
+{% block auth_titulo %}Criar conta{% endblock %}
+{% block auth_subtitulo %}Comece a gerar minutas jurídicas com o seu estilo de escrita.{% endblock %}
+
+{% block auth_alertas %}
+    {% if sucesso %}{{ alerta("sucesso", "", sucesso) }}{% endif %}
+    {% if erro %}{{ alerta("erro", "Não foi possível criar a conta", erro) }}{% endif %}
+{% endblock %}
+
+{% block auth_corpo %}
+<form method="post" action="/auth/register" class="form-pilha">
+    <div class="campo">
+        <label for="full_name">Nome completo</label>
+        <input
+            type="text"
+            id="full_name"
+            name="full_name"
+            value="{{ form_data.get('full_name', '') }}"
+            placeholder="Ex.: Ana Martins Pereira"
+            autocomplete="name"
+            required
+        >
     </div>
 
-    {% if sucesso %}
-    <div class="alerta alerta-sucesso" data-alerta>
-        <div class="alerta-conteudo">
-            <span class="alerta-titulo">Operação realizada com sucesso</span>
-            <p>{{ sucesso }}</p>
-        </div>
-        <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+    <div class="campo">
+        <label for="email">E-mail</label>
+        <input
+            type="email"
+            id="email"
+            name="email"
+            value="{{ form_data.get('email', '') }}"
+            placeholder="voce@exemplo.com"
+            autocomplete="email"
+            autocapitalize="none"
+            spellcheck="false"
+            required
+        >
     </div>
-    {% endif %}
 
-    {% if erro %}
-    <div class="alerta alerta-erro" data-alerta>
-        <div class="alerta-conteudo">
-            <span class="alerta-titulo">Não foi possível criar a conta</span>
-            <p>{{ erro }}</p>
-        </div>
-        <button type="button" class="alerta-fechar" data-fechar-alerta aria-label="Fechar mensagem">×</button>
+    <div class="campo">
+        <label for="password">Senha</label>
+        <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="Crie uma senha"
+            autocomplete="new-password"
+            aria-describedby="password-ajuda"
+            required
+        >
+        <p class="campo-ajuda" id="password-ajuda">Use no mínimo 8 caracteres.</p>
     </div>
-    {% endif %}
 
-    <form method="post" action="/auth/register" class="formulario-principal">
-        <div class="campo-formulario">
-            <label for="full_name">Nome completo</label>
-            <input
-                type="text"
-                id="full_name"
-                name="full_name"
-                value="{{ form_data.get('full_name', '') }}"
-                placeholder="Ex.: Ana Martins Pereira"
-                required
-            >
-        </div>
-
-        <div class="campo-formulario">
-            <label for="email">E-mail</label>
-            <input
-                type="email"
-                id="email"
-                name="email"
-                value="{{ form_data.get('email', '') }}"
-                placeholder="voce@exemplo.com"
-                required
-            >
-        </div>
-
-        <div class="campo-formulario">
-            <label for="password">Senha</label>
-            <input
-                type="password"
-                id="password"
-                name="password"
-                placeholder="Mínimo de 8 caracteres"
-                required
-            >
-        </div>
-
-        <div class="campo-formulario">
-            <label for="confirm_password">Confirmar senha</label>
-            <input
-                type="password"
-                id="confirm_password"
-                name="confirm_password"
-                placeholder="Repita a senha informada"
-                required
-            >
-        </div>
-
-        <div class="acoes-formulario">
-            <button type="submit" class="botao">Criar conta</button>
-        </div>
-    </form>
-
-    <div class="card-info">
-        <p>
-            Já tem conta?
-            <a href="/auth/login{% if next and next != '/' %}?next={{ next | urlencode }}{% endif %}">Entrar</a>
-        </p>
+    <div class="campo">
+        <label for="confirm_password">Confirmar senha</label>
+        <input
+            type="password"
+            id="confirm_password"
+            name="confirm_password"
+            placeholder="Repita a senha"
+            autocomplete="new-password"
+            required
+        >
     </div>
-</section>
+
+    <button type="submit" class="botao botao-largo">Criar conta</button>
+</form>
+{% endblock %}
+
+{% block auth_rodape %}
+<p>
+    Já tem conta?
+    <a href="/auth/login{% if next and next != '/' %}?next={{ next | urlencode }}{% endif %}">Entrar</a>
+</p>
 {% endblock %}

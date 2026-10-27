@@ -1,57 +1,162 @@
+{% from "_icons.html" import icon %}
+{%- set logado = request.session.get("user_id") -%}
+{%- set nome_usuario = request.session.get("user_name") or "" -%}
+{%- set caminho = request.url.path -%}
+{%- set itens_nav = [
+    ("/", "Início", "home", caminho == "/"),
+    ("/generations", "Gerações", "sparkles", caminho.startswith("/generations")),
+    ("/documents", "Documentos", "file-text", caminho.startswith("/documents")),
+    ("/writing-profiles", "Perfis", "pen-line", caminho.startswith("/writing-profiles")),
+] -%}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
     <title>{% block title %}Jurídico AI{% endblock %}</title>
+    <script>
+        /* Aplica o tema salvo antes da pintura para evitar flash do tema errado. */
+        (function () {
+            var raiz = document.documentElement;
+            raiz.classList.add("js");
+            try {
+                var tema = window.localStorage.getItem("juridico-tema");
+                if (tema === "light" || tema === "dark") {
+                    raiz.setAttribute("data-theme", tema);
+                }
+            } catch (erro) {}
+        })();
+    </script>
     <link rel="icon" type="image/png" href="{{ url_for('static', path='img/favicon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=7.8">
+    <link rel="preload" href="{{ url_for('static', path='fonts/inter-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=8.0">
 </head>
-<body>
-    <header class="topo">
-        <div class="container topo-conteudo">
-            <a href="/" class="marca-link" aria-label="Ir para a página inicial do Jurídico AI">
-                <img
-                    src="{{ url_for('static', path='img/logo-juridico-ai-sem-fundo.png') }}"
-                    alt="Jurídico AI"
-                    class="logo-juridico"
-                >
+<body class="{% block body_class %}{% endblock %}">
+    <a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+    <header class="cabecalho-site">
+        <div class="container cabecalho-interno">
+            <a href="/" class="marca" aria-label="Jurídico AI, página inicial">
+                <img src="{{ url_for('static', path='img/logo-juridico-ai-claro.png') }}" alt="" class="logo-claro" width="112" height="28">
+                <img src="{{ url_for('static', path='img/logo-juridico-ai-escuro.png') }}" alt="" class="logo-escuro" width="112" height="28">
             </a>
 
-            <nav class="menu">
-                <a href="/">Início</a>
-                {% if not request.session.get("user_id") %}
-                <a href="/auth/register">Cadastro</a>
-                <a href="/auth/login">Login</a>
-                {% endif %}
-                <a href="/documents/upload">Upload</a>
-                <a href="/documents">Documentos</a>
-                <a href="/generations/create">Nova geração</a>
-                <a href="/generations">Gerações</a>
-                <a href="/writing-profiles/create">Novo perfil</a>
-                <a href="/writing-profiles">Perfis</a>
-                <a href="/plans">Planos</a>
-                {% if request.session.get("is_admin") %}
-                <a href="/admin">Admin</a>
-                {% endif %}
-                {% if request.session.get("user_id") %}
-                <form method="post" action="/auth/logout" class="menu-logout-form">
-                    <button type="submit" class="menu-logout-button">
-                        Sair{% if request.session.get("user_name") %} ({{ request.session.get("user_name") }}){% endif %}
-                    </button>
-                </form>
-                {% endif %}
+            {% if logado %}
+            <nav class="nav-principal" aria-label="Principal">
+                <ul>
+                    {% for href, rotulo, _icone, ativo in itens_nav %}
+                    <li><a href="{{ href }}" class="nav-link"{% if ativo %} aria-current="page"{% endif %}>{{ rotulo }}</a></li>
+                    {% endfor %}
+                </ul>
             </nav>
+            {% endif %}
+
+            <div class="cabecalho-acoes">
+                {% if logado %}
+                <a href="/generations/create" class="botao botao-pequeno botao-nova-geracao" aria-label="Nova geração">
+                    {{ icon("plus", "sm") }}
+                    <span class="esconder-celular">Nova geração</span>
+                </a>
+                {% endif %}
+
+                <button type="button" class="botao-icone botao-tema" data-tema-alternar data-estado="system" aria-label="Tema: automático" title="Tema: automático" hidden>
+                    {{ icon("monitor", attrs='data-icone="system"') }}
+                    {{ icon("sun", attrs='data-icone="light"') }}
+                    {{ icon("moon", attrs='data-icone="dark"') }}
+                </button>
+
+                {% if logado %}
+                <details class="menu-usuario" data-menu-usuario>
+                    <summary class="menu-usuario-gatilho" aria-label="Conta de {{ nome_usuario or 'usuário' }}">
+                        <span class="avatar" aria-hidden="true">{{ (nome_usuario or "U")[:1] }}</span>
+                        <span class="menu-usuario-nome">{{ nome_usuario.split(" ")[0] if nome_usuario else "Conta" }}</span>
+                        {{ icon("chevron-down", "sm") }}
+                    </summary>
+                    <div class="menu-usuario-painel">
+                        <div class="menu-usuario-cabecalho">
+                            <strong>{{ nome_usuario or "Sua conta" }}</strong>
+                            {% if request.session.get("is_admin") %}<span>Administrador</span>{% endif %}
+                        </div>
+                        <a href="/plans" class="menu-item"{% if caminho.startswith('/plans') %} aria-current="page"{% endif %}>{{ icon("credit-card") }}Planos</a>
+                        {% if request.session.get("is_admin") %}
+                        <a href="/admin" class="menu-item"{% if caminho.startswith('/admin') %} aria-current="page"{% endif %}>{{ icon("shield") }}Admin</a>
+                        {% endif %}
+                        <form method="post" action="/auth/logout" class="menu-form">
+                            <button type="submit" class="menu-item">{{ icon("log-out") }}Sair</button>
+                        </form>
+                    </div>
+                </details>
+
+                <button type="button" class="botao-icone botao-menu" data-gaveta-abrir aria-expanded="false" aria-controls="gaveta-navegacao" aria-label="Abrir menu" hidden>
+                    {{ icon("menu") }}
+                </button>
+                {% else %}
+                <a href="/auth/login" class="nav-link"{% if caminho.startswith('/auth/login') %} aria-current="page"{% endif %}>Login</a>
+                <a href="/auth/register" class="botao botao-pequeno">Criar conta</a>
+                {% endif %}
+            </div>
         </div>
     </header>
 
-    <main class="container pagina-conteudo">
+    {% if logado %}
+    <div class="gaveta" id="gaveta-navegacao" data-gaveta role="dialog" aria-modal="true" aria-label="Menu de navegação" hidden>
+        <div class="gaveta-fundo" data-gaveta-fechar></div>
+        <div class="gaveta-painel">
+            <div class="gaveta-topo">
+                <span class="gaveta-titulo">{{ nome_usuario or "Menu" }}</span>
+                <button type="button" class="botao-icone" data-gaveta-fechar aria-label="Fechar menu">{{ icon("x") }}</button>
+            </div>
+
+            <a href="/generations/create" class="botao botao-largo">{{ icon("plus", "sm") }}Nova geração</a>
+
+            <nav aria-label="Principal (celular)">
+                <ul class="gaveta-lista">
+                    {% for href, rotulo, icone_nav, ativo in itens_nav %}
+                    <li><a href="{{ href }}" class="menu-item"{% if ativo %} aria-current="page"{% endif %}>{{ icon(icone_nav) }}{{ rotulo }}</a></li>
+                    {% endfor %}
+                </ul>
+            </nav>
+
+            <hr class="gaveta-separador">
+
+            <ul class="gaveta-lista">
+                <li><a href="/plans" class="menu-item"{% if caminho.startswith('/plans') %} aria-current="page"{% endif %}>{{ icon("credit-card") }}Planos</a></li>
+                {% if request.session.get("is_admin") %}
+                <li><a href="/admin" class="menu-item"{% if caminho.startswith('/admin') %} aria-current="page"{% endif %}>{{ icon("shield") }}Admin</a></li>
+                {% endif %}
+                <li>
+                    <form method="post" action="/auth/logout" class="menu-form">
+                        <button type="submit" class="menu-item">{{ icon("log-out") }}Sair</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    <main id="conteudo" class="container pagina-conteudo" tabindex="-1">
         {% block content %}{% endblock %}
     </main>
 
+    <footer class="rodape-site">
+        <div class="container rodape-interno">
+            <p>Jurídico AI · Minutas geradas por IA devem ser revisadas por um profissional habilitado.</p>
+            {% if logado %}
+            <ul class="rodape-links">
+                <li><a href="/plans">Planos</a></li>
+                <li><a href="/documents/upload">Enviar documento</a></li>
+                <li><a href="/writing-profiles/create">Novo perfil</a></li>
+            </ul>
+            {% endif %}
+        </div>
+    </footer>
+
     <div class="loading-overlay" id="loading-overlay" aria-hidden="true">
         <div class="loading-card" role="status" aria-live="polite">
-            <div class="spinner-loading"></div>
+            <div class="spinner-loading" aria-hidden="true"></div>
             <h3>Processando sua solicitação</h3>
             <p id="loading-texto">Aguarde um instante.</p>
         </div>
@@ -59,8 +164,8 @@
 
     <div class="modal-confirmacao" id="modal-confirmacao" aria-hidden="true">
         <div class="modal-confirmacao-backdrop" data-confirm-close></div>
-        <div class="modal-confirmacao-card" role="dialog" aria-modal="true" aria-labelledby="modal-confirmacao-titulo">
-            <div class="modal-confirmacao-icone" aria-hidden="true">!</div>
+        <div class="modal-confirmacao-card" role="alertdialog" aria-modal="true" aria-labelledby="modal-confirmacao-titulo" aria-describedby="modal-confirmacao-mensagem">
+            <div class="modal-confirmacao-icone" aria-hidden="true">{{ icon("alert-triangle", "lg") }}</div>
 
             <div class="modal-confirmacao-conteudo">
                 <h3 id="modal-confirmacao-titulo">Confirmar ação</h3>
@@ -68,19 +173,13 @@
             </div>
 
             <div class="modal-confirmacao-acoes">
-                <button type="button" class="botao botao-secundario" data-confirm-close>
-                    <span class="icone-botao" aria-hidden="true">←</span>
-                    Cancelar
-                </button>
-                <button type="button" class="botao-perigo" id="modal-confirmacao-confirmar">
-                    <span class="icone-botao" aria-hidden="true">🗑</span>
-                    Confirmar
-                </button>
+                <button type="button" class="botao botao-secundario" data-confirm-close>Cancelar</button>
+                <button type="button" class="botao botao-perigo" id="modal-confirmacao-confirmar">Confirmar</button>
             </div>
         </div>
     </div>
 
-    <script src="{{ url_for('static', path='js/main.js') }}?v=1.9"></script>
+    <script src="{{ url_for('static', path='js/main.js') }}?v=2.0"></script>
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>
