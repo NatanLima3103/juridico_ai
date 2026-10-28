@@ -1,5 +1,8 @@
+import logging
+
 from fastapi import APIRouter, Depends, Form, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import PAYMENT_CANCEL_URL, PAYMENT_SUCCESS_URL
@@ -10,8 +13,12 @@ from app.routers.common import templates
 from app.services.audit_service import registrar_acao_usuario
 from app.services.payment_service import (
     PaymentIntegrationUnavailable,
+    PaymentWebhookError,
+    PaymentWebhookEvent,
+    aplicar_evento_pagamento,
     iniciar_checkout_plano,
     pagamento_configurado,
+    validar_webhook,
 )
 from app.services.plan_service import listar_planos_disponiveis, obter_uso_plano_usuario
 
@@ -20,6 +27,13 @@ router = APIRouter(
     tags=["plans"],
     dependencies=[Depends(get_authenticated_user)],
 )
+
+# O provedor de pagamento chama o webhook sem sessao de usuario; a autenticacao e a assinatura HMAC.
+webhook_router = APIRouter(prefix="/plans", tags=["plans"])
+
+PAYMENT_WEBHOOK_PATH = "/plans/payment/webhook"
+
+logger = logging.getLogger(__name__)
 
 
 def _render_plans_page(
@@ -154,3 +168,38 @@ def payment_cancel(
         usuario,
         erro="Pagamento cancelado. Seu plano atual permanece ativo.",
     )
+
+
+def _processar_webhook_pagamento(db: Session, request: Request, evento: PaymentWebhookEvent) -> dict:
+    usuario, plano_anterior, plano_novo = aplicar_evento_pagamento(db, evento)
+    registrar_acao_usuario(
+        db,
+        action="plan_changed_by_payment" if plano_novo != plano_anterior else "plan_payment_event_ignored",
+        usuario=usuario,
+        request=request,
+        metadata={
+            "event_id": evento.event_id,
+            "event": evento.event,
+            "previous_plan": plano_anterior,
+            "plan_slug": plano_novo,
+        },
+    )
+    return {"status": "ok", "plan_slug": plano_novo}
+
+
+@webhook_router.post(PAYMENT_WEBHOOK_PATH.removeprefix("/plans"), name="payment_webhook")
+async def payment_webhook(request: Request, db: Session = Depends(get_db)):
+    body = await request.body()
+    try:
+        evento = validar_webhook(
+            body=body,
+            timestamp=request.headers.get("x-payment-timestamp"),
+            signature=request.headers.get("x-payment-signature"),
+        )
+        resultado = await run_in_threadpool(_processar_webhook_pagamento, db, request, evento)
+    except PaymentWebhookError as exc:
+        logger.warning("Webhook de pagamento recusado: %s", exc)
+        db.rollback()
+        return JSONResponse({"status": "error", "detail": str(exc)}, status_code=exc.status_code)
+
+    return resultado

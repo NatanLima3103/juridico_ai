@@ -143,7 +143,7 @@ class DocumentsOwnershipTests(unittest.TestCase):
         arquivo_salvo = Path(".tmp_pytest") / "upload-ana.pdf"
         arquivo_salvo.write_text("arquivo de teste", encoding="utf-8")
 
-        async def fake_salvar_arquivo_upload(_file):
+        def fake_salvar_arquivo_upload(_file):
             return arquivo_salvo
 
         with patch("app.routers.documents.salvar_arquivo_upload", fake_salvar_arquivo_upload), patch(

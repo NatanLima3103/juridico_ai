@@ -1,5 +1,25 @@
 # Juridico AI
 
+## Seguranca: tentativas, upload, CSRF e webhook de pagamento
+
+### Como ficou
+
+- **Recuperacao de senha:** o token do link nao carrega mais o hash da senha, so um HMAC dele. O link continua invalido assim que a senha muda. Links gerados antes desta versao deixam de funcionar.
+- **Limite de tentativas** (`app/core/rate_limit.py`): 5 falhas de login por e-mail e 20 por IP a cada 15 minutos; 5 pedidos de recuperacao de senha por IP a cada 15 minutos; 10 cadastros por IP por hora. Acima disso a resposta e `429` e o login bloqueado fica registrado como `login_blocked` na auditoria. A contagem fica em memoria: vale para um unico worker do Uvicorn (a stack atual); com mais workers ou instancias precisa ir para um armazenamento compartilhado (ex.: Redis).
+- **IP real atras do proxy:** `docker-compose.prod.yml` define `FORWARDED_ALLOW_IPS=*`, para o Uvicorn usar o `X-Forwarded-For` do Nginx/Caddy. Isso e seguro porque a porta do app so e publicada em `127.0.0.1`. Se o app for exposto diretamente, troque pelo IP do proxy.
+- **Upload:** o arquivo e gravado em blocos e interrompido assim que passa de `MAX_UPLOAD_SIZE_MB`; o conteudo precisa bater com a extensao (PDF comeca com `%PDF-`, DOCX e um ZIP, TXT nao pode ter bytes nulos); a extracao roda fora do event loop; arquivos que falham sao removidos; erros internos vao para o log e o usuario ve uma mensagem generica.
+- **CSRF** (`app/core/csrf.py`): POST, PUT, PATCH e DELETE vindos de outro site sao recusados com `403`, com base em `Sec-Fetch-Site`, `Origin` ou `Referer`. O webhook de pagamento fica fora dessa checagem.
+- **Webhook de pagamento:** `POST /plans/payment/webhook` ativa ou cancela o plano. Enquanto nenhum provedor especifico estiver integrado, o contrato e generico:
+
+```
+X-Payment-Timestamp: <unix timestamp em segundos>
+X-Payment-Signature: sha256=<HMAC-SHA256 de "<timestamp>.<corpo bruto>" com PAYMENT_WEBHOOK_SECRET>
+
+{"event_id": "evt_123", "event": "subscription.activated", "user_id": 42, "plan_slug": "pro"}
+```
+
+`event` pode ser `subscription.activated` ou `subscription.canceled`. Assinatura invalida ou timestamp com mais de 5 minutos de diferenca retorna `401`; sem `PAYMENT_WEBHOOK_SECRET` configurado, `503`. Reenviar o mesmo evento nao altera o resultado. Cada mudanca fica na auditoria como `plan_changed_by_payment`.
+
 ## Correcoes de seguranca e limites de uso
 
 ### Como ficou

@@ -1,3 +1,4 @@
+import logging
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
@@ -29,6 +30,8 @@ from app.services.file_service import salvar_arquivo_upload
 from app.services.text_extractor import extrair_texto_arquivo
 from app.models.user import User
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(
     prefix="/documents",
     tags=["documents"],
@@ -52,16 +55,28 @@ def upload_page(request: Request):
     )
 
 
+# Rota sincrona de proposito: o FastAPI a executa numa thread, entao gravar o arquivo,
+# extrair o texto do PDF/DOCX e salvar no banco nao travam o event loop.
 @router.post("/upload", response_class=HTMLResponse)
-async def upload_document(
+def upload_document(
     request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     usuario: User = Depends(get_authenticated_user),
 ):
+    saved_path = None
+    documento = None
     try:
-        saved_path = await salvar_arquivo_upload(file)
-        extracted_text = extrair_texto_arquivo(saved_path)
+        saved_path = salvar_arquivo_upload(file)
+        try:
+            extracted_text = extrair_texto_arquivo(saved_path)
+        except ValueError:
+            raise
+        except Exception as exc:
+            raise ValueError(
+                "Não foi possível ler o conteúdo do arquivo. Verifique se ele não está "
+                "corrompido ou protegido por senha."
+            ) from exc
 
         document_data = montar_dados_documento(
             original_filename=file.filename,
@@ -102,6 +117,10 @@ async def upload_document(
             },
         )
     except ValueError as exc:
+        if exc.__cause__ is not None:
+            logger.warning("Falha ao extrair texto do upload.", exc_info=exc.__cause__)
+        if saved_path is not None and documento is None:
+            saved_path.unlink(missing_ok=True)
         return templates.TemplateResponse(
             "upload.html",
             {
@@ -115,13 +134,16 @@ async def upload_document(
             },
             status_code=400,
         )
-    except Exception as exc:
+    except Exception:
+        logger.exception("Erro inesperado ao processar upload de documento.")
+        if saved_path is not None and documento is None:
+            saved_path.unlink(missing_ok=True)
         return templates.TemplateResponse(
             "upload.html",
             {
                 "request": request,
                 "title": "Upload de documentos",
-                "error_message": f"Ocorreu um erro ao processar o arquivo: {exc}",
+                "error_message": "Ocorreu um erro inesperado ao processar o arquivo. Tente novamente em instantes.",
                 "sucesso": None,
                 "erro": None,
                 "form_data": {},

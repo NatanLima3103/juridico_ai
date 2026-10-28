@@ -38,6 +38,9 @@ services:
       APP_ENV: production
       DEBUG: "false"
       SESSION_COOKIE_SECURE: "true"
+      # O Uvicorn so fica acessivel pelo proxy (porta publicada em 127.0.0.1), entao
+      # confia no X-Forwarded-For dele para obter o IP real do cliente.
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-*}
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://${POSTGRES_USER:-juridico_ai}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-juridico_ai}}
       UPLOAD_DIR: ${UPLOAD_DIR:-storage/uploads}
       GENERATIONS_DIR: ${GENERATIONS_DIR:-storage/generations}

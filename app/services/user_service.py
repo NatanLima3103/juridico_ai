@@ -1,3 +1,6 @@
+import hashlib
+import hmac
+
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy.orm import Session
 
@@ -160,12 +163,23 @@ def _get_password_reset_serializer() -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(SECRET_KEY, salt=PASSWORD_RESET_SALT)
 
 
+def _impressao_senha(password_hash: str) -> str:
+    # O token so e assinado, nao cifrado: quem tem o link consegue ler o conteudo.
+    # Por isso ele leva apenas um HMAC do hash da senha, que invalida o link quando
+    # a senha muda sem expor o hash em si.
+    return hmac.new(
+        SECRET_KEY.encode("utf-8"),
+        str(password_hash or "").encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()[:32]
+
+
 def gerar_token_recuperacao_senha(usuario: User) -> str:
     serializer = _get_password_reset_serializer()
     return serializer.dumps(
         {
             "user_id": usuario.id,
-            "password_hash": usuario.password_hash,
+            "pwd": _impressao_senha(usuario.password_hash),
         }
     )
 
@@ -178,16 +192,19 @@ def validar_token_recuperacao_senha(db: Session, token: str) -> User | None:
     except (BadSignature, SignatureExpired):
         return None
 
-    user_id = data.get("user_id")
-    password_hash = data.get("password_hash")
-
-    if not user_id or not password_hash:
+    if not isinstance(data, dict):
         return None
 
-    usuario = buscar_usuario_por_id(db, int(user_id))
+    user_id = data.get("user_id")
+    impressao = data.get("pwd")
+
+    if not isinstance(user_id, int) or not isinstance(impressao, str) or not impressao:
+        return None
+
+    usuario = buscar_usuario_por_id(db, user_id)
     if not usuario or not bool(usuario.is_active):
         return None
-    if usuario.password_hash != password_hash:
+    if not hmac.compare_digest(_impressao_senha(usuario.password_hash), impressao):
         return None
     return usuario
 

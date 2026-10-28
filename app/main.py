@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import settings
+from app.core.csrf import OriginCheckMiddleware
 from app.database import initialize_database
 from app.models import Document, Generation, User, WritingProfile
 from app.routers import admin, auth, documents, generations, home, plans, writing_profiles
@@ -19,6 +20,7 @@ initialize_database()
 app = FastAPI(title=settings.app_name, debug=settings.debug)
 logger = logging.getLogger("app.requests")
 
+app.add_middleware(OriginCheckMiddleware, exempt_paths={plans.PAYMENT_WEBHOOK_PATH})
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.secret_key,
@@ -35,6 +37,7 @@ app.include_router(documents.router)
 app.include_router(generations.router)
 app.include_router(writing_profiles.router)
 app.include_router(plans.router)
+app.include_router(plans.webhook_router)
 
 
 @app.middleware("http")

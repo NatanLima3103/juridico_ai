@@ -5,6 +5,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import APP_ENV, DEBUG, SESSION_COOKIE_NAME
+from app.core.rate_limit import (
+    client_ip,
+    login_failures_by_email,
+    login_failures_by_ip,
+    password_reset_requests_by_ip,
+    registrations_by_ip,
+)
 from app.database import get_db
 from app.routers.common import templates
 from app.schemas.user import UserCreate
@@ -23,6 +30,8 @@ from app.services.user_service import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+MENSAGEM_MUITAS_TENTATIVAS = "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente."
 
 
 def _normalizar_destino_pos_login(destino: str | None) -> str:
@@ -117,6 +126,20 @@ def register_user(
         "email": email,
     }
 
+    ip = client_ip(request)
+    if registrations_by_ip.is_blocked(ip):
+        return templates.TemplateResponse(
+            "register.html",
+            {
+                "request": request,
+                "title": "Criar conta",
+                "erro": MENSAGEM_MUITAS_TENTATIVAS,
+                "sucesso": None,
+                "form_data": form_data,
+            },
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
     try:
         dados = validar_dados_cadastro(
             full_name=full_name,
@@ -152,6 +175,7 @@ def register_user(
 
     payload = UserCreate(**dados)
     usuario = criar_usuario(db, payload)
+    registrations_by_ip.hit(ip)
     registrar_acao_usuario(
         db,
         action="user_register",
@@ -199,8 +223,31 @@ def login_user(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
+    ip = client_ip(request)
+    if login_failures_by_email.is_blocked(dados["email"]) or login_failures_by_ip.is_blocked(ip):
+        registrar_acao_usuario(
+            db,
+            action="login_blocked",
+            request=request,
+            metadata={"email": dados["email"], "reason": "too_many_failures"},
+        )
+        return templates.TemplateResponse(
+            "login.html",
+            {
+                "request": request,
+                "title": "Entrar",
+                "erro": MENSAGEM_MUITAS_TENTATIVAS,
+                "sucesso": None,
+                "form_data": form_data,
+                "next": next_url,
+            },
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
     usuario = autenticar_usuario(db, email=dados["email"], password=dados["password"])
     if not usuario:
+        login_failures_by_email.hit(dados["email"])
+        login_failures_by_ip.hit(ip)
         usuario_existente = buscar_usuario_por_email(db, dados["email"])
         registrar_acao_usuario(
             db,
@@ -226,6 +273,8 @@ def login_user(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
+    login_failures_by_email.reset(dados["email"])
+    request.session.clear()
     request.session["user_id"] = usuario.id
     request.session["user_name"] = usuario.full_name
     request.session["is_admin"] = bool(usuario.is_admin)
@@ -267,6 +316,22 @@ def forgot_password_user(
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
+
+    ip = client_ip(request)
+    if password_reset_requests_by_ip.is_blocked(ip):
+        return templates.TemplateResponse(
+            "forgot_password.html",
+            {
+                "request": request,
+                "title": "Recuperar senha",
+                "erro": MENSAGEM_MUITAS_TENTATIVAS,
+                "sucesso": None,
+                "form_data": form_data,
+                "reset_link": None,
+            },
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+    password_reset_requests_by_ip.hit(ip)
 
     usuario = buscar_usuario_por_email(db, dados["email"])
     reset_link = None

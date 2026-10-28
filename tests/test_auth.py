@@ -172,5 +172,74 @@ class AuthLogoutTests(unittest.TestCase):
             db.close()
 
 
+class AuthRateLimitTests(unittest.TestCase):
+    def _registrar(self, client: TestClient) -> None:
+        response = client.post(
+            "/auth/register",
+            data={
+                "full_name": "Maria Silva",
+                "email": "maria@example.com",
+                "password": "senha1234",
+                "confirm_password": "senha1234",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 303)
+
+    def test_login_is_blocked_after_repeated_failures_for_same_email(self):
+        client, testing_session_local = create_auth_test_client_with_session()
+        self._registrar(client)
+
+        for _ in range(5):
+            response = client.post(
+                "/auth/login",
+                data={"email": "maria@example.com", "password": "senha-errada"},
+                follow_redirects=False,
+            )
+            self.assertEqual(response.status_code, 400)
+
+        # Nem a senha certa entra enquanto o bloqueio estiver ativo.
+        response = client.post(
+            "/auth/login",
+            data={"email": "maria@example.com", "password": "senha1234"},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 429)
+        self.assertIn("Muitas tentativas", response.text)
+
+        db = testing_session_local()
+        try:
+            acoes = [acao for (acao,) in db.query(AuditLog.action).all()]
+            self.assertIn("login_blocked", acoes)
+        finally:
+            db.close()
+
+    def test_successful_login_clears_email_failures(self):
+        client, _ = create_auth_test_client_with_session()
+        self._registrar(client)
+
+        for _ in range(4):
+            client.post(
+                "/auth/login",
+                data={"email": "maria@example.com", "password": "senha-errada"},
+                follow_redirects=False,
+            )
+
+        response = client.post(
+            "/auth/login",
+            data={"email": "maria@example.com", "password": "senha1234"},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 303)
+        client.post("/auth/logout", follow_redirects=False)
+
+        response = client.post(
+            "/auth/login",
+            data={"email": "maria@example.com", "password": "senha-errada"},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 400)
+
+
 if __name__ == "__main__":
     unittest.main()
