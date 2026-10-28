@@ -2,17 +2,21 @@
  * Juridico AI - folha de estilos principal
  *
  * Camadas, da menor para a maior prioridade:
- *   legacy     -> CSS antigo (transitorio), sempre perde para o sistema novo
  *   reset      -> normalizacao minima
  *   tokens     -> variaveis de cor, tipografia, espaco, raio e movimento
  *   base       -> elementos HTML (corpo, titulos, links, campos)
+ *   legacy     -> CSS antigo (transitorio): vence reset/base (senao o "* { padding: 0 }"
+ *                 do reset anularia o espacamento das telas antigas), perde para o resto
  *   components -> botoes, campos, cartoes, tabelas, alertas, modal etc.
+ *   legacy-escuro -> tema escuro provisorio dos cartoes claros do CSS antigo; vem
+ *                 depois de components para que o texto preto valha tambem em
+ *                 classes novas usadas dentro deles (ex.: .info-label)
  *   pages      -> ajustes especificos de cada tela
  *   utilities  -> classes utilitarias e preferencia de movimento reduzido
  */
-@layer legacy, reset, tokens, base, components, pages, utilities;
+@layer reset, tokens, base, legacy, components, legacy-escuro, pages, utilities;
 
-@import url("legacy.css?v=8.0") layer(legacy);
+@import url("legacy.css?v=8.4") layer(legacy);
 
 /* Inter variavel, auto-hospedada (SIL Open Font License, ver fonts/LICENSE-Inter.txt) */
 @font-face {
@@ -467,6 +471,87 @@
 
     table {
         border-collapse: collapse;
+    }
+}
+
+/* ==========================================================================
+   LEGADO NO TEMA ESCURO (transitorio)
+   Os cartoes do CSS antigo tem fundo branco fixo; no tema escuro ficam em
+   cinza medio com texto preto. Sai junto com o legacy.css.
+   ========================================================================== */
+@layer legacy-escuro {
+    @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) :is(
+            .admin-card-resumo, .info-box, .destaque-principal, .bloco-destaque-texto,
+            .resultado-texto-claro, .bloco-informativo, .detalhes-contexto,
+            .mini-card, .secao-documentos-base, .documento-base-item,
+            .documento-utilizado-item, .geracao-card, .geracao-info, .geracao-resumo-box,
+            .bloco-filtros-avancados, .filtros-ativos-wrap, .home-metrica-final,
+            .home-lista-item-final, .home-atalho-final, .bloco-template-juridico,
+            .template-juridico-item, .historico-edicoes-conteudo, .plans-usage-card,
+            .plans-comparison, .plan-card, .plan-limits > div
+        ) {
+            background: #d4d2d2;
+            color: #000000;
+        }
+
+        :root:not([data-theme="light"]) :is(.home-lista-item-final, .documento-base-item):hover,
+        :root:not([data-theme="light"]) .documento-base-item.selecionado {
+            background: #e0dede;
+        }
+
+        /* Todo o texto dos cartoes em preto, exceto botoes, etiquetas, badges e campos */
+        :root:not([data-theme="light"]) :is(
+            .admin-card-resumo, .info-box, .destaque-principal, .bloco-destaque-texto,
+            .resultado-texto-claro, .bloco-informativo, .detalhes-contexto,
+            .mini-card, .secao-documentos-base, .documento-base-item,
+            .documento-utilizado-item, .geracao-card, .geracao-info, .geracao-resumo-box,
+            .bloco-filtros-avancados, .filtros-ativos-wrap, .home-metrica-final,
+            .home-lista-item-final, .home-atalho-final, .bloco-template-juridico,
+            .template-juridico-item, .historico-edicoes-conteudo, .plans-usage-card,
+            .plans-comparison, .plan-card, .plan-limits > div
+        ) :not(
+            [class*="botao"], [class*="botao"] *, button, button *,
+            .home-lista-tag, [class*="badge"], input, select, textarea
+        ) {
+            color: #000000;
+        }
+    }
+
+    :root[data-theme="dark"] :is(
+        .admin-card-resumo, .info-box, .destaque-principal, .bloco-destaque-texto,
+        .resultado-texto-claro, .bloco-informativo, .detalhes-contexto,
+        .mini-card, .secao-documentos-base, .documento-base-item,
+        .documento-utilizado-item, .geracao-card, .geracao-info, .geracao-resumo-box,
+        .bloco-filtros-avancados, .filtros-ativos-wrap, .home-metrica-final,
+        .home-lista-item-final, .home-atalho-final, .bloco-template-juridico,
+        .template-juridico-item, .historico-edicoes-conteudo, .plans-usage-card,
+        .plans-comparison, .plan-card, .plan-limits > div
+    ) {
+        background: #d4d2d2;
+        color: #000000;
+    }
+
+    :root[data-theme="dark"] :is(.home-lista-item-final, .documento-base-item):hover,
+    :root[data-theme="dark"] .documento-base-item.selecionado {
+        background: #e0dede;
+    }
+
+    /* Todo o texto dos cartoes em preto, exceto botoes, etiquetas, badges e campos */
+    :root[data-theme="dark"] :is(
+        .admin-card-resumo, .info-box, .destaque-principal, .bloco-destaque-texto,
+        .resultado-texto-claro, .bloco-informativo, .detalhes-contexto,
+        .mini-card, .secao-documentos-base, .documento-base-item,
+        .documento-utilizado-item, .geracao-card, .geracao-info, .geracao-resumo-box,
+        .bloco-filtros-avancados, .filtros-ativos-wrap, .home-metrica-final,
+        .home-lista-item-final, .home-atalho-final, .bloco-template-juridico,
+        .template-juridico-item, .historico-edicoes-conteudo, .plans-usage-card,
+        .plans-comparison, .plan-card, .plan-limits > div
+    ) :not(
+        [class*="botao"], [class*="botao"] *, button, button *,
+        .home-lista-tag, [class*="badge"], input, select, textarea
+    ) {
+        color: #000000;
     }
 }
 

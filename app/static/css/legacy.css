@@ -1,29 +1,9 @@
 /*
- * CSS LEGADO (transitorio) - importado por style.css na camada "legacy", a de menor prioridade.
+ * CSS LEGADO (transitorio) - importado por style.css na camada "legacy", entre "base" e "components".
+ * Ganha do reset e dos estilos de elemento, perde para os componentes e telas do sistema novo.
+ * Por isso nao deve redefinir elementos que o reset e o base ja estilizam (*, body, a, label, input...).
  * Cada tela redesenhada deixa de depender destas regras; o arquivo sera removido no acabamento.
  */
-
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-    font-family: Arial, Helvetica, sans-serif;
-    background: #f4f7fb;
-    color: #1f2937;
-    line-height: 1.6;
-}
-
-a {
-    color: #1d4ed8;
-    text-decoration: none;
-}
-
-a:hover {
-    text-decoration: underline;
-}
 
 .container {
     width: min(1180px, 92%);
@@ -317,51 +297,6 @@ form {
     display: flex;
     flex-direction: column;
     gap: 14px;
-}
-
-label {
-    font-weight: bold;
-    color: #0f172a;
-}
-
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="number"],
-select,
-textarea {
-    width: 100%;
-    padding: 12px 14px;
-    border: 1px solid #cbd5e1;
-    border-radius: 10px;
-    font-size: 14px;
-    background: #ffffff;
-    color: #1f2937;
-}
-
-input[type="text"]:focus,
-input[type="email"]:focus,
-input[type="password"]:focus,
-input[type="number"]:focus,
-select:focus,
-textarea:focus {
-    outline: none;
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-}
-
-textarea {
-    resize: vertical;
-    min-height: 120px;
-}
-
-select,
-textarea,
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="number"] {
-    appearance: none;
 }
 
 .erro {
@@ -1806,6 +1741,7 @@ button.botao,
 }
 
 .home-hero-titulo {
+    color: inherit;
     font-size: 29px;
     line-height: 1.1;
     letter-spacing: -0.025em;
